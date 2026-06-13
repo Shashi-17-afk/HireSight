@@ -38,4 +38,14 @@ jobs.post("/", async (c) => {
   return c.json({ job_id: jobId, title: body.title.trim() }, 201);
 });
 
+// Fetch a single job by ID (used by the candidate apply page)
+jobs.get("/:id", async (c) => {
+  const job = await c.env.DB.prepare("SELECT id, title, description FROM jobs WHERE id = ?")
+    .bind(c.req.param("id"))
+    .first<{ id: string; title: string; description: string }>();
+
+  if (!job) return c.json({ error: "Job not found" }, 404);
+  return c.json(job);
+});
+
 export default jobs;
