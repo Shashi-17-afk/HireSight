@@ -36,4 +36,4 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_classes = ["LeaderboardDO"]
+new_sqlite_classes = ["LeaderboardDO"]
