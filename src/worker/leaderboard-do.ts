@@ -5,6 +5,7 @@ export interface LeaderboardEntry {
   name: string;
   score: number;
   reasoning: string;
+  submittedAt: number; // ms epoch — used as tiebreaker (earlier = higher rank)
 }
 
 export class LeaderboardDO extends DurableObject<Env> {
@@ -44,16 +45,19 @@ export class LeaderboardDO extends DurableObject<Env> {
     if (url.pathname.endsWith("/update") && request.method === "POST") {
       const entry = (await request.json()) as LeaderboardEntry;
 
-      // Replace existing entry if candidate re-submitted, otherwise add
+      // Replace existing entry if candidate re-submitted, preserve original submittedAt
       const existingIdx = this.entries.findIndex((e) => e.id === entry.id);
       if (existingIdx >= 0) {
-        this.entries[existingIdx] = entry;
+        this.entries[existingIdx] = {
+          ...entry,
+          submittedAt: this.entries[existingIdx].submittedAt, // keep original time
+        };
       } else {
-        this.entries.push(entry);
+        this.entries.push({ ...entry, submittedAt: entry.submittedAt ?? Date.now() });
       }
 
-      // Sort descending by score
-      this.entries.sort((a, b) => b.score - a.score);
+      // Sort: score descending; ties broken by submission time ascending (earlier = higher rank)
+      this.entries.sort((a, b) => b.score - a.score || a.submittedAt - b.submittedAt);
 
       // Persist to DO storage so leaderboard survives restarts
       await this.ctx.storage.put("entries", this.entries);

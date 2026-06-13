@@ -6,6 +6,7 @@ interface LeaderboardEntry {
   name: string;
   score: number;
   reasoning: string;
+  submittedAt?: number;
 }
 
 type WsStatus = "connecting" | "connected" | "disconnected";
@@ -18,10 +19,24 @@ function scoreBadge(score: number) {
   return <span className="badge badge-red">{score}</span>;
 }
 
-function rankCell(rank: number) {
+function rankCell(rank: number, tied: boolean) {
   const cls =
     rank === 1 ? "rank-cell rank-1" : rank === 2 ? "rank-cell rank-2" : rank === 3 ? "rank-cell rank-3" : "rank-cell";
-  return <td className={cls}>{rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`}</td>;
+  const label = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+  return (
+    <td className={cls}>
+      {label}
+      {tied && (
+        <span title="Tied score — earlier applicant ranked higher" style={{
+          marginLeft: ".3rem", fontSize: ".65rem", fontWeight: 700,
+          background: "var(--gray-100)", color: "var(--gray-500)",
+          padding: ".1rem .3rem", borderRadius: 4, verticalAlign: "middle",
+        }}>
+          =
+        </span>
+      )}
+    </td>
+  );
 }
 
 export default function Dashboard() {
@@ -95,21 +110,25 @@ export default function Dashboard() {
     };
   }, [job_id]);
 
+  const avgScore = entries.length
+    ? Math.round(entries.reduce((sum, e) => sum + e.score, 0) / entries.length)
+    : 0;
+  const topScore = entries.length ? entries[0].score : 0;
+  const strongFits = entries.filter((e) => e.score >= 80).length;
+
   return (
     <div className="page-wide">
       <div className="dash-header">
         <div>
           <h1 className="page-title">Live Leaderboard</h1>
           <p className="page-sub" style={{ marginBottom: 0 }}>
-            Job ID: <code style={{ fontSize: ".8rem" }}>{job_id}</code>
+            Job ID: <code style={{ fontSize: ".78rem", background: "var(--gray-100)", padding: ".1rem .4rem", borderRadius: 4 }}>{job_id}</code>
           </p>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: ".75rem", flexWrap: "wrap" }}>
           {status === "connected" && (
-            <span className="live-pill">
-              <span className="live-dot" /> LIVE
-            </span>
+            <span className="live-pill"><span className="live-dot" /> LIVE</span>
           )}
           {status === "connecting" && <span className="connecting">Connecting…</span>}
           {status === "disconnected" && (
@@ -121,30 +140,49 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Candidate apply link */}
-      <div className="card" style={{ marginBottom: "1.25rem", padding: "1rem 1.5rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: ".75rem", flexWrap: "wrap" }}>
-          <span style={{ fontSize: ".875rem", fontWeight: 600, color: "var(--gray-700)", whiteSpace: "nowrap" }}>
-            Candidate Apply Link:
-          </span>
-          <code style={{ fontSize: ".8rem", color: "var(--gray-600)", wordBreak: "break-all" }}>
-            {applyLink}
-          </code>
-          <Link
-            to={`/apply/${job_id ?? ""}`}
-            className="btn btn-outline"
-            style={{ fontSize: ".8rem", padding: ".35rem .9rem", whiteSpace: "nowrap" }}
-          >
-            Open Apply Page
-          </Link>
+      {/* Stats row */}
+      {entries.length > 0 && (
+        <div className="stats-row">
+          <div className="stat-card">
+            <div className="stat-value">{entries.length}</div>
+            <div className="stat-label">Candidates</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: topScore >= 80 ? "var(--green)" : topScore >= 50 ? "var(--yellow)" : "var(--red)" }}>
+              {topScore}
+            </div>
+            <div className="stat-label">Top Score</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{strongFits}</div>
+            <div className="stat-label">Strong Fits ≥80</div>
+          </div>
         </div>
+      )}
+
+      {/* Apply link bar */}
+      <div className="card-sm" style={{ marginBottom: "1.1rem", display: "flex", alignItems: "center", gap: ".75rem", flexWrap: "wrap" }}>
+        <span style={{ fontSize: ".82rem", fontWeight: 600, color: "var(--gray-600)", whiteSpace: "nowrap" }}>
+          Apply Link:
+        </span>
+        <code style={{ fontSize: ".78rem", color: "var(--gray-500)", wordBreak: "break-all", flex: 1 }}>
+          {applyLink}
+        </code>
+        <Link
+          to={`/apply/${job_id ?? ""}`}
+          className="btn btn-outline"
+          style={{ fontSize: ".8rem", padding: ".35rem .9rem", whiteSpace: "nowrap" }}
+        >
+          Open ↗
+        </Link>
       </div>
 
       <div className="card">
         {entries.length === 0 ? (
           <div className="empty-state">
-            <div style={{ fontSize: "2.5rem" }}>📭</div>
-            <p>No candidates yet. Share the apply link to get started!</p>
+            <div className="empty-state-icon">📭</div>
+            <p style={{ fontWeight: 600, color: "var(--gray-600)", fontSize: ".95rem" }}>Waiting for candidates</p>
+            <p>Share the apply link above to start receiving scored applications.</p>
           </div>
         ) : (
           <div className="table-wrap">
@@ -152,45 +190,37 @@ export default function Dashboard() {
               <thead>
                 <tr>
                   <th>Rank</th>
-                  <th>Name</th>
+                  <th>Candidate</th>
                   <th>Score</th>
                   <th>AI Reasoning</th>
                 </tr>
               </thead>
               <tbody>
-                {entries.map((entry, i) => (
-                  <tr
-                    key={entry.id}
-                    style={
-                      newIds.has(entry.id)
-                        ? { background: "#fefce8", transition: "background 2s" }
-                        : {}
-                    }
-                  >
-                    {rankCell(i + 1)}
+                {entries.map((entry, i) => {
+                  const tied =
+                    (i > 0 && entries[i - 1].score === entry.score) ||
+                    (i < entries.length - 1 && entries[i + 1].score === entry.score);
+                  return (
+                  <tr key={entry.id} className={newIds.has(entry.id) ? "row-new" : ""}>
+                    {rankCell(i + 1, tied)}
                     <td style={{ fontWeight: 600 }}>{entry.name}</td>
                     <td>{scoreBadge(entry.score)}</td>
                     <td className="reasoning-text">{entry.reasoning}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
 
-        <div
-          style={{
-            marginTop: "1rem",
-            paddingTop: "1rem",
-            borderTop: "1px solid var(--gray-100)",
-            fontSize: ".8rem",
-            color: "var(--gray-400)",
-          }}
-        >
-          {entries.length} candidate{entries.length !== 1 ? "s" : ""} ranked •{" "}
-          <span style={{ color: "var(--green)" }}>≥80</span> strong fit •{" "}
-          <span style={{ color: "var(--yellow)" }}>50–79</span> potential •{" "}
-          <span style={{ color: "var(--red)" }}>{"<50"}</span> not a match
+        <div className="table-footer">
+          <span>{entries.length} candidate{entries.length !== 1 ? "s" : ""} • avg score: <strong>{avgScore || "—"}</strong></span>
+          <span style={{ marginLeft: "auto", display: "flex", gap: "1rem" }}>
+            <span><span className="legend-dot" style={{ background: "var(--green)" }} />≥80 strong fit</span>
+            <span><span className="legend-dot" style={{ background: "var(--yellow)" }} />50–79 potential</span>
+            <span><span className="legend-dot" style={{ background: "var(--red)" }} />&lt;50 no match</span>
+          </span>
         </div>
       </div>
     </div>
