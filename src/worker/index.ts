@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { LeaderboardDO } from "./leaderboard-do";
 import jobs from "./routes/jobs";
+import candidates from "./routes/candidates";
 
 export { LeaderboardDO };
 
@@ -24,5 +25,8 @@ app.get("/api/health", (c) =>
 
 // Job creation
 app.route("/api/jobs", jobs);
+
+// Candidate submission + AI scoring
+app.route("/api/candidates", candidates);
 
 export default app;
