@@ -1,0 +1,39 @@
+name = "hiring-screener"
+main = "src/worker/index.ts"
+compatibility_date = "2026-06-13"
+compatibility_flags = ["nodejs_compat"]
+upload_source_maps = true
+
+[assets]
+directory = "./dist/client"
+not_found_handling = "single-page-application"
+
+[observability]
+enabled = true
+
+# Workers AI binding
+[ai]
+binding = "AI"
+
+# D1 SQLite database
+[[d1_databases]]
+binding = "DB"
+database_name = "hiring_db"
+database_id = "f3d55b49-0200-42c4-9de9-17451bc67d47"
+remote = true
+
+# Vectorize index for resume/JD embeddings (768-dim from bge-base-en-v1.5)
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "resumes_index"
+remote = true
+
+# Durable Object for live leaderboard WebSocket updates
+[durable_objects]
+bindings = [
+  { name = "LEADERBOARD", class_name = "LeaderboardDO" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["LeaderboardDO"]
