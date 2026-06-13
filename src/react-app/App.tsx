@@ -7,15 +7,21 @@ const ApplyJob = lazy(() => import("./pages/ApplyJob"));
 function Navbar() {
   const { pathname } = useLocation();
   const isDash = pathname.startsWith("/dashboard");
+  const isApply = pathname.startsWith("/apply");
   return (
     <nav className="nav">
-      <Link to="/" className="nav-logo">
-        🤖 AI Hiring <span>Screener</span>
+      <Link to="/" className="nav-logo" style={{ textDecoration: "none" }}>
+        <span className="nav-logo-icon">🤖</span>
+        AI Hiring <span>Screener</span>
       </Link>
+      <span className="nav-spacer" />
       {isDash && (
-        <Link to="/" style={{ marginLeft: "auto", fontSize: ".875rem", color: "var(--gray-600)" }}>
-          + Post a Job
-        </Link>
+        <Link to="/" className="nav-link">+ Post a Job</Link>
+      )}
+      {isApply && (
+        <span className="nav-link" style={{ color: "var(--gray-400)", cursor: "default" }}>
+          Candidate Application
+        </span>
       )}
     </nav>
   );

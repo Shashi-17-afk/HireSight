@@ -46,6 +46,7 @@ export default function ApplyJob() {
   const [extractedText, setExtractedText] = useState("");
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState("");
+  const [dragover, setDragover] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -123,12 +124,6 @@ export default function ApplyJob() {
     }
   }
 
-  function scoreBadgeClass(score: number) {
-    if (score >= 80) return "badge badge-green";
-    if (score >= 50) return "badge badge-yellow";
-    return "badge badge-red";
-  }
-
   function scoreLabel(score: number) {
     if (score >= 80) return "Strong Fit ✓";
     if (score >= 50) return "Potential Match";
@@ -136,45 +131,51 @@ export default function ApplyJob() {
   }
 
   if (result) {
+    const radius = 72;
+    const circ = 2 * Math.PI * radius;
+    const offset = circ - (result.score / 100) * circ;
+    const fillClass =
+      result.score >= 80
+        ? "score-circle-fill-green"
+        : result.score >= 50
+        ? "score-circle-fill-yellow"
+        : "score-circle-fill-red";
+    const scoreColor =
+      result.score >= 80 ? "var(--green)" : result.score >= 50 ? "var(--yellow)" : "var(--red)";
+
     return (
       <div className="page">
-        <div className="card" style={{ textAlign: "center", padding: "2.5rem" }}>
-          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>
+        <div className="card score-result-card">
+          <div style={{ fontSize: "2rem", marginBottom: ".75rem" }}>
             {result.score >= 80 ? "🎉" : result.score >= 50 ? "🤔" : "😔"}
           </div>
-          <h2 style={{ fontSize: "1.4rem", marginBottom: ".5rem" }}>
-            Your AI Score
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "1.5rem", letterSpacing: "-.02em" }}>
+            Your AI Match Score
           </h2>
-          <div style={{ marginBottom: "1rem" }}>
-            <span
-              className={scoreBadgeClass(result.score)}
-              style={{ fontSize: "2rem", padding: ".4rem 1.2rem" }}
-            >
-              {result.score}/100
-            </span>
+
+          <div className="score-circle-wrap">
+            <svg width="180" height="180" viewBox="0 0 180 180">
+              <circle className="score-circle-bg" cx="90" cy="90" r={radius} strokeWidth="10" />
+              <circle
+                className={`score-circle-fill ${fillClass}`}
+                cx="90" cy="90" r={radius}
+                strokeWidth="10"
+                strokeDasharray={circ}
+                strokeDashoffset={offset}
+              />
+            </svg>
+            <div className="score-circle-text">
+              <span className="score-number" style={{ color: scoreColor }}>{result.score}</span>
+              <span className="score-denom">/ 100</span>
+            </div>
           </div>
-          <p style={{ fontWeight: 600, marginBottom: ".5rem", color: "var(--gray-800)" }}>
-            {scoreLabel(result.score)}
-          </p>
-          <p
-            style={{
-              color: "var(--gray-600)",
-              fontSize: ".95rem",
-              lineHeight: 1.6,
-              maxWidth: "480px",
-              margin: "0 auto",
-            }}
-          >
+
+          <p className="score-label-text" style={{ color: scoreColor }}>{scoreLabel(result.score)}</p>
+          <p style={{ color: "var(--gray-500)", fontSize: ".93rem", lineHeight: 1.65, maxWidth: "480px", margin: "0 auto 1.5rem" }}>
             {result.reasoning}
           </p>
-          <p
-            style={{
-              marginTop: "1.5rem",
-              fontSize: ".8rem",
-              color: "var(--gray-400)",
-            }}
-          >
-            Your application has been submitted. The hiring team will be in touch.
+          <p style={{ fontSize: ".78rem", color: "var(--gray-400)" }}>
+            Application submitted. The hiring team will review your profile.
           </p>
         </div>
       </div>
@@ -191,10 +192,12 @@ export default function ApplyJob() {
       ) : (
         <>
           <h1 className="page-title">Apply for this Role</h1>
-          {job && (
+          {job ? (
             <p className="page-sub">
-              Applying for: <strong>{job.title}</strong>
+              Applying for: <strong style={{ color: "var(--gray-800)" }}>{job.title}</strong>
             </p>
+          ) : (
+            <p className="page-sub">Loading job details…</p>
           )}
 
           <div className="card">
@@ -224,65 +227,73 @@ export default function ApplyJob() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="resume">Resume (PDF)</label>
-                <input
-                  id="resume"
-                  ref={fileInputRef}
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(e) => void handleFileChange(e)}
-                  required
-                  style={{ padding: ".5rem .875rem" }}
-                />
-                {extracting && (
-                  <p style={{ fontSize: ".82rem", color: "var(--brand)", marginTop: ".35rem" }}>
-                    ⏳ Extracting text from PDF…
-                  </p>
-                )}
+                <label>Resume (PDF)</label>
+                <div
+                  className={`drop-zone ${dragover ? "dragover" : ""} ${file && extractedText ? "has-file" : ""}`}
+                  onDragOver={(e) => { e.preventDefault(); setDragover(true); }}
+                  onDragLeave={() => setDragover(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragover(false);
+                    const dropped = e.dataTransfer.files[0];
+                    if (dropped) {
+                      const synth = { target: { files: [dropped] } } as unknown as React.ChangeEvent<HTMLInputElement>;
+                      void handleFileChange(synth);
+                    }
+                  }}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => void handleFileChange(e)}
+                    required={!extractedText}
+                  />
+                  {extracting ? (
+                    <>
+                      <div className="drop-zone-icon">⏳</div>
+                      <div className="drop-zone-text">Reading your PDF…</div>
+                      <div className="drop-zone-sub">Extracting text with AI</div>
+                    </>
+                  ) : file && extractedText ? (
+                    <>
+                      <div className="drop-zone-icon">✅</div>
+                      <div className="drop-zone-text">{file.name}</div>
+                      <div className="drop-zone-sub">{extractedText.length.toLocaleString()} characters extracted — ready to score</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="drop-zone-icon">📄</div>
+                      <div className="drop-zone-text">Drop your PDF here or click to browse</div>
+                      <div className="drop-zone-sub">PDF files only · Text-based (not scanned)</div>
+                    </>
+                  )}
+                </div>
                 {extractError && (
-                  <p style={{ fontSize: ".82rem", color: "var(--red)", marginTop: ".35rem" }}>
-                    {extractError}
-                  </p>
-                )}
-                {file && extractedText && !extracting && (
-                  <p style={{ fontSize: ".82rem", color: "var(--green)", marginTop: ".35rem" }}>
-                    ✓ {file.name} — {extractedText.length.toLocaleString()} characters extracted
-                  </p>
+                  <p className="error-text" style={{ marginTop: ".4rem" }}>⚠ {extractError}</p>
                 )}
               </div>
 
               {submitError && (
-                <p style={{ color: "var(--red)", fontSize: ".875rem", marginBottom: "1rem" }}>
-                  {submitError}
-                </p>
+                <p className="error-text">⚠ {submitError}</p>
               )}
 
               <button
                 type="submit"
-                className="btn btn-primary"
-                disabled={
-                  submitting || extracting || !extractedText || !name.trim() || !email.trim()
-                }
-                style={{ width: "100%" }}
+                className="btn btn-primary btn-full"
+                disabled={submitting || extracting || !extractedText || !name.trim() || !email.trim()}
               >
                 {submitting ? (
-                  <><span className="spinner" /> Scoring your resume with AI…</>
+                  <><span className="spinner" /> Scoring with AI…</>
                 ) : (
-                  "Submit & Get AI Score"
+                  "Submit & Get AI Score →"
                 )}
               </button>
             </form>
           </div>
 
-          <p
-            style={{
-              marginTop: "1rem",
-              fontSize: ".8rem",
-              color: "var(--gray-400)",
-              textAlign: "center",
-            }}
-          >
-            Your resume is analyzed instantly by AI. You'll see your score immediately.
+          <p style={{ marginTop: "1rem", fontSize: ".78rem", color: "var(--gray-400)", textAlign: "center" }}>
+            Your resume is analyzed instantly. Score appears immediately after submission.
           </p>
         </>
       )}

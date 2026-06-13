@@ -144,6 +144,7 @@ Resume: ${body.resume_text}`;
           name: body.name.trim(),
           score,
           reasoning,
+          submittedAt: Date.now(),
         }),
       })
     );

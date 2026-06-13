@@ -46,14 +46,24 @@ export default function PostJob() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Post a Job</h1>
-      <p className="page-sub">
-        Paste your job description — our AI will score every applicant automatically.
-      </p>
+      {!result && (
+        <div className="hero">
+          <div className="hero-badge">✦ Powered by Cloudflare Workers AI</div>
+          <h1>Hire smarter with <span>AI screening</span></h1>
+          <p>Post a job, share a link. Our AI scores every resume instantly and ranks candidates on a live leaderboard.</p>
+          <div className="feature-pills">
+            <span className="pill">🧠 Semantic AI Scoring</span>
+            <span className="pill">⚡ Real-time Leaderboard</span>
+            <span className="pill">🔗 Shareable Apply Links</span>
+            <span className="pill">📄 PDF Resume Parsing</span>
+          </div>
+        </div>
+      )}
 
       <div className="card">
         {!result ? (
           <form onSubmit={(e) => void handleSubmit(e)}>
+            <p className="section-label">New Job Posting</p>
             <div className="form-group">
               <label htmlFor="title">Job Title</label>
               <input
@@ -70,48 +80,52 @@ export default function PostJob() {
               <label htmlFor="description">Job Description</label>
               <textarea
                 id="description"
-                placeholder="Paste the full job description here — skills, experience, responsibilities..."
+                placeholder="Paste the full job description — required skills, experience level, responsibilities…"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={8}
+                rows={9}
                 required
               />
             </div>
 
             {error && (
-              <p style={{ color: "var(--red)", fontSize: ".875rem", marginBottom: "1rem" }}>
-                {error}
-              </p>
+              <p className="error-text">⚠ {error}</p>
             )}
 
             <button
               type="submit"
-              className="btn btn-primary"
+              className="btn btn-primary btn-full"
               disabled={loading || !title.trim() || !description.trim()}
             >
-              {loading ? <><span className="spinner" /> Creating…</> : "Create Job & Generate Link"}
+              {loading ? <><span className="spinner" /> Creating job…</> : "Create Job & Generate Apply Link →"}
             </button>
           </form>
         ) : (
           <>
-            <div style={{ display: "flex", alignItems: "center", gap: ".75rem", marginBottom: "1rem" }}>
-              <span style={{ fontSize: "1.5rem" }}>🎉</span>
+            <div style={{ display: "flex", alignItems: "center", gap: ".875rem", marginBottom: "1.25rem" }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                background: "linear-gradient(135deg,#f0fdf4,#dcfce7)",
+                border: "1.5px solid #86efac",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "1.35rem"
+              }}>🎉</div>
               <div>
-                <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{result.title}</div>
-                <div style={{ fontSize: ".85rem", color: "var(--gray-600)" }}>
-                  Job posted successfully — share the link with candidates
+                <div style={{ fontWeight: 700, fontSize: "1.05rem", letterSpacing: "-.01em" }}>{result.title}</div>
+                <div style={{ fontSize: ".83rem", color: "var(--gray-500)", marginTop: ".1rem" }}>
+                  Job posted — share the apply link with candidates
                 </div>
               </div>
             </div>
 
             <div className="success-box">
               <h3>Candidate Apply Link</h3>
-              <p style={{ fontSize: ".875rem", color: "var(--gray-600)" }}>
-                Share this link so candidates can upload their resumes:
+              <p style={{ fontSize: ".83rem", color: "var(--gray-600)", marginBottom: ".25rem" }}>
+                Anyone with this link can upload their resume and get an AI score instantly.
               </p>
               <div className="copy-link">
                 <input readOnly value={applyLink} onClick={(e) => (e.target as HTMLInputElement).select()} />
-                <button className="btn btn-outline" onClick={copyLink} type="button">
+                <button className="btn btn-outline" onClick={copyLink} type="button" style={{ flexShrink: 0 }}>
                   {copied ? "✓ Copied!" : "Copy"}
                 </button>
               </div>
