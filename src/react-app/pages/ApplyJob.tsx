@@ -171,10 +171,10 @@ export default function ApplyJob() {
           </div>
 
           <p className="score-label-text" style={{ color: scoreColor }}>{scoreLabel(result.score)}</p>
-          <p style={{ color: "var(--gray-500)", fontSize: ".93rem", lineHeight: 1.65, maxWidth: "480px", margin: "0 auto 1.5rem" }}>
+          <p style={{ color: "var(--text-secondary)", fontSize: ".93rem", lineHeight: 1.65, maxWidth: "480px", margin: "0 auto 1.5rem" }}>
             {result.reasoning}
           </p>
-          <p style={{ fontSize: ".78rem", color: "var(--gray-400)" }}>
+          <p style={{ fontSize: ".78rem", color: "var(--text-muted)" }}>
             Application submitted. The hiring team will review your profile.
           </p>
         </div>
@@ -194,7 +194,7 @@ export default function ApplyJob() {
           <h1 className="page-title">Apply for this Role</h1>
           {job ? (
             <p className="page-sub">
-              Applying for: <strong style={{ color: "var(--gray-800)" }}>{job.title}</strong>
+              Applying for: <strong style={{ color: "var(--text-primary)" }}>{job.title}</strong>
             </p>
           ) : (
             <p className="page-sub">Loading job details…</p>
@@ -292,7 +292,7 @@ export default function ApplyJob() {
             </form>
           </div>
 
-          <p style={{ marginTop: "1rem", fontSize: ".78rem", color: "var(--gray-400)", textAlign: "center" }}>
+          <p style={{ marginTop: "1rem", fontSize: ".78rem", color: "var(--text-muted)", textAlign: "center" }}>
             Your resume is analyzed instantly. Score appears immediately after submission.
           </p>
         </>

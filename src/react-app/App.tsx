@@ -11,8 +11,8 @@ function Navbar() {
   return (
     <nav className="nav">
       <Link to="/" className="nav-logo" style={{ textDecoration: "none" }}>
-        <span className="nav-logo-icon">🤖</span>
-        AI Hiring <span>Screener</span>
+        <span className="nav-logo-icon">✨</span>
+        Hire<span>Sight</span>
       </Link>
       <span className="nav-spacer" />
       {isDash && (

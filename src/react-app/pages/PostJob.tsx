@@ -49,13 +49,13 @@ export default function PostJob() {
       {!result && (
         <div className="hero">
           <div className="hero-badge">✦ Powered by Cloudflare Workers AI</div>
-          <h1>Hire smarter with <span>AI screening</span></h1>
+          <h1>Hire smarter with <span>HireSight</span></h1>
           <p>Post a job, share a link. Our AI scores every resume instantly and ranks candidates on a live leaderboard.</p>
           <div className="feature-pills">
-            <span className="pill">🧠 Semantic AI Scoring</span>
+            <span className="pill">🧠 Neural AI Scoring</span>
             <span className="pill">⚡ Real-time Leaderboard</span>
             <span className="pill">🔗 Shareable Apply Links</span>
-            <span className="pill">📄 PDF Resume Parsing</span>
+            <span className="pill">📄 Browser-side PDF Parsing</span>
           </div>
         </div>
       )}
@@ -105,33 +105,33 @@ export default function PostJob() {
             <div style={{ display: "flex", alignItems: "center", gap: ".875rem", marginBottom: "1.25rem" }}>
               <div style={{
                 width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-                background: "linear-gradient(135deg,#f0fdf4,#dcfce7)",
-                border: "1.5px solid #86efac",
+                background: "linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.2))",
+                border: "1.5px solid rgba(16,185,129,0.4)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: "1.35rem"
               }}>🎉</div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: "1.05rem", letterSpacing: "-.01em" }}>{result.title}</div>
-                <div style={{ fontSize: ".83rem", color: "var(--gray-500)", marginTop: ".1rem" }}>
+                <div style={{ fontSize: ".83rem", color: "var(--text-secondary)", marginTop: ".1rem" }}>
                   Job posted — share the apply link with candidates
                 </div>
               </div>
             </div>
 
             <div className="success-box">
-              <h3>Candidate Apply Link</h3>
-              <p style={{ fontSize: ".83rem", color: "var(--gray-600)", marginBottom: ".25rem" }}>
+              <h3>✨ Candidate Apply Link</h3>
+              <p style={{ fontSize: ".83rem", color: "var(--text-secondary)", marginBottom: ".25rem" }}>
                 Anyone with this link can upload their resume and get an AI score instantly.
               </p>
               <div className="copy-link">
                 <input readOnly value={applyLink} onClick={(e) => (e.target as HTMLInputElement).select()} />
                 <button className="btn btn-outline" onClick={copyLink} type="button" style={{ flexShrink: 0 }}>
-                  {copied ? "✓ Copied!" : "Copy"}
+                  {copied ? "✓ Copied!" : "Copy Link"}
                 </button>
               </div>
             </div>
 
-            <div style={{ marginTop: "1.25rem", display: "flex", gap: ".75rem", flexWrap: "wrap" }}>
+            <div style={{ marginTop: "1.5rem", display: "flex", gap: ".75rem", flexWrap: "wrap" }}>
               <Link to={dashLink} className="btn btn-primary">
                 View Live Leaderboard →
               </Link>
