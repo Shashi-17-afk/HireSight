@@ -44,6 +44,9 @@ export default function Dashboard() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [status, setStatus] = useState<WsStatus>("connecting");
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState("");
+  const [fitFilter, setFitFilter] = useState("all");
+
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -116,13 +119,23 @@ export default function Dashboard() {
   const topScore = entries.length ? entries[0].score : 0;
   const strongFits = entries.filter((e) => e.score >= 80).length;
 
+  // Search and fit category filtering
+  const filteredEntries = entries.filter((entry) => {
+    const matchesSearch = entry.name.toLowerCase().includes(searchTerm.toLowerCase());
+    let matchesFit = true;
+    if (fitFilter === "strong") matchesFit = entry.score >= 80;
+    else if (fitFilter === "potential") matchesFit = entry.score >= 50 && entry.score < 80;
+    else if (fitFilter === "no-match") matchesFit = entry.score < 50;
+    return matchesSearch && matchesFit;
+  });
+
   return (
     <div className="page-wide">
       <div className="dash-header">
         <div>
           <h1 className="page-title">Live Leaderboard</h1>
           <p className="page-sub" style={{ marginBottom: 0 }}>
-            Job ID: <code style={{ fontSize: ".78rem", background: "var(--gray-100)", padding: ".1rem .4rem", borderRadius: 4 }}>{job_id}</code>
+            Job ID: <code style={{ fontSize: ".78rem", background: "rgba(255,255,255,0.06)", color: "var(--text-secondary)", padding: ".15rem .45rem", borderRadius: 4 }}>{job_id}</code>
           </p>
         </div>
 
@@ -162,10 +175,10 @@ export default function Dashboard() {
 
       {/* Apply link bar */}
       <div className="card-sm" style={{ marginBottom: "1.1rem", display: "flex", alignItems: "center", gap: ".75rem", flexWrap: "wrap" }}>
-        <span style={{ fontSize: ".82rem", fontWeight: 600, color: "var(--gray-600)", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: ".82rem", fontWeight: 600, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
           Apply Link:
         </span>
-        <code style={{ fontSize: ".78rem", color: "var(--gray-500)", wordBreak: "break-all", flex: 1 }}>
+        <code style={{ fontSize: ".78rem", color: "var(--text-muted)", wordBreak: "break-all", flex: 1 }}>
           {applyLink}
         </code>
         <Link
@@ -177,12 +190,42 @@ export default function Dashboard() {
         </Link>
       </div>
 
+      {/* Filter and Search Bar */}
+      {entries.length > 0 && (
+        <div className="filter-bar">
+          <div className="search-input-wrap">
+            <input
+              type="text"
+              placeholder="Search candidates by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <select
+            className="filter-select"
+            value={fitFilter}
+            onChange={(e) => setFitFilter(e.target.value)}
+          >
+            <option value="all">All Fits</option>
+            <option value="strong">Strong Fits (≥80)</option>
+            <option value="potential">Potential (50–79)</option>
+            <option value="no-match">No Match (&lt;50)</option>
+          </select>
+        </div>
+      )}
+
       <div className="card">
         {entries.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">📭</div>
-            <p style={{ fontWeight: 600, color: "var(--gray-600)", fontSize: ".95rem" }}>Waiting for candidates</p>
-            <p>Share the apply link above to start receiving scored applications.</p>
+            <p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: ".95rem" }}>Waiting for candidates</p>
+            <p style={{ color: "var(--text-secondary)" }}>Share the apply link above to start receiving scored applications.</p>
+          </div>
+        ) : filteredEntries.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">🔍</div>
+            <p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: ".95rem" }}>No matches found</p>
+            <p style={{ color: "var(--text-secondary)" }}>Try adjusting your search query or filter settings.</p>
           </div>
         ) : (
           <div className="table-wrap">
@@ -196,17 +239,18 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {entries.map((entry, i) => {
+                {filteredEntries.map((entry) => {
+                  const entryIndex = entries.findIndex((e) => e.id === entry.id);
                   const tied =
-                    (i > 0 && entries[i - 1].score === entry.score) ||
-                    (i < entries.length - 1 && entries[i + 1].score === entry.score);
+                    (entryIndex > 0 && entries[entryIndex - 1].score === entry.score) ||
+                    (entryIndex < entries.length - 1 && entries[entryIndex + 1].score === entry.score);
                   return (
-                  <tr key={entry.id} className={newIds.has(entry.id) ? "row-new" : ""}>
-                    {rankCell(i + 1, tied)}
-                    <td style={{ fontWeight: 600 }}>{entry.name}</td>
-                    <td>{scoreBadge(entry.score)}</td>
-                    <td className="reasoning-text">{entry.reasoning}</td>
-                  </tr>
+                    <tr key={entry.id} className={newIds.has(entry.id) ? "row-new" : ""}>
+                      {rankCell(entryIndex + 1, tied)}
+                      <td style={{ fontWeight: 600 }}>{entry.name}</td>
+                      <td>{scoreBadge(entry.score)}</td>
+                      <td className="reasoning-text">{entry.reasoning}</td>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -215,7 +259,7 @@ export default function Dashboard() {
         )}
 
         <div className="table-footer">
-          <span>{entries.length} candidate{entries.length !== 1 ? "s" : ""} • avg score: <strong>{avgScore || "—"}</strong></span>
+          <span>{filteredEntries.length} candidate{filteredEntries.length !== 1 ? "s" : ""} shown • avg score: <strong>{avgScore || "—"}</strong></span>
           <span style={{ marginLeft: "auto", display: "flex", gap: "1rem" }}>
             <span><span className="legend-dot" style={{ background: "var(--green)" }} />≥80 strong fit</span>
             <span><span className="legend-dot" style={{ background: "var(--yellow)" }} />50–79 potential</span>

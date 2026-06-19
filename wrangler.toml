@@ -1,4 +1,4 @@
-name = "hiring-screener"
+name = "hiresight"
 main = "src/worker/index.ts"
 compatibility_date = "2026-06-13"
 compatibility_flags = ["nodejs_compat"]

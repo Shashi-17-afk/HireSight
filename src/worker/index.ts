@@ -20,7 +20,7 @@ app.use(
 
 // Health check
 app.get("/api/health", (c) =>
-  c.json({ status: "ok", service: "hiring-screener" })
+  c.json({ status: "ok", service: "hiresight" })
 );
 
 // Job creation
