@@ -56,9 +56,10 @@ export default function Dashboard() {
     if (!job_id) return;
 
     function connect() {
+      const token = localStorage.getItem("token") || "";
       const protocol = window.location.protocol === "https:" ? "wss" : "ws";
       const ws = new WebSocket(
-        `${protocol}://${window.location.host}/api/leaderboard/${job_id}/ws`
+        `${protocol}://${window.location.host}/api/leaderboard/${job_id}/ws?token=${encodeURIComponent(token)}`
       );
       wsRef.current = ws;
 
@@ -147,8 +148,8 @@ export default function Dashboard() {
           {status === "disconnected" && (
             <span className="connecting" style={{ color: "var(--red)" }}>Reconnecting…</span>
           )}
-          <Link to="/" className="btn btn-outline" style={{ fontSize: ".85rem", padding: ".45rem 1rem" }}>
-            ← Post a Job
+          <Link to="/hr/dashboard" className="btn btn-outline" style={{ fontSize: ".85rem", padding: ".45rem 1rem" }}>
+            ← Dashboard
           </Link>
         </div>
       </div>

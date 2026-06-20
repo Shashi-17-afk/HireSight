@@ -1,8 +1,38 @@
 import { Hono } from "hono";
+import { authenticate, requireCandidate } from "../lib/auth";
+import type { AuthVariables } from "../lib/auth";
 
-const candidates = new Hono<{ Bindings: Env }>();
+const candidates = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
+
+// Fetch applications for the logged-in candidate
+candidates.get("/my-applications", authenticate(), requireCandidate(), async (c) => {
+  const user = c.get("user");
+
+  // Fetch the candidate's email from users table
+  const userDetails = await c.env.DB.prepare("SELECT email FROM users WHERE id = ?")
+    .bind(user.id)
+    .first<{ email: string }>();
+
+  if (!userDetails) {
+    return c.json({ error: "User not found" }, 404);
+  }
+
+  // Get all applications matched by the email address
+  const result = await c.env.DB.prepare(
+    `SELECT c.id, c.score, c.reasoning, c.created_at, j.title as job_title, j.id as job_id
+     FROM candidates c
+     JOIN jobs j ON c.job_id = j.id
+     WHERE c.email = ?
+     ORDER BY c.created_at DESC`
+  )
+    .bind(userDetails.email)
+    .all();
+
+  return c.json(result.results);
+});
 
 candidates.post("/", async (c) => {
+
   const body = await c.req.json<{
     job_id: string;
     name: string;
