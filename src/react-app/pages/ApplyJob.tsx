@@ -40,14 +40,8 @@ export default function ApplyJob() {
   const [job, setJob] = useState<JobInfo | null>(null);
   const [jobError, setJobError] = useState("");
 
-  const [name, setName] = useState(() => {
-    const role = localStorage.getItem("role");
-    return role === "candidate" ? localStorage.getItem("name") || "" : "";
-  });
-  const [email, setEmail] = useState(() => {
-    const role = localStorage.getItem("role");
-    return role === "candidate" ? localStorage.getItem("email") || "" : "";
-  });
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [extractedText, setExtractedText] = useState("");
   const [extracting, setExtracting] = useState(false);

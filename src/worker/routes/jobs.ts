@@ -1,23 +1,8 @@
 import { Hono } from "hono";
-import { authenticate, requireHR } from "../lib/auth";
-import type { AuthVariables } from "../lib/auth";
 
-const jobs = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
+const jobs = new Hono<{ Bindings: Env }>();
 
-// Fetch jobs created by the authenticated HR user
-jobs.get("/", authenticate(), requireHR(), async (c) => {
-  const user = c.get("user");
-  const result = await c.env.DB.prepare(
-    "SELECT id, title, description, created_at FROM jobs WHERE user_id = ? ORDER BY created_at DESC"
-  )
-    .bind(user.id)
-    .all();
-  return c.json(result.results);
-});
-
-// Create a new job posting (HR only)
-jobs.post("/", authenticate(), requireHR(), async (c) => {
-  const user = c.get("user");
+jobs.post("/", async (c) => {
   const body = await c.req.json<{ title: string; description: string }>();
 
   if (!body.title || !body.description) {
@@ -28,9 +13,9 @@ jobs.post("/", authenticate(), requireHR(), async (c) => {
 
   // Store job in D1
   await c.env.DB.prepare(
-    "INSERT INTO jobs (id, title, description, user_id) VALUES (?, ?, ?, ?)"
+    "INSERT INTO jobs (id, title, description) VALUES (?, ?, ?)"
   )
-    .bind(jobId, body.title.trim(), body.description.trim(), user.id)
+    .bind(jobId, body.title.trim(), body.description.trim())
     .run();
 
   // Embed the job description using Workers AI
@@ -64,4 +49,3 @@ jobs.get("/:id", async (c) => {
 });
 
 export default jobs;
-

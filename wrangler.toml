@@ -4,10 +4,6 @@ compatibility_date = "2026-06-13"
 compatibility_flags = ["nodejs_compat"]
 upload_source_maps = true
 
-[vars]
-JWT_SECRET = "default_jwt_secret_key_please_change"
-
-
 [assets]
 directory = "./dist/client"
 not_found_handling = "single-page-application"
