@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 interface Job {
 	id: string;
@@ -20,10 +20,19 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function JobsBoard() {
+	const navigate = useNavigate();
 	const [jobs, setJobs] = useState<Job[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 	const [search, setSearch] = useState("");
+	// Tracks whether the signed-in candidate has a complete profile.
+	// null = not yet fetched; true/false = result.
+	const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
+
+	const candidateToken =
+		localStorage.getItem("role") === "candidate"
+			? localStorage.getItem("token")
+			: null;
 
 	useEffect(() => {
 		fetch("/api/jobs")
@@ -36,6 +45,27 @@ export default function JobsBoard() {
 			.catch(() => setError("Could not load jobs. Please try again."))
 			.finally(() => setLoading(false));
 	}, []);
+
+	// Prefetch profile completeness for authenticated candidates so the gate
+	// redirect is instant instead of happening inside the apply page.
+	useEffect(() => {
+		if (!candidateToken) return;
+		fetch("/api/profile", { headers: { Authorization: `Bearer ${candidateToken}` } })
+			.then((r) => r.json())
+			.then((data: { exists: boolean; profile: { is_complete: boolean } | null }) => {
+				setProfileComplete(data.profile?.is_complete ?? false);
+			})
+			.catch(() => setProfileComplete(false));
+	}, [candidateToken]);
+
+	function handleApply(jobId: string) {
+		if (candidateToken !== null && profileComplete === false) {
+			// Gate: redirect to profile form with a redirect-back param
+			navigate(`/candidate/profile?redirect=/apply/${jobId}`);
+		} else {
+			navigate(`/apply/${jobId}`);
+		}
+	}
 
 	const filtered = jobs.filter((j) => j.title.toLowerCase().includes(search.toLowerCase()));
 
@@ -99,9 +129,14 @@ export default function JobsBoard() {
 										<span className="job-meta-badge">👥 {job.applicant_count} applicant{job.applicant_count !== 1 ? "s" : ""}</span>
 									</p>
 								</div>
-								<Link to={`/apply/${job.id}`} className="btn btn-primary" style={{ whiteSpace: "nowrap", flexShrink: 0 }}>
-									Apply Now →
-								</Link>
+							<button
+								type="button"
+								className="btn btn-primary"
+								style={{ whiteSpace: "nowrap", flexShrink: 0 }}
+								onClick={() => handleApply(job.id)}
+							>
+								Apply Now →
+							</button>
 							</div>
 							<p className="job-description-preview">{preview}</p>
 						</div>
