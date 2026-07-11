@@ -49,6 +49,7 @@ export default function ApplyJob() {
 
   const [job, setJob] = useState<JobInfo | null>(null);
   const [jobError, setJobError] = useState("");
+  const [jobLoading, setJobLoading] = useState(true);
 
   // Pre-populate name from the logged-in candidate's account so the
   // candidates table row is always linked to the right identity.
@@ -64,12 +65,22 @@ export default function ApplyJob() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [result, setResult] = useState<ScoreResult | null>(null);
+  // Seconds remaining before the rate-limit window resets (0 = not rate-limited).
+  const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch job details to show the job title
+  // Tick the rate-limit countdown down by 1 every second until it hits 0.
   useEffect(() => {
+    if (rateLimitCountdown <= 0) return;
+    const timer = setTimeout(() => setRateLimitCountdown((n) => n - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [rateLimitCountdown]);
+
+  function loadJob() {
     if (!job_id) return;
+    setJobLoading(true);
+    setJobError("");
     fetch(`/api/jobs/${job_id}`)
       .then((r) => r.json())
       .then((data: unknown) => {
@@ -77,7 +88,14 @@ export default function ApplyJob() {
         if (d.error) setJobError(d.error);
         else setJob({ title: d.title ?? "", description: d.description ?? "" });
       })
-      .catch(() => setJobError("Could not load job details"));
+      .catch(() => setJobError("Could not load job details"))
+      .finally(() => setJobLoading(false));
+  }
+
+  // Fetch job details to show the job title
+  useEffect(() => {
+    loadJob();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job_id]);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -132,7 +150,10 @@ export default function ApplyJob() {
         }),
       });
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
+        const data = (await res.json()) as { error?: string; retryAfter?: number };
+        if (res.status === 429 && data.retryAfter) {
+          setRateLimitCountdown(data.retryAfter);
+        }
         throw new Error(data.error ?? "Submission failed");
       }
       const data = (await res.json()) as ScoreResult;
@@ -293,20 +314,26 @@ export default function ApplyJob() {
         description="Submit your resume for this role. AI scores and ranks every application in real time."
         noIndex
       />
-      {jobError ? (
-        <div className="card" style={{ textAlign: "center", padding: "2rem" }}>
+      {jobLoading ? (
+        <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
+          <span className="spinner" style={{ borderTopColor: "var(--brand)" }} />
+          <p style={{ marginTop: "1rem", fontSize: ".9rem" }}>Loading job details…</p>
+        </div>
+      ) : jobError ? (
+        <div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
           <div style={{ fontSize: "2rem", marginBottom: ".75rem" }}>⚠️</div>
-          <p style={{ color: "var(--red)" }}>{jobError}</p>
+          <p style={{ color: "var(--red)", marginBottom: "1.25rem" }}>{jobError}</p>
+          <button onClick={loadJob} className="btn btn-outline" style={{ fontSize: ".85rem" }}>
+            Try Again
+          </button>
         </div>
       ) : (
         <>
           <h1 className="page-title">Apply for this Role</h1>
-          {job ? (
+          {job && (
             <p className="page-sub">
               Applying for: <strong style={{ color: "var(--text-primary)" }}>{job.title}</strong>
             </p>
-          ) : (
-            <p className="page-sub">Loading job details…</p>
           )}
 
           <div className="card">
@@ -386,16 +413,25 @@ export default function ApplyJob() {
               </div>
 
               {submitError && (
-                <p className="error-text">⚠ {submitError}</p>
+                <p className="error-text">
+                  ⚠ {submitError}
+                  {rateLimitCountdown > 0 && (
+                    <span style={{ marginLeft: ".5rem", fontWeight: 700 }}>
+                      Try again in {rateLimitCountdown}s
+                    </span>
+                  )}
+                </p>
               )}
 
               <button
                 type="submit"
                 className="btn btn-primary btn-full"
-                disabled={submitting || extracting || !extractedText || !name.trim() || !email.trim()}
+                disabled={submitting || extracting || !extractedText || !name.trim() || !email.trim() || rateLimitCountdown > 0}
               >
                 {submitting ? (
                   <><span className="spinner" /> Scoring with AI…</>
+                ) : rateLimitCountdown > 0 ? (
+                  `Rate limited — wait ${rateLimitCountdown}s`
                 ) : (
                   "Submit & Get AI Score →"
                 )}

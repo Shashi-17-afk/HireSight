@@ -265,9 +265,19 @@ export default function Dashboard() {
       <div className="card">
         {entries.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">📭</div>
-            <p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: ".95rem" }}>Waiting for candidates</p>
-            <p style={{ color: "var(--text-secondary)" }}>Share the apply link above to start receiving scored applications.</p>
+            {status === "connecting" ? (
+              <>
+                <span className="spinner" style={{ borderTopColor: "var(--brand)", marginBottom: "1rem" }} />
+                <p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: ".95rem" }}>Connecting to live feed…</p>
+                <p style={{ color: "var(--text-secondary)" }}>Establishing WebSocket connection.</p>
+              </>
+            ) : (
+              <>
+                <div className="empty-state-icon">📭</div>
+                <p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: ".95rem" }}>No candidates yet</p>
+                <p style={{ color: "var(--text-secondary)" }}>Share the apply link above to start receiving AI-scored applications. New candidates appear here in real time.</p>
+              </>
+            )}
           </div>
         ) : filteredEntries.length === 0 ? (
           <div className="empty-state">
