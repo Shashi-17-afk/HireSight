@@ -12,6 +12,9 @@ auth.post("/register/hr", async (c) => {
   if (!body.name || !body.email || !body.password) {
     return c.json({ error: "name, email, and password are required" }, 400);
   }
+  if (body.password.length < 8) {
+    return c.json({ error: "Password must be at least 8 characters" }, 400);
+  }
 
   const passwordHash = await hashPassword(body.password);
   const userId = crypto.randomUUID();
@@ -55,6 +58,9 @@ auth.post("/register/candidate", async (c) => {
 
   if (!body.name || !body.email || !body.password) {
     return c.json({ error: "name, email, and password are required" }, 400);
+  }
+  if (body.password.length < 8) {
+    return c.json({ error: "Password must be at least 8 characters" }, 400);
   }
 
   const passwordHash = await hashPassword(body.password);

@@ -237,6 +237,7 @@ export default function Dashboard() {
                   <th>Candidate</th>
                   <th>Score</th>
                   <th>AI Reasoning</th>
+                  <th style={{ width: "5rem" }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -251,6 +252,15 @@ export default function Dashboard() {
                       <td style={{ fontWeight: 600 }}>{entry.name}</td>
                       <td>{scoreBadge(entry.score)}</td>
                       <td className="reasoning-text">{entry.reasoning}</td>
+                      <td>
+                        <Link
+                          to={`/hr/candidate/${entry.id}?job_id=${job_id ?? ""}`}
+                          className="btn btn-outline"
+                          style={{ fontSize: ".75rem", padding: ".25rem .65rem", whiteSpace: "nowrap" }}
+                        >
+                          View →
+                        </Link>
+                      </td>
                     </tr>
                   );
                 })}

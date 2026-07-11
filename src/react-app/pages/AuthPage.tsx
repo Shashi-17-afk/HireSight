@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 interface AuthPageProps {
   mode: "login" | "register";
@@ -8,6 +8,8 @@ interface AuthPageProps {
 
 export default function AuthPage({ mode, role }: AuthPageProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get("redirect");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -74,8 +76,10 @@ export default function AuthPage({ mode, role }: AuthPageProps) {
         // Dispatch custom storage event so App navbar can update instantly
         window.dispatchEvent(new Event("storage"));
 
-        // Redirect based on role
-        if (data.role === "HR") {
+        // Redirect: honour ?redirect= param (candidates only), else go to dashboard
+        if (redirectTo && data.role === "candidate") {
+          navigate(redirectTo);
+        } else if (data.role === "HR") {
           navigate("/hr/dashboard");
         } else {
           navigate("/candidate/dashboard");
@@ -93,9 +97,6 @@ export default function AuthPage({ mode, role }: AuthPageProps) {
   return (
     <div className="page">
       <div className="hero" style={{ padding: "2rem 1rem 1.5rem" }}>
-        <div className="hero-badge">
-          ✦ {isHr ? "Recruiter Portal" : "Candidate Portal"}
-        </div>
         <h1 style={{ fontSize: "2.2rem" }}>
           {isRegister ? "Join " : "Access "}
           <span>HireSight</span>

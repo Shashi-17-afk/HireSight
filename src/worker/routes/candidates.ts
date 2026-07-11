@@ -5,35 +5,39 @@ import type { AuthVariables } from "../lib/auth";
 
 const candidates = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
-// Authenticated candidate: view their own past applications
+// Authenticated candidate: view their own past applications.
+// Joins the applications ATS table for status; falls back gracefully for
+// pre-ATS submissions that have no applications row (status = null).
 candidates.get("/my-applications", authenticate(), requireCandidate(), async (c) => {
 	const user = c.get("user");
 
-	const userDetails = await c.env.DB.prepare("SELECT email FROM users WHERE id = ?")
-		.bind(user.id)
-		.first<{ email: string }>();
-
-	if (!userDetails) return c.json({ error: "User not found" }, 404);
-
+	// Query through the applications ATS table using user_id — this is correct
+	// regardless of what email the candidate typed in the application form.
 	const result = await c.env.DB.prepare(
 		`SELECT c.id, c.score, c.reasoning, c.created_at,
-		        j.title AS job_title, j.id AS job_id
-		 FROM candidates c
-		 JOIN jobs j ON c.job_id = j.id
-		 WHERE c.email = ?
+		        j.title AS job_title, j.id AS job_id,
+		        a.id   AS application_id, a.status
+		 FROM applications a
+		 JOIN candidates c ON c.id = a.candidate_submission_id
+		 JOIN jobs j ON j.id = a.job_id
+		 WHERE a.user_id = ?
 		 ORDER BY c.created_at DESC`
 	)
-		.bind(userDetails.email)
-		.all<{ id: string; score: number; reasoning: string; created_at: string; job_title: string; job_id: string }>();
+		.bind(user.id)
+		.all<{
+			id: string; score: number; reasoning: string; created_at: string;
+			job_title: string; job_id: string;
+			application_id: string | null; status: string | null;
+		}>();
 
 	return c.json(result.results);
 });
 
 candidates.post("/", async (c) => {
-	// Server-side profile-completeness backstop for authenticated candidates.
-	// If a Bearer token is present and belongs to a candidate, we verify
-	// candidate_profiles.is_complete before proceeding.
-	// No token → anonymous external link apply → skip entirely (untouched flow).
+	// Resolve authenticated candidate from Bearer token (if present).
+	// authenticatedUserId stays null for anonymous external-link applies —
+	// those follow the exact same path they always did.
+	let authenticatedUserId: string | null = null;
 	const authHeader = c.req.header("Authorization");
 	if (authHeader?.startsWith("Bearer ")) {
 		const token = authHeader.substring(7);
@@ -42,19 +46,24 @@ candidates.post("/", async (c) => {
 			try {
 				const payload = await verify(token, jwtSecret, "HS256");
 				if (typeof payload.userId === "string" && payload.role === "candidate") {
-					const prof = await c.env.DB.prepare(
-						"SELECT is_complete FROM candidate_profiles WHERE user_id = ?"
-					).bind(payload.userId).first<{ is_complete: number }>();
-					if (!prof || prof.is_complete === 0) {
-						return c.json({
-							error: "Complete your profile before applying.",
-							code: "PROFILE_INCOMPLETE",
-						}, 400);
-					}
+					authenticatedUserId = payload.userId;
 				}
 			} catch {
-				// Invalid / expired token — treat as anonymous and proceed.
+				// Invalid / expired token — treat as anonymous.
 			}
+		}
+	}
+
+	// Profile-completeness backstop (authenticated applies only).
+	if (authenticatedUserId) {
+		const prof = await c.env.DB.prepare(
+			"SELECT is_complete FROM candidate_profiles WHERE user_id = ?"
+		).bind(authenticatedUserId).first<{ is_complete: number }>();
+		if (!prof || prof.is_complete === 0) {
+			return c.json({
+				error: "Complete your profile before applying.",
+				code: "PROFILE_INCOMPLETE",
+			}, 400);
 		}
 	}
 
@@ -69,6 +78,32 @@ candidates.post("/", async (c) => {
     return c.json({ error: "job_id, name, email, and resume_text are required" }, 400);
   }
 
+  // M9: Guard against oversized payloads reaching the AI pipeline.
+  if (body.resume_text.length > 50_000) {
+    return c.json({ error: "Resume text exceeds the 50,000 character limit. Please shorten or paste key sections only." }, 400);
+  }
+
+  // Duplicate-application guard (authenticated applies only).
+  // Returns the existing result instead of re-running the AI pipeline.
+  if (authenticatedUserId) {
+    const dup = await c.env.DB.prepare(
+      `SELECT a.id AS application_id, a.status, c.score, c.reasoning
+       FROM applications a
+       LEFT JOIN candidates c ON a.candidate_submission_id = c.id
+       WHERE a.user_id = ? AND a.job_id = ?`
+    ).bind(authenticatedUserId, body.job_id)
+     .first<{ application_id: string; status: string; score: number | null; reasoning: string | null }>();
+    if (dup) {
+      return c.json({
+        alreadyApplied: true,
+        application_id: dup.application_id,
+        status: dup.status,
+        score: dup.score,
+        reasoning: dup.reasoning,
+      }, 200);
+    }
+  }
+
   // Fetch the job from D1
   const job = await c.env.DB.prepare("SELECT * FROM jobs WHERE id = ?")
     .bind(body.job_id)
@@ -80,39 +115,47 @@ candidates.post("/", async (c) => {
 
   const candidateId = crypto.randomUUID();
 
-  // Step 4a: Embed the resume
-  const resumeEmbedResponse = (await c.env.AI.run(
-    "@cf/baai/bge-base-en-v1.5" as Parameters<typeof c.env.AI.run>[0],
-    { text: [body.resume_text] }
-  )) as { data: number[][] };
-  const resumeEmbedding = resumeEmbedResponse.data[0];
+  // Step 4a: Embed the resume — non-fatal if AI is unavailable.
+  // LLM scoring (step 4c) will still run; semantic score defaults to 0.
+  let resumeEmbedding: number[] | null = null;
+  try {
+    const resumeEmbedResponse = (await c.env.AI.run(
+      "@cf/baai/bge-base-en-v1.5" as Parameters<typeof c.env.AI.run>[0],
+      { text: [body.resume_text] }
+    )) as { data: number[][] };
+    resumeEmbedding = resumeEmbedResponse.data?.[0] ?? null;
+  } catch (err) {
+    console.error("[candidates] resume embedding failed", String(err));
+  }
 
   // Step 4b: Semantic similarity via Vectorize (best-effort, non-blocking)
   let semanticScore = 0;
-  try {
-    const vectorQuery = await c.env.VECTORIZE.query(resumeEmbedding, {
-      topK: 1,
-      filter: { job_id: body.job_id },
-      returnMetadata: "all",
-    });
-    if (vectorQuery.matches.length > 0) {
-      semanticScore = Math.round(vectorQuery.matches[0].score * 100);
+  if (resumeEmbedding) {
+    try {
+      const vectorQuery = await c.env.VECTORIZE.query(resumeEmbedding, {
+        topK: 1,
+        filter: { job_id: body.job_id },
+        returnMetadata: "all",
+      });
+      if (vectorQuery.matches.length > 0) {
+        semanticScore = Math.round(vectorQuery.matches[0].score * 100);
+      }
+    } catch {
+      // Vectorize unavailable locally — skip, LLM score takes over
     }
-  } catch {
-    // Vectorize unavailable locally — skip, LLM score takes over
-  }
 
-  // Store resume embedding in Vectorize for future candidate comparisons
-  try {
-    await c.env.VECTORIZE.upsert([
-      {
-        id: `candidate_${candidateId}`,
-        values: resumeEmbedding,
-        metadata: { job_id: body.job_id, type: "resume", candidate_id: candidateId },
-      },
-    ]);
-  } catch {
-    // Non-fatal
+    // Store resume embedding in Vectorize for future candidate comparisons
+    try {
+      await c.env.VECTORIZE.upsert([
+        {
+          id: `candidate_${candidateId}`,
+          values: resumeEmbedding,
+          metadata: { job_id: body.job_id, type: "resume", candidate_id: candidateId },
+        },
+      ]);
+    } catch {
+      // Non-fatal
+    }
   }
 
   // Step 4c: LLM scoring — primary score source
@@ -185,6 +228,20 @@ Resume: ${body.resume_text}`;
       reasoning
     )
     .run();
+
+  // Record application in the ATS pipeline (authenticated browse applies only).
+  // Non-fatal — a failure here must not block the score response.
+  if (authenticatedUserId) {
+    try {
+      await c.env.DB.prepare(
+        `INSERT INTO applications (id, user_id, job_id, candidate_submission_id, status, source)
+         VALUES (?, ?, ?, ?, 'applied', 'browse')`
+      ).bind(crypto.randomUUID(), authenticatedUserId, body.job_id, candidateId).run();
+    } catch (atsErr) {
+      // Non-fatal but should be visible in Worker logs for debugging.
+      console.error("[candidates] ATS applications insert failed for user", authenticatedUserId, String(atsErr));
+    }
+  }
 
   // Step 4f: Notify Durable Object leaderboard
   try {

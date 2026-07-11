@@ -2,14 +2,16 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { verify } from "hono/jwt";
 import { LeaderboardDO } from "./leaderboard-do";
+import { CandidateStatusDO } from "./candidate-status-do";
 import jobs from "./routes/jobs";
 import candidates from "./routes/candidates";
 import auth from "./routes/auth";
 import profile from "./routes/profile";
+import applications from "./routes/applications";
 import { authenticate, requireHR } from "./lib/auth";
 import type { AuthVariables } from "./lib/auth";
 
-export { LeaderboardDO };
+export { LeaderboardDO, CandidateStatusDO };
 
 type AppEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -19,7 +21,7 @@ app.use(
 	"/api/*",
 	cors({
 		origin: "*",
-		allowMethods: ["GET", "POST", "PUT", "OPTIONS"],
+		allowMethods: ["GET", "POST", "PUT", "PATCH", "OPTIONS"],
 		allowHeaders: ["Content-Type", "Authorization"],
 	})
 );
@@ -38,6 +40,32 @@ app.route("/api/candidates", candidates);
 
 // Candidate profile — GET + PUT require candidate auth
 app.route("/api/profile", profile);
+
+// Applications — HR pipeline (GET list, GET detail, PATCH status)
+app.route("/api/applications", applications);
+
+// Candidate real-time status WebSocket.
+// Browsers can't send custom headers on WS upgrades, so JWT is passed as ?token=
+app.get("/api/status/ws", async (c) => {
+	const token = c.req.query("token");
+	if (!token) return c.text("Unauthorized: Missing token", 401);
+
+	const jwtSecret = c.env.JWT_SECRET;
+	if (!jwtSecret) return c.text("Server error: JWT_SECRET not configured", 500);
+
+	try {
+		const payload = await verify(token, jwtSecret, "HS256");
+		if (!payload.userId || payload.role !== "candidate") {
+			return c.text("Forbidden: Candidate access required", 403);
+		}
+		const userId = String(payload.userId);
+		const doId = c.env.CANDIDATE_STATUS.idFromName(userId);
+		const stub = c.env.CANDIDATE_STATUS.get(doId);
+		return stub.fetch(c.req.raw);
+	} catch {
+		return c.text("Unauthorized: Invalid or expired token", 401);
+	}
+});
 
 // WebSocket leaderboard — HR only.
 // Browsers cannot send custom headers on WS upgrades, so the JWT is passed

@@ -20,22 +20,26 @@ jobs.post("/", authenticate(), requireHR(), async (c) => {
     .bind(jobId, body.title.trim(), body.description.trim())
     .run();
 
-  // Embed the job description using Workers AI
-  const embeddingResponse = await c.env.AI.run(
-    "@cf/baai/bge-base-en-v1.5" as Parameters<typeof c.env.AI.run>[0],
-    { text: [body.description.trim()] }
-  );
-
-  const embedding = (embeddingResponse as { data: number[][] }).data[0];
-
-  // Store JD embedding in Vectorize with job_id as metadata
-  await c.env.VECTORIZE.upsert([
-    {
-      id: `job_${jobId}`,
-      values: embedding,
-      metadata: { job_id: jobId, type: "job_description" },
-    },
-  ]);
+  // Embed the job description — non-fatal if AI/Vectorize unavailable.
+  // Job is already saved; semantic scoring degrades gracefully to LLM-only.
+  try {
+    const embeddingResponse = await c.env.AI.run(
+      "@cf/baai/bge-base-en-v1.5" as Parameters<typeof c.env.AI.run>[0],
+      { text: [body.description.trim()] }
+    );
+    const embedding = (embeddingResponse as { data: number[][] }).data?.[0];
+    if (embedding?.length) {
+      await c.env.VECTORIZE.upsert([
+        {
+          id: `job_${jobId}`,
+          values: embedding,
+          metadata: { job_id: jobId, type: "job_description" },
+        },
+      ]);
+    }
+  } catch (err) {
+    console.error("[jobs] embedding/vectorize failed for job", jobId, String(err));
+  }
 
   return c.json({ job_id: jobId, title: body.title.trim() }, 201);
 });
@@ -46,6 +50,7 @@ jobs.get("/", async (c) => {
     `SELECT id, title, description, created_at,
       (SELECT COUNT(*) FROM candidates WHERE candidates.job_id = jobs.id) AS applicant_count
      FROM jobs
+     WHERE status = 'open'
      ORDER BY created_at DESC`
   ).all<{ id: string; title: string; description: string; created_at: string; applicant_count: number }>();
 

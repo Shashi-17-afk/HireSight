@@ -9,6 +9,7 @@ const JobsBoard = lazy(() => import("./pages/JobsBoard"));
 const HRDashboard = lazy(() => import("./pages/HRDashboard"));
 const CandidateDashboard = lazy(() => import("./pages/CandidateDashboard"));
 const CandidateProfile = lazy(() => import("./pages/CandidateProfile"));
+const CandidateDetail  = lazy(() => import("./pages/CandidateDetail"));
 
 const PageFallback = <div className="page" style={{ color: "var(--text-muted)", textAlign: "center", paddingTop: "4rem" }}>Loading…</div>;
 
@@ -42,14 +43,13 @@ function RootRedirect() {
 	return (
 		<div className="page" style={{ textAlign: "center", paddingTop: "1rem" }}>
 			<div className="hero">
-				<div className="hero-badge">✦ Cloudflare Workers AI · Vectorize · Durable Objects</div>
 				<h1>Hire smarter with <span>HireSight</span></h1>
 				<p>Post a job, share a link. AI scores every resume instantly and ranks candidates on a live leaderboard.</p>
 				<div className="feature-pills">
 					<span className="pill">🧠 Neural AI Scoring</span>
 					<span className="pill">⚡ Real-time Leaderboard</span>
 					<span className="pill">🔗 Shareable Apply Links</span>
-					<span className="pill">📄 Browser-sid e PDF Parsing</span>
+					<span className="pill">📄 Browser-side PDF Parsing</span>
 				</div>
 			</div>
 
@@ -105,21 +105,24 @@ function Navbar() {
 			</Link>
 			<span className="nav-spacer" />
 
-			{user ? (
-				<div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
-					<Link
-						to={user.role === "HR" ? "/hr/dashboard" : "/candidate/dashboard"}
-						style={{ fontSize: ".83rem", color: "var(--text-secondary)", fontWeight: 600 }}
-					>
-						{user.name}
-						<span style={{ marginLeft: ".35rem", fontSize: ".72rem", opacity: .6 }}>
-							({user.role === "HR" ? "Recruiter" : "Candidate"})
-						</span>
-					</Link>
-					<button onClick={handleLogout} className="btn btn-outline" style={{ fontSize: ".78rem", padding: ".35rem .85rem" }}>
-						Logout
-					</button>
-				</div>
+		{user ? (
+			<div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
+				{user.role === "candidate" && (
+					<Link to="/jobs" className="nav-link" style={{ fontSize: ".82rem" }}>Browse Openings</Link>
+				)}
+				<Link
+					to={user.role === "HR" ? "/hr/dashboard" : "/candidate/dashboard"}
+					style={{ fontSize: ".83rem", color: "var(--text-secondary)", fontWeight: 600 }}
+				>
+					{user.name}
+					<span style={{ marginLeft: ".35rem", fontSize: ".72rem", opacity: .6 }}>
+						({user.role === "HR" ? "Recruiter" : "Candidate"})
+					</span>
+				</Link>
+				<button onClick={handleLogout} className="btn btn-outline" style={{ fontSize: ".78rem", padding: ".35rem .85rem" }}>
+					Logout
+				</button>
+			</div>
 			) : (
 				<div style={{ display: "flex", gap: ".5rem" }}>
 					{isApply && (
@@ -187,6 +190,16 @@ export default function App() {
 						</ProtectedRoute>
 					}
 				/>
+
+			{/* HR candidate detail — keyed by candidates.id (leaderboard entry) */}
+			<Route
+				path="/hr/candidate/:submission_id"
+				element={
+					<ProtectedRoute allowedRole="HR">
+						<Suspense fallback={PageFallback}><CandidateDetail /></Suspense>
+					</ProtectedRoute>
+				}
+			/>
 
 			{/* Candidate-protected routes */}
 			<Route

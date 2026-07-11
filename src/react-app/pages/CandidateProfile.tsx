@@ -129,7 +129,7 @@ export default function CandidateProfile() {
 				headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
 				body: JSON.stringify(body),
 			});
-			const data = await res.json() as { error?: string; issues?: ZodIssue[] };
+			const data = await res.json() as { error?: string; issues?: ZodIssue[]; is_complete?: boolean };
 
 			if (!res.ok) {
 				if (data.issues) setIssues(data.issues);
@@ -138,8 +138,14 @@ export default function CandidateProfile() {
 			}
 
 			setSaveSuccess(true);
-			// If arriving via gate redirect, send the candidate straight to the job
-			if (redirect) navigate(redirect);
+			// Only redirect to the apply page if the profile is actually complete.
+			// If the user saved with required fields missing, stay on the profile
+			// page so they can see the badge turn red and fix it.
+			if (redirect && data.is_complete) {
+				navigate(redirect);
+			} else if (redirect && !data.is_complete) {
+				setSaveError("Profile saved, but still incomplete. Please fill in phone, location, and at least one of LinkedIn or GitHub to continue.");
+			}
 		} catch {
 			setSaveError("Network error. Please try again.");
 		} finally {
