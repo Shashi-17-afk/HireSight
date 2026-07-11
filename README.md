@@ -1,173 +1,193 @@
-﻿# AI Hiring Screener
+﻿# HireSight — AI Resume Screener
 
-> AI-powered resume screening and live candidate ranking, built entirely on Cloudflare.
+> Post a job, share a link. AI scores every resume instantly and ranks candidates on a live leaderboard.
 
-[![Deploy](https://img.shields.io/badge/Deployed%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white)](https://hiring-screener.shashishanthan2706.workers.dev)
-[![React](https://img.shields.io/badge/Frontend-React%2019-61DAFB?logo=react&logoColor=black)](https://react.dev)
-[![Hono](https://img.shields.io/badge/Backend-Hono-E36002)](https://hono.dev)
-
-**Live App:** https://hiring-screener.shashishanthan2706.workers.dev
+Built for HR teams and candidates who want signal instead of noise in the first-pass screening round.
 
 ---
 
-## What It Does
+![HireSight hero screenshot](docs/screenshots/hero.png)
 
-Recruiters post a job, candidates apply with a PDF resume, AI scores every resume against the job description, and a live leaderboard ranks all candidates in real time.
-
-| Who | What they see |
-|-----|---------------|
-| **Recruiter** | Posts a job, shares an apply link, watches the live leaderboard update as candidates apply |
-| **Candidate** | Uploads a PDF resume, instantly gets an AI score (0-100) and written reasoning |
+[![CI](https://img.shields.io/github/actions/workflow/status/Shashi-17-afk/Cloudflare_Hackathon/ci.yml?label=CI&style=flat-square)](https://github.com/Shashi-17-afk/Cloudflare_Hackathon/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-6366f1?style=flat-square)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-hiring--screener.workers.dev-10b981?style=flat-square)](https://hiring-screener.shashishanthan2706.workers.dev)
 
 ---
 
 ## Features
 
-- **Job Posting** - Create a job with title and description. Get a shareable apply link instantly.
-- **PDF Resume Upload** - Text extracted in the browser using pdfjs-dist. No file uploaded to a server.
-- **AI Scoring** - Every resume is scored 0-100 by an LLM with written reasoning.
-- **Semantic Matching** - Resume and JD embeddings stored in Vectorize for vector similarity search.
-- **Live Leaderboard** - WebSocket connection to a Durable Object pushes real-time rank updates.
-- **Shareable Links** - Unique /apply/:job_id and /dashboard/:job_id URLs per job.
+- **Post a job in 30 seconds** — fill in title and description, get a shareable apply link instantly
+- **Parse resumes in the browser** — candidates upload a PDF; text is extracted client-side via PDF.js (the file never leaves their device)
+- **Score resumes with a two-stage AI pipeline** — semantic similarity via Vectorize embeddings + LLM scoring (0–100) with a 2-line reasoning
+- **Watch the leaderboard update live** — WebSocket-powered dashboard; new candidates appear and re-rank in real time without page refresh
+- **Filter and search candidates** — by name or fit category (Strong ≥ 80 / Potential 50–79 / No Match < 50)
+- **Role-based portals** — separate authenticated dashboards for HR recruiters and candidates
+- **Track your own applications** — candidates log in to see every role they applied for and their AI feedback
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19 + Vite + React Router |
-| Backend | Cloudflare Workers + Hono |
-| Database | Cloudflare D1 (SQLite) |
-| Vector DB | Cloudflare Vectorize (768-dim, cosine) |
-| Embeddings | Workers AI - @cf/baai/bge-base-en-v1.5 |
-| LLM Scoring | Workers AI - @cf/meta/llama-3.1-8b-instruct-fast |
-| Real-time | Cloudflare Durable Objects + WebSockets |
-| PDF Parsing | pdfjs-dist (runs in-browser) |
-| Deployment | Cloudflare Workers + Assets |
+| Layer | Technology | Why |
+|-------|-----------|-----|
+| Runtime | [Cloudflare Workers](https://workers.cloudflare.com/) | Serverless, globally distributed, zero cold start |
+| API framework | [Hono](https://hono.dev/) | Built for edge runtimes; typed middleware; tiny bundle |
+| Database | [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite) | Relational, co-located with Workers, no round-trip latency |
+| AI inference | [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/) | `bge-base-en-v1.5` embeddings + `llama-3.1-8b-instruct-fast` scoring, no external API keys |
+| Vector search | [Cloudflare Vectorize](https://developers.cloudflare.com/vectorize/) | 768-dim cosine similarity between resume and JD embeddings |
+| Real-time state | [Cloudflare Durable Objects](https://developers.cloudflare.com/durable-objects/) | Stateful WebSocket hub, one instance per job, Hibernation API |
+| Frontend | React 19 + TypeScript + Vite | Component-based UI, lazy-loaded routes, HMR in dev |
+| PDF parsing | [pdfjs-dist](https://mozilla.github.io/pdf.js/) | Client-side text extraction — no server upload of file bytes |
+| Auth | PBKDF2 password hashing + HS256 JWT | Standards-compliant, runs natively in the Workers crypto API |
 
 ---
 
-## Project Structure
+## Quick Start
 
-```
-hiring-screener/
-├── src/
-│   ├── worker/
-│   │   ├── index.ts              # Worker entry point + API routes
-│   │   ├── leaderboard-do.ts     # Durable Object (WebSocket leaderboard)
-│   │   └── routes/
-│   │       ├── jobs.ts           # POST /api/jobs  GET /api/jobs/:id
-│   │       └── candidates.ts     # POST /api/candidates (embed + score)
-│   └── react-app/
-│       ├── App.tsx               # Root component + routing
-│       ├── main.tsx              # React entry point
-│       ├── index.css             # Global styles
-│       └── pages/
-│           ├── PostJob.tsx       # Job posting form
-│           ├── Dashboard.tsx     # Live leaderboard (WebSocket)
-│           └── ApplyJob.tsx      # Resume upload + score display
-├── migrations/
-│   └── 0001_init.sql             # D1 schema
-├── wrangler.toml                 # Cloudflare bindings config
-├── vite.config.ts                # Vite + Cloudflare plugin
-└── package.json
-```
-
----
-
-## Local Development
-
-### Prerequisites
-
-- Node.js 18+
-- A Cloudflare account (https://dash.cloudflare.com/sign-up)
-- A workers.dev subdomain registered (https://dash.cloudflare.com)
-
-### 1. Install and authenticate
+### 1. Clone and install
 
 ```bash
+git clone https://github.com/Shashi-17-afk/Cloudflare_Hackathon.git hiresight
+cd hiresight
 npm install
+```
+
+### 2. Authenticate Wrangler
+
+```bash
 npx wrangler login
 ```
 
-### 2. Create cloud resources (first time only)
+### 3. Set environment variables
 
 ```bash
-npx wrangler d1 create hiring_db
-npx wrangler vectorize create resumes_index --dimensions=768 --metric=cosine
-npx wrangler d1 migrations apply hiring_db --remote
-npm run cf-typegen
+cp .env.example .dev.vars
+# Edit .dev.vars — set JWT_SECRET to a strong random value
+# Generate one: openssl rand -hex 32
 ```
 
-After creating the D1 database, copy the database_id from the output and paste it into wrangler.toml under [[d1_databases]].
+### 4. Run database migrations
 
-### 3. Start the dev server
+```bash
+# Local D1 (for development)
+npm run db:migrate:local
+
+# Production D1 (when ready to deploy)
+npm run db:migrate:remote
+```
+
+### 5. Start the dev server
 
 ```bash
 npm run dev
 ```
 
-App runs at http://localhost:5173
+Open [http://localhost:5173](http://localhost:5173).  
+The React app and the Cloudflare Worker both run locally — no remote calls needed for the core flow.
+
+> **Note:** Workers AI and Vectorize require a Cloudflare account even in local development. If they are unavailable, resume scoring falls back to a semantic-only score.
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `JWT_SECRET` | **Yes** | Secret used to sign and verify HS256 JWTs. Set via `wrangler secret put JWT_SECRET` in production. Must be at least 32 characters. |
+
+The following are Cloudflare binding names declared in `wrangler.toml`, not environment variables:
+
+| Binding | Type | Purpose |
+|---------|------|---------|
+| `DB` | D1 Database | Jobs, candidates, users tables |
+| `VECTORIZE` | Vectorize Index | Resume and JD embeddings (768-dim) |
+| `AI` | Workers AI | Embedding model + LLM scoring |
+| `LEADERBOARD` | Durable Object | Per-job WebSocket leaderboard hub |
+
+---
+
+## Architecture
+
+HireSight runs entirely on Cloudflare's developer platform. The React SPA is served as static assets from the CDN. All API calls and WebSocket connections route to a single Cloudflare Worker (Hono), which orchestrates D1, Workers AI, Vectorize, and Durable Objects.
+
+See [docs/architecture.md](docs/architecture.md) for the entity-relationship diagram, auth flow, and three non-obvious technical decisions that shaped the implementation.
+
+---
+
+## API Reference
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/health` | Public | Liveness check |
+| `POST` | `/api/auth/register/hr` | Public | Register an HR account |
+| `POST` | `/api/auth/register/candidate` | Public | Register a candidate account |
+| `POST` | `/api/auth/login/hr` | Public | HR login → JWT |
+| `POST` | `/api/auth/login/candidate` | Public | Candidate login → JWT |
+| `POST` | `/api/jobs` | HR JWT | Create job + embed JD |
+| `GET` | `/api/jobs` | Public | List all open jobs (with applicant count) |
+| `GET` | `/api/jobs/:id` | Public | Get single job details |
+| `POST` | `/api/candidates` | Public | Submit resume → AI score |
+| `GET` | `/api/candidates/my-applications` | Candidate JWT | View own application history |
+| `GET` | `/api/leaderboard/:job_id` | HR JWT | REST snapshot of leaderboard |
+| `WS` | `/api/leaderboard/:job_id/ws` | HR JWT (`?token=`) | Live leaderboard WebSocket |
+
+---
+
+## Demo
+
+**Live app:** [https://hiring-screener.shashishanthan2706.workers.dev](https://hiring-screener.shashishanthan2706.workers.dev)
+
+You can register a new account on the live app.  
+For a quick tour without registration, browse the public job board at `/jobs` or open any `/apply/:job_id` link.
+
+> Demo credentials are not pre-seeded — register a free account to test the full HR or candidate flow.
+
+---
+
+## Testing
+
+Automated tests are on the roadmap. The recommended approach for this stack:
+
+- **Worker routes:** [Vitest](https://vitest.dev/) + Hono's `app.request()` test helper
+- **React components:** [Vitest](https://vitest.dev/) + [Testing Library](https://testing-library.com/)
+- **End-to-end:** [Playwright](https://playwright.dev/)
+
+PRs that add test coverage are very welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup.
+
+---
+
+## Roadmap
+
+- [ ] Email notification when a new top candidate is scored
+- [ ] HR filter: show only candidates above a custom score threshold
+- [ ] Multi-page resume support (currently merges all pages into one string)
+- [ ] R2 storage for raw PDFs (currently only extracted text is stored)
+- [ ] Rate limiting on `POST /api/candidates` (prevent spam submissions)
+- [ ] Lock CORS origin to production domain
+- [ ] Vitest unit tests for Worker routes and React components
+- [ ] GitHub Actions CI pipeline
 
 ---
 
 ## Deployment
 
 ```bash
+# Build and deploy to Cloudflare Workers
 npm run deploy
-```
 
-Builds the frontend and Worker, then deploys everything to Cloudflare in one step.
+# Set production secrets (run once per environment)
+wrangler secret put JWT_SECRET
+
+# Regenerate TypeScript types after changing wrangler.toml
+npm run cf-typegen
+```
 
 ---
 
-## API Reference
+## License
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | /api/health | Health check |
-| POST | /api/jobs | Create a job posting |
-| GET | /api/jobs/:id | Get job details |
-| POST | /api/candidates | Submit resume text for AI scoring |
-| GET | /api/leaderboard/:job_id | Ranked candidate snapshot (REST) |
-| GET | /api/leaderboard/:job_id/ws | Live ranked updates (WebSocket) |
-
-**POST /api/jobs**
-
-```json
-{
-  "title": "Backend Engineer",
-  "description": "We are looking for a senior backend engineer with 5+ years of Node.js experience..."
-}
-```
-
-Response: `{ "job_id": "uuid", "title": "Backend Engineer" }`
-
-**POST /api/candidates**
-
-```json
-{
-  "job_id": "uuid",
-  "name": "Jane Smith",
-  "email": "jane@example.com",
-  "resume_text": "7 years of Node.js experience..."
-}
-```
-
-Response: `{ "candidate_id": "uuid", "score": 87, "reasoning": "Strong match..." }`
+[MIT](LICENSE) © 2026 Shashi Shanthan
 
 ---
 
-## Useful Links
-
-| Resource | Link |
-|----------|------|
-| Live App | https://hiring-screener.shashishanthan2706.workers.dev |
-| Cloudflare Dashboard | https://dash.cloudflare.com |
-| D1 Databases | https://dash.cloudflare.com/?to=/:account/workers/d1 |
-| Vectorize Indexes | https://dash.cloudflare.com/?to=/:account/workers/vectorize |
-| Workers and Pages | https://dash.cloudflare.com/?to=/:account/workers-and-pages |
-| Workers AI Models | https://developers.cloudflare.com/workers-ai/models/ |
-| Durable Objects Docs | https://developers.cloudflare.com/durable-objects/ |
-| Wrangler Docs | https://developers.cloudflare.com/workers/wrangler/ |
+*Originally built at the **Cloudflare IRL Bengaluru Hackathon, June 2026**.*
