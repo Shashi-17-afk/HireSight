@@ -136,10 +136,19 @@ See [docs/architecture.md](docs/architecture.md) for the entity-relationship dia
 
 **Live app:** [https://hiresight.shashishanthan2706.workers.dev](https://hiresight.shashishanthan2706.workers.dev)
 
-You can register a new account on the live app.  
-For a quick tour without registration, browse the public job board at `/jobs` or open any `/apply/:job_id` link.
+Use the pre-seeded demo accounts below to explore both portals immediately — no registration required.
 
-> Demo credentials are not pre-seeded — register a free account to test the full HR or candidate flow.
+| Role | Email | Password |
+|------|-------|----------|
+| **HR / Recruiter** | `demo-hr@hiresight.dev` | `DemoHR2026!` |
+| **Candidate** | `demo@hiresight.dev` | `DemoCandidate2026!` |
+
+**Suggested reviewer flow:**
+1. Log in as HR → post a job → copy the apply link
+2. Open the apply link in a private window → upload a PDF resume → submit
+3. Switch back to HR → watch the candidate appear on the live leaderboard in real time
+
+> **Note:** These demo accounts have standard write access (not read-only). See [docs/architecture.md](docs/architecture.md) Known Limitations for context.
 
 ---
 
