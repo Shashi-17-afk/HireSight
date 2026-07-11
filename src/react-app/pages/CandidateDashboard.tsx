@@ -62,9 +62,10 @@ export default function CandidateDashboard() {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
 
-  // Fetch applications on mount
-  useEffect(() => {
+  function loadApplications() {
     if (!token) { setLoading(false); return; }
+    setLoading(true);
+    setError("");
     fetch("/api/candidates/my-applications", {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -75,6 +76,12 @@ export default function CandidateDashboard() {
       .then((data) => setApplications(data))
       .catch((err) => setError(err instanceof Error ? err.message : "Error fetching applications"))
       .finally(() => setLoading(false));
+  }
+
+  // Fetch applications on mount
+  useEffect(() => {
+    loadApplications();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // Real-time status push via CandidateStatusDO WebSocket
@@ -157,7 +164,10 @@ export default function CandidateDashboard() {
       ) : error ? (
         <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
           <div style={{ fontSize: "2rem", marginBottom: ".5rem" }}>⚠️</div>
-          <p style={{ color: "var(--red)" }}>{error}</p>
+          <p style={{ color: "var(--red)", marginBottom: "1.25rem" }}>{error}</p>
+          <button onClick={loadApplications} className="btn btn-outline" style={{ fontSize: ".85rem" }}>
+            Try Again
+          </button>
         </div>
       ) : applications.length === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: "4rem 2rem" }}>

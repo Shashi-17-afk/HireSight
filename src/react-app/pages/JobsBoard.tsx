@@ -26,7 +26,9 @@ export default function JobsBoard() {
 	const [error, setError] = useState("");
 	const [search, setSearch] = useState("");
 
-	useEffect(() => {
+	function loadJobs() {
+		setLoading(true);
+		setError("");
 		fetch("/api/jobs")
 			.then((r) => r.json())
 			.then((data: unknown) => {
@@ -36,6 +38,11 @@ export default function JobsBoard() {
 			})
 			.catch(() => setError("Could not load jobs. Please try again."))
 			.finally(() => setLoading(false));
+	}
+
+	useEffect(() => {
+		loadJobs();
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	const filtered = jobs.filter((j) => j.title.toLowerCase().includes(search.toLowerCase()));
@@ -67,11 +74,15 @@ export default function JobsBoard() {
 				</div>
 			)}
 
-			{error && (
-				<div className="card" style={{ textAlign: "center", padding: "2rem" }}>
-					<p className="error-text" style={{ justifyContent: "center" }}>⚠ {error}</p>
-				</div>
-			)}
+		{error && (
+			<div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
+				<div style={{ fontSize: "2rem", marginBottom: ".5rem" }}>⚠️</div>
+				<p style={{ color: "var(--red)", marginBottom: "1.25rem" }}>{error}</p>
+				<button onClick={loadJobs} className="btn btn-outline" style={{ fontSize: ".85rem" }}>
+					Try Again
+				</button>
+			</div>
+		)}
 
 			{!loading && !error && filtered.length === 0 && (
 				<div className="card">
