@@ -35,7 +35,8 @@ auth.post("/register/hr", async (c) => {
     return c.json({ error: "Failed to create user: " + err.message }, 500);
   }
 
-  const jwtSecret = c.env.JWT_SECRET || "default_jwt_secret_key_please_change";
+  const jwtSecret = c.env.JWT_SECRET;
+  if (!jwtSecret) return c.json({ error: "Server error: JWT_SECRET not configured" }, 500);
   const token = await sign(
     {
       userId,
@@ -77,7 +78,8 @@ auth.post("/register/candidate", async (c) => {
     return c.json({ error: "Failed to create user: " + err.message }, 500);
   }
 
-  const jwtSecret = c.env.JWT_SECRET || "default_jwt_secret_key_please_change";
+  const jwtSecret = c.env.JWT_SECRET;
+  if (!jwtSecret) return c.json({ error: "Server error: JWT_SECRET not configured" }, 500);
   const token = await sign(
     {
       userId,
@@ -113,7 +115,8 @@ auth.post("/login/hr", async (c) => {
     return c.json({ error: "Invalid email or password" }, 401);
   }
 
-  const jwtSecret = c.env.JWT_SECRET || "default_jwt_secret_key_please_change";
+  const jwtSecret = c.env.JWT_SECRET;
+  if (!jwtSecret) return c.json({ error: "Server error: JWT_SECRET not configured" }, 500);
   const token = await sign(
     {
       userId: user.id,
@@ -149,7 +152,8 @@ auth.post("/login/candidate", async (c) => {
     return c.json({ error: "Invalid email or password" }, 401);
   }
 
-  const jwtSecret = c.env.JWT_SECRET || "default_jwt_secret_key_please_change";
+  const jwtSecret = c.env.JWT_SECRET;
+  if (!jwtSecret) return c.json({ error: "Server error: JWT_SECRET not configured" }, 500);
   const token = await sign(
     {
       userId: user.id,

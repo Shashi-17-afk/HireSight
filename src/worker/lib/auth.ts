@@ -15,7 +15,8 @@ export const authenticate = () =>
       return c.json({ error: "Unauthorized: Missing or malformed token" }, 401);
     }
     const token = authHeader.substring(7);
-    const jwtSecret = c.env.JWT_SECRET || "default_jwt_secret_key_please_change";
+    const jwtSecret = c.env.JWT_SECRET;
+    if (!jwtSecret) return c.json({ error: "Server error: JWT_SECRET not configured" }, 500);
     try {
       const payload = await verify(token, jwtSecret, "HS256");
       if (!payload.userId || !payload.role) {
