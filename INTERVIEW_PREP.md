@@ -27,7 +27,11 @@
 
 ---
 
+
+
 # Part 1 — High Level Overview
+
+
 
 ## What is HireSight?
 
@@ -40,12 +44,18 @@ Traditional hiring is slow. A recruiter receives hundreds of resumes and must ma
 - **For HR/Recruiters:** Post a job in 30 seconds, get an AI-ranked leaderboard of candidates automatically.
 - **For Candidates:** Upload a resume, instantly know if you're a good fit before waiting weeks for a response.
 
+
+
 ## Target Users
 
-| User | Role |
-|------|------|
-| HR Manager / Recruiter | Posts jobs, monitors the live leaderboard |
-| Job Candidate | Receives the apply link, uploads their PDF resume |
+
+| User                   | Role                                              |
+| ---------------------- | ------------------------------------------------- |
+| HR Manager / Recruiter | Posts jobs, monitors the live leaderboard         |
+| Job Candidate          | Receives the apply link, uploads their PDF resume |
+
+
+
 
 ## Main Features
 
@@ -55,6 +65,8 @@ Traditional hiring is slow. A recruiter receives hundreds of resumes and must ma
 4. **Live Leaderboard** — WebSocket-powered. New candidates appear instantly on the recruiter's dashboard, sorted by score.
 5. **Tie-breaking** — Candidates with the same score are ranked by submission time (earlier = higher).
 6. **Search & Filter** — Recruiter can search by name, filter by Strong Fit (≥80), Potential (50–79), or No Match (<50).
+
+
 
 ## Overall Architecture
 
@@ -71,9 +83,11 @@ Cloudflare Workers (Hono HTTP API)
        └── Durable Object ── LeaderboardDO (WebSocket hub + persistent state)
 ```
 
-- The **React frontend** is a Single Page Application (SPA). It is served as static files from Cloudflare's CDN.
+-  The **React frontend** is a Single Page Application (SPA). It is served as static files from Cloudflare's CDN.
 - The **Hono backend** runs on Cloudflare Workers — serverless, globally distributed, no traditional server.
 - All data lives inside Cloudflare infrastructure: D1 (relational SQL), Vectorize (vector DB), Durable Objects (stateful coordination).
+
+
 
 ## Complete User Flow
 
@@ -108,34 +122,44 @@ Cloudflare Workers (Hono HTTP API)
 14. HR's dashboard updates live (no page refresh)
 ```
 
+
+
 ## Tech Stack and Why Each Technology Was Chosen
 
-| Technology | Why Used |
-|------------|----------|
-| **React 19** | Industry-standard UI library. Component-based, fast, huge ecosystem. |
-| **TypeScript** | Type safety across frontend and backend. Catches bugs at compile time. |
-| **Hono** | Ultrafast web framework built for edge runtimes (Workers). Tiny bundle, Express-like API. |
-| **Cloudflare Workers** | Serverless, runs at the edge (globally). No server management, instant scaling, 0ms cold starts. |
-| **D1 (SQLite)** | Cloudflare's serverless SQL database. Perfect for relational data (jobs, candidates). |
-| **Workers AI** | Cloudflare's AI inference. Runs `bge-base-en-v1.5` (embeddings) and `llama-3.1-8b-instruct-fast` (LLM) without external API keys or latency. |
-| **Vectorize** | Cloudflare's vector database. Stores 768-dimensional embeddings for semantic similarity search. |
-| **Durable Objects** | Cloudflare's stateful serverless primitive. Manages WebSocket connections for the live leaderboard. |
-| **Vite** | Blazing fast frontend build tool. HMR in dev, optimized bundles in prod. |
-| **pdfjs-dist** | Mozilla's PDF.js library. Parses PDF files entirely in the browser — no server upload of file bytes. |
-| **React Router v7** | Client-side routing. Enables SPA navigation between /, /apply/:id, /dashboard/:id. |
+
+| Technology             | Why Used                                                                                                                                     |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **React 19**           | Industry-standard UI library. Component-based, fast, huge ecosystem.                                                                         |
+| **TypeScript**         | Type safety across frontend and backend. Catches bugs at compile time.                                                                       |
+| **Hono**               | Ultrafast web framework built for edge runtimes (Workers). Tiny bundle, Express-like API.                                                    |
+| **Cloudflare Workers** | Serverless, runs at the edge (globally). No server management, instant scaling, 0ms cold starts.                                             |
+| **D1 (SQLite)**        | Cloudflare's serverless SQL database. Perfect for relational data (jobs, candidates).                                                        |
+| **Workers AI**         | Cloudflare's AI inference. Runs `bge-base-en-v1.5` (embeddings) and `llama-3.1-8b-instruct-fast` (LLM) without external API keys or latency. |
+| **Vectorize**          | Cloudflare's vector database. Stores 768-dimensional embeddings for semantic similarity search.                                              |
+| **Durable Objects**    | Cloudflare's stateful serverless primitive. Manages WebSocket connections for the live leaderboard.                                          |
+| **Vite**               | Blazing fast frontend build tool. HMR in dev, optimized bundles in prod.                                                                     |
+| **pdfjs-dist**         | Mozilla's PDF.js library. Parses PDF files entirely in the browser — no server upload of file bytes.                                         |
+| **React Router v7**    | Client-side routing. Enables SPA navigation between /, /apply/:id, /dashboard/:id.                                                           |
+
+
+
 
 ## Alternative Technologies
 
-| Current Choice | Alternatives | Why Current Is Better/Worse |
-|---------------|--------------|------------------------------|
-| Cloudflare Workers | AWS Lambda, Vercel Edge | Workers: zero cold start, cheaper, integrated with D1/DO/AI. Lambda: more mature ecosystem, better debugging. |
-| Hono | Express, Fastify | Hono is built for edge/Workers. Express doesn't run on Workers natively. |
-| D1 (SQLite) | PlanetScale, Supabase, Neon | D1 is tightly integrated with Workers — one platform. External DBs add latency. |
-| Vectorize | Pinecone, Weaviate | Vectorize lives inside Cloudflare — no external API calls, lower latency. Pinecone is more mature. |
-| Durable Objects | Redis Pub/Sub, Socket.io | DOs are co-located with Workers, no extra infra. Redis needs a separate server. |
-| pdfjs-dist | Server-side PDF parsing | Browser-side keeps PDF bytes local (privacy) and reduces server bandwidth. |
+
+| Current Choice     | Alternatives                | Why Current Is Better/Worse                                                                                   |
+| ------------------ | --------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Cloudflare Workers | AWS Lambda, Vercel Edge     | Workers: zero cold start, cheaper, integrated with D1/DO/AI. Lambda: more mature ecosystem, better debugging. |
+| Hono               | Express, Fastify            | Hono is built for edge/Workers. Express doesn't run on Workers natively.                                      |
+| D1 (SQLite)        | PlanetScale, Supabase, Neon | D1 is tightly integrated with Workers — one platform. External DBs add latency.                               |
+| Vectorize          | Pinecone, Weaviate          | Vectorize lives inside Cloudflare — no external API calls, lower latency. Pinecone is more mature.            |
+| Durable Objects    | Redis Pub/Sub, Socket.io    | DOs are co-located with Workers, no extra infra. Redis needs a separate server.                               |
+| pdfjs-dist         | Server-side PDF parsing     | Browser-side keeps PDF bytes local (privacy) and reduces server bandwidth.                                    |
+
 
 ---
+
+
 
 # Part 2 — Folder Structure
 
@@ -164,23 +188,29 @@ hiring-screener/
 └── .editorconfig        ← Editor whitespace rules
 ```
 
+
+
 ### Why Each Folder Exists
 
-**`src/react-app/`** — Completely separated from backend code. Has its own `tsconfig.app.json`. This separation ensures React code can use browser APIs (`window`, `document`) while worker code targets the Cloudflare runtime.
+`src/react-app/` — Completely separated from backend code. Has its own `tsconfig.app.json`. This separation ensures React code can use browser APIs (`window`, `document`) while worker code targets the Cloudflare runtime.
 
-**`src/worker/`** — The Cloudflare Worker. Has its own `tsconfig.worker.json`. Compiles separately from the React app.
+`src/worker/` — The Cloudflare Worker. Has its own `tsconfig.worker.json`. Compiles separately from the React app.
 
-**`src/worker/routes/`** — Route handlers are separated by domain (jobs, candidates, auth). Without this, `index.ts` would be a 500-line file. Each file exports a Hono sub-app that gets mounted in `index.ts`.
+`src/worker/routes/` — Route handlers are separated by domain (jobs, candidates, auth). Without this, `index.ts` would be a 500-line file. Each file exports a Hono sub-app that gets mounted in `index.ts`.
 
-**`src/worker/lib/`** — Shared logic (auth middleware, password hashing) that multiple route files can import. Without this, you'd duplicate the JWT verification code in every protected route.
+`src/worker/lib/` — Shared logic (auth middleware, password hashing) that multiple route files can import. Without this, you'd duplicate the JWT verification code in every protected route.
 
-**`migrations/`** — SQL files that define the database schema. Run manually with `wrangler d1 execute`. Versioned so you can track schema changes over time (`0001_init.sql` → `0002_auth.sql`).
+`migrations/` — SQL files that define the database schema. Run manually with `wrangler d1 execute`. Versioned so you can track schema changes over time (`0001_init.sql` → `0002_auth.sql`).
 
-**`public/`** — Files served verbatim. Currently only `vite.svg` (the favicon). Vite copies these to `dist/` unchanged.
+`public/` — Files served verbatim. Currently only `vite.svg` (the favicon). Vite copies these to `dist/` unchanged.
 
 ---
 
+
+
 # Part 3 — File-by-File Deep Dive
+
+
 
 ## `index.html`
 
@@ -194,6 +224,8 @@ hiring-screener/
 **Key detail:** `wrangler.toml` has `not_found_handling = "single-page-application"` which tells Cloudflare: for any URL that isn't a file, serve this `index.html`. This is how `/dashboard/abc123` works — Cloudflare serves `index.html`, React Router reads the URL, and renders the right page.
 
 ---
+
+
 
 ## `src/react-app/main.tsx`
 
@@ -216,11 +248,14 @@ createRoot(document.getElementById("root")!).render(
 - `App` — The root component that contains all routes.
 
 **What would happen without each piece:**
+
 - Without `StrictMode`: Bugs from impure components are hidden.
 - Without `BrowserRouter`: `useParams`, `Link`, `Routes` all crash.
 - Without `createRoot`: You'd use the deprecated React 17 API.
 
 ---
+
+
 
 ## `src/react-app/App.tsx`
 
@@ -240,6 +275,8 @@ function Navbar() {
 - `useLocation()` — React Router hook that returns the current URL. Used here to show different nav items depending on which page you're on.
 - `isDash` / `isApply` — Boolean flags. The navbar is **context-aware**: on the dashboard it shows "+ Post a Job", on the apply page it shows "Candidate Application" as a non-clickable label.
 - The logo is a `<Link to="/">` — clicking it always navigates home.
+
+
 
 ### The Router
 
@@ -261,6 +298,8 @@ function Navbar() {
 **Architecture note:** `AuthPage`, `HRDashboard`, and `CandidateDashboard` pages exist in `src/react-app/pages/` but are **NOT routed here**. They are unfinished/incomplete features.
 
 ---
+
+
 
 ## `src/react-app/pages/PostJob.tsx`
 
@@ -299,10 +338,13 @@ async function handleSubmit(e: React.FormEvent) {
 ```
 
 **Key patterns:**
+
 - `e.preventDefault()` — Without this, the browser would reload the page on form submit.
 - `try/catch/finally` — The `finally` block ALWAYS runs, even if there's an error. Perfect for resetting `loading` state.
 - `res.ok` — Checks if HTTP status is 200–299. Always check this before parsing JSON.
 - The component uses **conditional rendering**: `{!result ? <form> : <successView>}`. Once `result` is set, the form disappears and the success view appears.
+
+
 
 ### `copyLink` Function
 
@@ -317,6 +359,8 @@ function copyLink() {
 `void` discards the Promise (we don't need to await it). `setTimeout` provides the "Copied!" → "Copy Link" feedback loop.
 
 ---
+
+
 
 ## `src/react-app/pages/ApplyJob.tsx`
 
@@ -375,11 +419,14 @@ const offset = circ - (result.score / 100) * circ;
 ```
 
 This is a CSS `stroke-dasharray` technique:
+
 - `stroke-dasharray={circ}` — Makes the stroke one continuous dash equal to the full circumference.
 - `stroke-dashoffset={offset}` — Shifts the starting point. A score of 100 → offset 0 (full circle). A score of 50 → offset = half the circumference (half circle).
 - `transition: stroke-dashoffset 1.2s` in CSS — Animates the circle filling up when the score appears.
 
 ---
+
+
 
 ## `src/react-app/pages/Dashboard.tsx`
 
@@ -414,11 +461,11 @@ useEffect(() => {
 }, [job_id]);
 ```
 
-**Why `useRef` for `wsRef`?** Refs persist across renders without causing re-renders. Storing a WebSocket in state would cause infinite re-render loops. Refs are for "things that exist outside of React's render cycle."
+**Why** `useRef` **for** `wsRef`**?** Refs persist across renders without causing re-renders. Storing a WebSocket in state would cause infinite re-render loops. Refs are for "things that exist outside of React's render cycle."
 
 **Why the cleanup function?** The `return () => {...}` in `useEffect` runs when the component unmounts (user navigates away). Without cleanup, the WebSocket would keep running and trying to update state on an unmounted component.
 
-**`wss` vs `ws`:** WebSockets use `ws://` for HTTP and `wss://` (secure) for HTTPS. Always use `wss://` in production.
+`wss` **vs** `ws`**:** WebSockets use `ws://` for HTTP and `wss://` (secure) for HTTPS. Always use `wss://` in production.
 
 ### New Entry Highlight Animation
 
@@ -474,6 +521,8 @@ A candidate is "tied" if their score equals the one above OR below them. The `=`
 
 ---
 
+
+
 ## `src/worker/index.ts`
 
 The entry point of the Cloudflare Worker. This is what Cloudflare runs.
@@ -499,6 +548,7 @@ app.get("/api/leaderboard/:job_id/ws", async (c) => {
 ```
 
 **How Durable Objects work here:**
+
 1. `idFromName(jobId)` — Deterministic ID from a string. Every call with the same `jobId` returns the same DO instance. This is how all dashboards for the same job connect to the same WebSocket hub.
 2. `stub.fetch(c.req.raw)` — Forwards the entire HTTP request (including the WebSocket upgrade headers) to the DO.
 
@@ -509,6 +559,8 @@ export { LeaderboardDO };
 This re-export is REQUIRED. Cloudflare needs to see the DO class exported from the Worker's main module to wire up the binding.
 
 ---
+
+
 
 ## `src/worker/leaderboard-do.ts`
 
@@ -531,6 +583,8 @@ private async ensureLoaded(): Promise<void> {
   this.initialized = true;
 }
 ```
+
+
 
 ### WebSocket Hibernation API
 
@@ -564,7 +618,11 @@ Primary sort: score descending (`b.score - a.score`). If scores are equal, the `
 
 ---
 
+
+
 ## `src/worker/routes/jobs.ts`
+
+
 
 ### POST `/` — Create a Job
 
@@ -583,6 +641,8 @@ Simple D1 lookup. Used by `ApplyJob.tsx` to display the job title at the top of 
 
 ---
 
+
+
 ## `src/worker/routes/candidates.ts`
 
 This is the most important backend file — the AI scoring pipeline.
@@ -594,6 +654,7 @@ This is the most important backend file — the AI scoring pipeline.
 **Step 2 — Fetch job from D1:** Confirms the job exists. Returns 404 if not.
 
 **Step 3 — Embed the resume:**
+
 ```typescript
 const resumeEmbedResponse = await c.env.AI.run("@cf/baai/bge-base-en-v1.5", {
   text: [body.resume_text]
@@ -602,6 +663,7 @@ const resumeEmbedding = resumeEmbedResponse.data[0]; // 768-dim float array
 ```
 
 **Step 4 — Semantic similarity via Vectorize:**
+
 ```typescript
 const vectorQuery = await c.env.VECTORIZE.query(resumeEmbedding, {
   topK: 1,
@@ -610,9 +672,11 @@ const vectorQuery = await c.env.VECTORIZE.query(resumeEmbedding, {
 });
 semanticScore = Math.round(vectorQuery.matches[0].score * 100);
 ```
+
 Vectorize returns cosine similarity (0–1). We multiply by 100 to get a 0–100 score.
 
 **Step 5 — LLM scoring (primary):**
+
 ```typescript
 const prompt = `You are a hiring assistant. Given this Job Description and Resume,
 score the candidate from 0-100 and give 2 line reasoning.
@@ -623,16 +687,20 @@ Resume: ${body.resume_text}`;
 ```
 
 The LLM returns JSON. The code has robust fallback parsing:
+
 - First tries `resp.response` as a pre-parsed object (newer model API).
 - Falls back to extracting JSON from a text response with a regex: `/\{[\s\S]*\}/`.
 - Validates that score is 0–100 before using it.
 
 **Step 6 — Store + notify:**
+
 - Insert candidate into D1.
 - Fetch the LeaderboardDO's `/update` endpoint with the candidate data.
 - Return `{ candidate_id, score, reasoning }` to the frontend.
 
 ---
+
+
 
 ## `src/worker/lib/auth.ts`
 
@@ -669,6 +737,8 @@ return `${saltHex}:${hashHex}`; // Store as "salt:hash"
 
 ---
 
+
+
 ## `migrations/0001_init.sql`
 
 ```sql
@@ -693,9 +763,12 @@ CREATE TABLE IF NOT EXISTS candidates (
 ```
 
 **Design notes:**
+
 - UUIDs as primary keys (TEXT) instead of auto-increment integers — avoids exposing record count, better for distributed systems.
 - `resume_text TEXT` — Stores the full resume. This could be very large. A production optimization would store only a summary.
 - `FOREIGN KEY` — Enforces that every candidate must reference a valid job.
+
+
 
 ## `migrations/0002_auth.sql`
 
@@ -716,23 +789,33 @@ ALTER TABLE jobs ADD COLUMN user_id TEXT REFERENCES users(id);
 
 ---
 
+
+
 # Part 4 — React Concepts
+
+
 
 ## Why Functional Components?
 
 This project uses **only functional components** (no class components). Modern React (since v16.8) encourages functional components + hooks over class components because:
+
 - Less boilerplate
 - Easier to read and test
 - Hooks enable sharing stateful logic between components
 
+
+
 ## JSX
 
 JSX is NOT HTML. It compiles to `React.createElement()` calls. Example from `PostJob.tsx`:
+
 ```tsx
 <button disabled={loading}>Submit</button>
 // compiles to:
 React.createElement("button", { disabled: loading }, "Submit")
 ```
+
+
 
 ## Props
 
@@ -745,18 +828,23 @@ Every form input, loading state, and result in this project uses `useState`. Rem
 ## useEffect
 
 Used in two components:
-1. **`ApplyJob`** — Fetches job details on mount: `useEffect(() => { fetch(...) }, [job_id])`. The `[job_id]` dependency array means "re-run this if job_id changes."
-2. **`Dashboard`** — Opens the WebSocket on mount, cleans up on unmount.
 
-**The rules of `useEffect`:**
+1. `ApplyJob` — Fetches job details on mount: `useEffect(() => { fetch(...) }, [job_id])`. The `[job_id]` dependency array means "re-run this if job_id changes."
+2. `Dashboard` — Opens the WebSocket on mount, cleans up on unmount.
+
+**The rules of** `useEffect`**:**
+
 - `[]` — Runs once after mount.
 - `[someValue]` — Runs after mount AND whenever `someValue` changes.
 - No array — Runs after EVERY render (usually a bug).
 - Cleanup function — Return a function to clean up (close WS, cancel timers).
 
+
+
 ## useRef
 
 Used in `Dashboard.tsx` for `wsRef` and `reconnectTimer`. Refs are for values that:
+
 1. Need to persist across renders
 2. Should NOT trigger a re-render when changed
 
@@ -780,7 +868,11 @@ const ApplyJob = lazy(() => import("./pages/ApplyJob"));
 
 ---
 
+
+
 # Part 5 — Backend Architecture
+
+
 
 ## Hono Framework
 
@@ -817,12 +909,17 @@ Each handler has its own try/catch. There's no global error handler (a potential
 ## Response Structure
 
 All API responses are JSON:
+
 - Success: `{ data fields... }` with 200 or 201
 - Error: `{ error: "message" }` with 400, 401, 403, 404, or 500
 
 ---
 
+
+
 # Part 6 — Database
+
+
 
 ## D1 (SQLite on Cloudflare)
 
@@ -830,11 +927,11 @@ D1 is Cloudflare's SQLite-based serverless database. It lives at the edge, co-lo
 
 ## Schema Design
 
-**`jobs` table:** Stores job postings. `id` is a UUID. `description` is the full job description text (used for LLM scoring and embedding).
+`jobs` **table:** Stores job postings. `id` is a UUID. `description` is the full job description text (used for LLM scoring and embedding).
 
-**`candidates` table:** Stores applications. One-to-many with jobs (`job_id` foreign key). Stores `resume_text` (full text), `score` (0–100 float), and `reasoning` (LLM explanation).
+`candidates` **table:** Stores applications. One-to-many with jobs (`job_id` foreign key). Stores `resume_text` (full text), `score` (0–100 float), and `reasoning` (LLM explanation).
 
-**`users` table (migration 2):** For future auth. Stores both HR and candidate accounts. `role` field distinguishes them. `email` has a UNIQUE constraint.
+`users` **table (migration 2):** For future auth. Stores both HR and candidate accounts. `role` field distinguishes them. `email` has a UNIQUE constraint.
 
 ## Prepared Statements
 
@@ -848,13 +945,17 @@ Always use prepared statements with `?` placeholders. Never string-concatenate u
 
 ## CRUD Operations Used
 
-| Operation | Where |
-|-----------|-------|
-| INSERT jobs | `routes/jobs.ts` POST |
-| SELECT jobs | `routes/jobs.ts` GET /:id, `routes/candidates.ts` |
-| INSERT candidates | `routes/candidates.ts` POST |
-| INSERT users | `routes/auth.ts` register |
-| SELECT users | `routes/auth.ts` login |
+
+| Operation         | Where                                             |
+| ----------------- | ------------------------------------------------- |
+| INSERT jobs       | `routes/jobs.ts` POST                             |
+| SELECT jobs       | `routes/jobs.ts` GET /:id, `routes/candidates.ts` |
+| INSERT candidates | `routes/candidates.ts` POST                       |
+| INSERT users      | `routes/auth.ts` register                         |
+| SELECT users      | `routes/auth.ts` login                            |
+
+
+
 
 ## Possible Optimizations
 
@@ -865,7 +966,11 @@ Always use prepared statements with `?` placeholders. Never string-concatenate u
 
 ---
 
+
+
 # Part 7 — APIs
+
+
 
 ## `GET /api/health`
 
@@ -875,6 +980,8 @@ Always use prepared statements with `?` placeholders. Never string-concatenate u
 
 ---
 
+
+
 ## `POST /api/jobs`
 
 **Purpose:** Create a job posting.
@@ -883,11 +990,14 @@ Always use prepared statements with `?` placeholders. Never string-concatenate u
 **Response (400):** `{ "error": "title and description are required" }`
 
 **Side effects:**
+
 - Inserts into D1 `jobs` table
 - Generates embedding via Workers AI
 - Upserts embedding into Vectorize
 
 ---
+
+
 
 ## `GET /api/jobs/:id`
 
@@ -897,10 +1007,13 @@ Always use prepared statements with `?` placeholders. Never string-concatenate u
 
 ---
 
+
+
 ## `POST /api/candidates`
 
 **Purpose:** Submit a resume application and receive an AI score.
 **Request body:**
+
 ```json
 {
   "job_id": "uuid",
@@ -909,7 +1022,9 @@ Always use prepared statements with `?` placeholders. Never string-concatenate u
   "resume_text": "full extracted text..."
 }
 ```
+
 **Response (201):**
+
 ```json
 {
   "candidate_id": "uuid",
@@ -922,6 +1037,8 @@ Always use prepared statements with `?` placeholders. Never string-concatenate u
 
 ---
 
+
+
 ## `GET /api/leaderboard/:job_id`
 
 **Purpose:** REST snapshot of the leaderboard (for initial page load without WebSocket).
@@ -929,22 +1046,31 @@ Always use prepared statements with `?` placeholders. Never string-concatenate u
 
 ---
 
+
+
 ## `GET /api/leaderboard/:job_id/ws`
 
 **Purpose:** WebSocket upgrade for live leaderboard.
 **Protocol:** Upgrades to WebSocket. Proxies to `LeaderboardDO`.
 **Messages from server:**
+
 ```json
 { "type": "leaderboard", "entries": [...] }
 ```
+
 **Messages from client:**
+
 ```json
 { "type": "ping" }
 ```
 
 ---
 
+
+
 # Part 8 — Authentication & Security
+
+
 
 ## Current State
 
@@ -952,7 +1078,10 @@ The live app has **no authentication**. Anyone who knows a `job_id` can view the
 
 ## Implemented (But Inactive) Auth System
 
+
+
 ### Registration/Login Flow
+
 1. User POSTs email + password to `/api/auth/register/hr` or `/api/auth/register/candidate`
 2. Password is hashed with PBKDF2 (100,000 iterations + random salt)
 3. User record inserted into D1 `users` table
@@ -961,7 +1090,10 @@ The live app has **no authentication**. Anyone who knows a `job_id` can view the
 6. Future requests include `Authorization: Bearer <token>` header
 7. `authenticate()` middleware verifies the JWT on protected routes
 
+
+
 ### JWT Structure
+
 ```json
 {
   "userId": "uuid",
@@ -980,17 +1112,23 @@ Signed with `HS256` (HMAC-SHA256). The `JWT_SECRET` is stored as a Worker secret
 - **Input validation** — Every endpoint checks required fields before processing.
 - **Role-based middleware** — `requireHR()` and `requireCandidate()` middlewares ready.
 
+
+
 ## Security: What's Missing or Weak
 
-| Issue | Risk | Fix |
-|-------|------|-----|
-| No auth on live routes | Anyone can post jobs or submit candidates | Mount auth middleware |
-| `JWT_SECRET` has a default value | Predictable secret if not overridden | Enforce non-default in production |
-| CORS `origin: "*"` | Any website can call your API | Lock to specific domain in production |
-| No rate limiting | Unlimited candidate submissions | Add rate limiting middleware |
-| No input sanitization | XSS if reasoning/names rendered as HTML | React escapes JSX output by default — OK here |
-| `localStorage` for JWT | XSS can steal the token | Use httpOnly cookies instead |
-| Full resume in D1 | Large storage, potential data leak | Encrypt or store in R2 |
+
+| Issue                            | Risk                                      | Fix                                           |
+| -------------------------------- | ----------------------------------------- | --------------------------------------------- |
+| No auth on live routes           | Anyone can post jobs or submit candidates | Mount auth middleware                         |
+| `JWT_SECRET` has a default value | Predictable secret if not overridden      | Enforce non-default in production             |
+| CORS `origin: "*"`               | Any website can call your API             | Lock to specific domain in production         |
+| No rate limiting                 | Unlimited candidate submissions           | Add rate limiting middleware                  |
+| No input sanitization            | XSS if reasoning/names rendered as HTML   | React escapes JSX output by default — OK here |
+| `localStorage` for JWT           | XSS can steal the token                   | Use httpOnly cookies instead                  |
+| Full resume in D1                | Large storage, potential data leak        | Encrypt or store in R2                        |
+
+
+
 
 ## CORS Explained
 
@@ -998,7 +1136,11 @@ Cross-Origin Resource Sharing. Browsers block requests from `example.com` to `ap
 
 ---
 
+
+
 # Part 9 — Styling
+
+
 
 ## Architecture: Single Global CSS File
 
@@ -1039,11 +1181,14 @@ Uses **Plus Jakarta Sans** from Google Fonts. Loaded via `@import url(...)` at t
 ## Animations
 
 Three key animations:
-1. **`fadeIn`** — Every page fades in with a slight upward movement.
-2. **`pulse`** — The green "LIVE" dot pulses to indicate active connection.
-3. **`fadeFromIndigo`** — New leaderboard rows highlight indigo then fade out.
-4. **`spin`** — Loading spinner.
+
+1. `fadeIn` — Every page fades in with a slight upward movement.
+2. `pulse` — The green "LIVE" dot pulses to indicate active connection.
+3. `fadeFromIndigo` — New leaderboard rows highlight indigo then fade out.
+4. `spin` — Loading spinner.
 5. **SVG stroke animation** — The score circle fills up on the Apply result page.
+
+
 
 ## Responsive Design
 
@@ -1060,15 +1205,21 @@ Breakpoint at 768px (tablet/mobile). CSS Grid and Flexbox handle layout at both 
 
 ---
 
+
+
 # Part 10 — Performance
+
+
 
 ## Bundle Optimization
 
-**Lazy loading `ApplyJob`:** The `pdfjs-dist` library is ~3MB. Without lazy loading, every page load downloads it. With `lazy()`, it's only downloaded when a user visits `/apply/...`.
+**Lazy loading** `ApplyJob`**:** The `pdfjs-dist` library is ~3MB. Without lazy loading, every page load downloads it. With `lazy()`, it's only downloaded when a user visits `/apply/...`.
 
 ```tsx
 const ApplyJob = lazy(() => import("./pages/ApplyJob"));
 ```
+
+
 
 ## Cloudflare Edge Delivery
 
@@ -1084,21 +1235,26 @@ The leaderboard uses WebSocket instead of polling (`setInterval` + `fetch`). A p
 
 ## Potential Bottlenecks
 
-1. **`resume_text` in D1** — Large text fields slow down reads. Store in R2.
+1. `resume_text` **in D1** — Large text fields slow down reads. Store in R2.
 2. **LLM scoring latency** — Llama 3.1 call can take 2–5 seconds. Consider showing a loading state with intermediate feedback.
-3. **No `useMemo` on `filteredEntries`** — Fine for <1000 candidates. For larger datasets, memoize the filter.
+3. **No** `useMemo` **on** `filteredEntries` — Fine for <1000 candidates. For larger datasets, memoize the filter.
 4. **PDF parsing blocks UI slightly** — Happens in a Web Worker (via pdfjs), so it shouldn't freeze, but very large PDFs could.
 5. **No pagination** — The leaderboard loads all candidates. At 10,000+ candidates, this becomes a problem.
 
 ---
 
+
+
 # Part 11 — Design Decisions
+
+
 
 ## Why Browser-Side PDF Parsing?
 
 **Alternatives:** Send the PDF to the server, parse server-side.
 
 **Why browser-side is better here:**
+
 - Privacy: The raw PDF bytes never leave the user's device. Only the extracted text is sent.
 - Cost: No bandwidth for uploading large PDFs to the server.
 - Complexity: No file upload handling, no storage for PDFs.
@@ -1110,6 +1266,7 @@ The leaderboard uses WebSocket instead of polling (`setInterval` + `fetch`). A p
 **Alternatives:** Server-Sent Events (SSE), polling, Redis Pub/Sub.
 
 **Why DOs:**
+
 - No external infra — everything on Cloudflare.
 - DOs maintain the sorted leaderboard state in memory and persist it to storage.
 - One DO instance per `job_id` — natural fan-out. All clients watching the same job connect to the same DO.
@@ -1119,6 +1276,7 @@ The leaderboard uses WebSocket instead of polling (`setInterval` + `fetch`). A p
 ## Why Hono Instead of itty-router or raw Request handling?
 
 Hono provides:
+
 - Route parameters (`:job_id`)
 - JSON body parsing (`c.req.json()`)
 - CORS middleware
@@ -1132,13 +1290,17 @@ Raw `Request` handling would require reimplementing all of this.
 **Alternative:** CSS Modules, Tailwind, styled-components.
 
 **Pros of single file:**
+
 - Simple — no build-time CSS module mapping.
 - CSS variables provide the design system.
 
 **Cons:**
+
 - Not scalable. At 20+ pages, a single CSS file becomes hard to maintain.
 - No component-level isolation — class name collisions possible.
 - For a production app, Tailwind or CSS Modules would be better.
+
+
 
 ## Two-Stage AI Scoring (Vector + LLM)
 
@@ -1149,7 +1311,11 @@ Raw `Request` handling would require reimplementing all of this.
 
 ---
 
+
+
 # Part 12 — Libraries
+
+
 
 ## `hono` (^4.11.1)
 
@@ -1205,22 +1371,30 @@ Raw `Request` handling would require reimplementing all of this.
 
 **What:** Cloudflare's CLI tool.
 **Why:** Deploy Workers, manage D1 migrations, run local dev server, generate TypeScript types.
-**Used via:** `npm run deploy`, `npm run cf-typegen`, `npm run db:migrate:*`.
+**Used via:** `npm run deploy`, `npm run cf-typegen`, `npm run db:migrate:`*.
 
 ---
 
+
+
 # Part 13 — Configuration
+
+
 
 ## `package.json` Scripts
 
-| Script | What It Does |
-|--------|-------------|
-| `npm run dev` | Starts Vite dev server + Worker locally |
-| `npm run build` | TypeScript check + Vite production build |
-| `npm run deploy` | Deploys the built app to Cloudflare Workers |
-| `npm run cf-typegen` | Regenerates `worker-configuration.d.ts` from `wrangler.toml` |
-| `npm run db:migrate:local` | Runs `0001_init.sql` against local D1 |
-| `npm run db:migrate:remote` | Runs `0001_init.sql` against production D1 |
+
+| Script                      | What It Does                                                 |
+| --------------------------- | ------------------------------------------------------------ |
+| `npm run dev`               | Starts Vite dev server + Worker locally                      |
+| `npm run build`             | TypeScript check + Vite production build                     |
+| `npm run deploy`            | Deploys the built app to Cloudflare Workers                  |
+| `npm run cf-typegen`        | Regenerates `worker-configuration.d.ts` from `wrangler.toml` |
+| `npm run db:migrate:local`  | Runs `0001_init.sql` against local D1                        |
+| `npm run db:migrate:remote` | Runs `0001_init.sql` against production D1                   |
+
+
+
 
 ## `wrangler.toml`
 
@@ -1250,6 +1424,8 @@ index_name = "resumes_index"
 bindings = [{ name = "LEADERBOARD", class_name = "LeaderboardDO" }]
 ```
 
+
+
 ## `vite.config.ts`
 
 ```typescript
@@ -1259,18 +1435,23 @@ export default defineConfig({
 ```
 
 Two plugins:
+
 - `react()` — JSX, HMR
 - `cloudflare()` — Worker bundling, dev proxy between React and Worker
+
+
 
 ## TypeScript Configuration (3 configs)
 
 The project has three separate `tsconfig` files because the code runs in three different environments:
 
-| Config | Environment | Target | Includes |
-|--------|------------|--------|---------|
-| `tsconfig.app.json` | Browser | ES2020 | `src/react-app/` |
-| `tsconfig.node.json` | Node.js | ES2023 | `vite.config.ts` |
-| `tsconfig.worker.json` | Workers runtime | ES2023 | `src/worker/` |
+
+| Config                 | Environment     | Target | Includes         |
+| ---------------------- | --------------- | ------ | ---------------- |
+| `tsconfig.app.json`    | Browser         | ES2020 | `src/react-app/` |
+| `tsconfig.node.json`   | Node.js         | ES2023 | `vite.config.ts` |
+| `tsconfig.worker.json` | Workers runtime | ES2023 | `src/worker/`    |
+
 
 The root `tsconfig.json` just references all three — it's a TypeScript "solution" style config.
 
@@ -1295,7 +1476,11 @@ Same rules for editors that don't use Prettier. Ensures consistent line endings 
 
 ---
 
+
+
 # Part 14 — Git & Deployment
+
+
 
 ## Build Process
 
@@ -1306,6 +1491,8 @@ npm run build
         ├── Builds React app → dist/client/     (static assets)
         └── Bundles Worker  → dist/worker.js    (single Worker script)
 ```
+
+
 
 ## Development Workflow
 
@@ -1324,6 +1511,7 @@ wrangler deploy
 ```
 
 Wrangler:
+
 1. Bundles the Worker with esbuild
 2. Uploads the Worker script to Cloudflare
 3. Uploads `dist/client/` as static assets to Cloudflare's CDN
@@ -1335,6 +1523,8 @@ Wrangler:
 - `JWT_SECRET` — Must be set as a Wrangler secret: `wrangler secret put JWT_SECRET`
 - `.dev.vars` — Local development secrets (like `.env`). Listed in `.gitignore` — NEVER commit.
 - The `.gitignore` includes `.dev.vars*` so secrets stay off Git.
+
+
 
 ## Database Migrations
 
@@ -1350,7 +1540,11 @@ npm run db:migrate:remote  # Runs 0001_init.sql against production D1
 
 ---
 
+
+
 # Part 15 — Interview Questions
+
+
 
 ## HR-Friendly / Behavioral
 
@@ -1361,86 +1555,106 @@ npm run db:migrate:remote  # Runs 0001_init.sql against production D1
 5. **"Why did you choose to build this on Cloudflare instead of AWS or Vercel?"**
 6. **"How did you come up with the two-stage AI scoring approach?"**
 
+
+
 ## Technical — Architecture
 
-7. **"Explain the overall system architecture."**
-8. **"What is a Cloudflare Worker and how is it different from a traditional Node.js server?"**
-9. **"What is a Durable Object and why did you use it for the leaderboard?"**
-10. **"Why does the leaderboard use WebSocket instead of polling?"**
-11. **"What happens if the Durable Object restarts? Does the leaderboard data survive?"**
-12. **"Why are there two AI scoring steps (vector similarity + LLM)?"**
-13. **"What is Vectorize and what problem does it solve?"**
-14. **"How does the app handle multiple recruiters viewing the same job's dashboard simultaneously?"**
-15. **"Why is the React app served as a SPA and what does `not_found_handling = "single-page-application"` do?"**
+1. **"Explain the overall system architecture."**
+2. **"What is a Cloudflare Worker and how is it different from a traditional Node.js server?"**
+3. **"What is a Durable Object and why did you use it for the leaderboard?"**
+4. **"Why does the leaderboard use WebSocket instead of polling?"**
+5. **"What happens if the Durable Object restarts? Does the leaderboard data survive?"**
+6. **"Why are there two AI scoring steps (vector similarity + LLM)?"**
+7. **"What is Vectorize and what problem does it solve?"**
+8. **"How does the app handle multiple recruiters viewing the same job's dashboard simultaneously?"**
+9. **"Why is the React app served as a SPA and what does** `not_found_handling = "single-page-application"` **do?"**
+
+
 
 ## Technical — React
 
-16. **"Why did you use `useRef` for the WebSocket instead of `useState`?"**
-17. **"Explain why `ApplyJob` is lazy loaded but `PostJob` and `Dashboard` are not."**
-18. **"What is the cleanup function in `useEffect` and why is it important in the Dashboard?"**
-19. **"How does the new-entry highlight animation work? Walk me through the code."**
-20. **"What is a controlled component? Give an example from your code."**
-21. **"Why does the `useEffect` in Dashboard have `[job_id]` as its dependency array?"**
-22. **"What would happen if you forgot `e.preventDefault()` in the form submit handlers?"**
-23. **"How does the score circle SVG animation work mathematically?"**
-24. **"What is React StrictMode and why is it used?"**
+1. **"Why did you use** `useRef` **for the WebSocket instead of** `useState`**?"**
+2. **"Explain why** `ApplyJob` **is lazy loaded but** `PostJob` **and** `Dashboard` **are not."**
+3. **"What is the cleanup function in** `useEffect` **and why is it important in the Dashboard?"**
+4. **"How does the new-entry highlight animation work? Walk me through the code."**
+5. **"What is a controlled component? Give an example from your code."**
+6. **"Why does the** `useEffect` **in Dashboard have** `[job_id]` **as its dependency array?"**
+7. **"What would happen if you forgot** `e.preventDefault()` **in the form submit handlers?"**
+8. **"How does the score circle SVG animation work mathematically?"**
+9. **"What is React StrictMode and why is it used?"**
+
+
 
 ## Technical — Backend
 
-25. **"How does Hono's `app.route()` work?"**
-26. **"Walk me through what happens from the moment a candidate clicks Submit to when their score appears on the leaderboard."**
-27. **"Why do you use `crypto.randomUUID()` instead of auto-increment IDs?"**
-28. **"What is the difference between `idFromName()` and `idFromString()` on a Durable Object namespace?"**
-29. **"Why is the Leaderboard DO update wrapped in a try/catch that silently swallows errors?"**
-30. **"Explain how the LLM response parsing handles different response formats."**
+1. **"How does Hono's** `app.route()` **work?"**
+2. **"Walk me through what happens from the moment a candidate clicks Submit to when their score appears on the leaderboard."**
+3. **"Why do you use** `crypto.randomUUID()` **instead of auto-increment IDs?"**
+4. **"What is the difference between** `idFromName()` **and** `idFromString()` **on a Durable Object namespace?"**
+5. **"Why is the Leaderboard DO update wrapped in a try/catch that silently swallows errors?"**
+6. **"Explain how the LLM response parsing handles different response formats."**
+
+
 
 ## Technical — Database
 
-31. **"Why does the candidates table store the full resume_text instead of a file reference?"**
-32. **"What would happen if two people with the same email tried to register? Which database constraint prevents this?"**
-33. **"Why use TEXT for primary keys instead of INTEGER?"**
-34. **"What is a FOREIGN KEY constraint and what does it enforce in the candidates table?"**
-35. **"How would you add pagination to the leaderboard?"**
+1. **"Why does the candidates table store the full resume_text instead of a file reference?"**
+2. **"What would happen if two people with the same email tried to register? Which database constraint prevents this?"**
+3. **"Why use TEXT for primary keys instead of INTEGER?"**
+4. **"What is a FOREIGN KEY constraint and what does it enforce in the candidates table?"**
+5. **"How would you add pagination to the leaderboard?"**
+
+
 
 ## API
 
-36. **"What HTTP status code does job creation return and why 201 instead of 200?"**
-37. **"Why does `POST /api/candidates` trigger a Durable Object update instead of serving the leaderboard directly from D1?"**
-38. **"How would you add rate limiting to the candidate submission endpoint?"**
-39. **"The CORS config uses `origin: "*"`. What's the security risk and how would you fix it in production?"**
+1. **"What HTTP status code does job creation return and why 201 instead of 200?"**
+2. **"Why does** `POST /api/candidates` **trigger a Durable Object update instead of serving the leaderboard directly from D1?"**
+3. **"How would you add rate limiting to the candidate submission endpoint?"**
+4. **"The CORS config uses** `origin: "*"`**. What's the security risk and how would you fix it in production?"**
+
+
 
 ## Security
 
-40. **"Why is PBKDF2 better than SHA-256 for storing passwords?"**
-41. **"What is a rainbow table attack and how does the salt in your password hashing prevent it?"**
-42. **"The JWT secret has a default value. What's the risk and how do you fix it?"**
-43. **"Why is storing JWTs in localStorage considered less secure than httpOnly cookies?"**
-44. **"Is your app vulnerable to SQL injection? Why or why not?"**
+1. **"Why is PBKDF2 better than SHA-256 for storing passwords?"**
+2. **"What is a rainbow table attack and how does the salt in your password hashing prevent it?"**
+3. **"The JWT secret has a default value. What's the risk and how do you fix it?"**
+4. **"Why is storing JWTs in localStorage considered less secure than httpOnly cookies?"**
+5. **"Is your app vulnerable to SQL injection? Why or why not?"**
+
+
 
 ## Performance
 
-45. **"What is lazy loading and which component uses it here? Why that one?"**
-46. **"How does the WebSocket Hibernation API reduce Durable Object billing costs?"**
-47. **"Where would you add `useMemo` if the leaderboard had 10,000 candidates?"**
-48. **"Why does the PDF parsing happen in the browser instead of the server?"**
+1. **"What is lazy loading and which component uses it here? Why that one?"**
+2. **"How does the WebSocket Hibernation API reduce Durable Object billing costs?"**
+3. **"Where would you add** `useMemo` **if the leaderboard had 10,000 candidates?"**
+4. **"Why does the PDF parsing happen in the browser instead of the server?"**
+
+
 
 ## Debugging / Edge Cases
 
-49. **"What happens if the LLM returns malformed JSON?"**
-50. **"What happens if a candidate uploads a scanned PDF (image-based)?"**
-51. **"What happens if the WebSocket disconnects? How does the Dashboard recover?"**
-52. **"What happens if two candidates submit simultaneously?"**
-53. **"What happens if Vectorize is unavailable (e.g., local dev)?"**
-54. **"The auth system is built but not wired in. How would you safely add it without breaking the existing flow?"**
+1. **"What happens if the LLM returns malformed JSON?"**
+2. **"What happens if a candidate uploads a scanned PDF (image-based)?"**
+3. **"What happens if the WebSocket disconnects? How does the Dashboard recover?"**
+4. **"What happens if two candidates submit simultaneously?"**
+5. **"What happens if Vectorize is unavailable (e.g., local dev)?"**
+6. **"The auth system is built but not wired in. How would you safely add it without breaking the existing flow?"**
+
+
 
 ## Scaling
 
-55. **"How would HireSight behave under 10,000 simultaneous candidate submissions?"**
-56. **"What are the limits of storing all candidates in a single Durable Object?"**
-57. **"How would you add email notifications when a new top candidate appears?"**
-58. **"If you had to support 1 million jobs and 10 million candidates, what would you redesign?"**
+1. **"How would HireSight behave under 10,000 simultaneous candidate submissions?"**
+2. **"What are the limits of storing all candidates in a single Durable Object?"**
+3. **"How would you add email notifications when a new top candidate appears?"**
+4. **"If you had to support 1 million jobs and 10 million candidates, what would you redesign?"**
 
 ---
+
+
 
 # Part 16 — Mock Interview Guide
 
@@ -1448,11 +1662,14 @@ npm run db:migrate:remote  # Runs 0001_init.sql against production D1
 
 ---
 
+
+
 ### Q1: "Walk me through the complete flow when a candidate submits their resume."
 
 **Your answer first. Then compare:**
 
 **Ideal Answer:**
+
 > "The candidate opens the apply link `/apply/{job_id}`. When the page loads, it fetches the job title from `GET /api/jobs/:id`. The candidate fills in their name, email, and uploads a PDF. The PDF is parsed entirely in the browser using `pdfjs-dist` — we loop through every page, extract text chunks, and join them into a plain text string. Once parsed, the candidate clicks Submit, which calls `POST /api/candidates` with their name, email, job_id, and the extracted text.
 >
 > On the backend, the Worker validates inputs, fetches the job from D1, then runs a two-stage AI scoring. First, it embeds the resume using `bge-base-en-v1.5` (768-dimensional vector) and queries Vectorize for semantic similarity against the job description's embedding — that gives a rough 0–100 score. Second, it sends both the job description and resume to `llama-3.1-8b-instruct-fast` with a prompt asking for a 0–100 score and 2-line reasoning in JSON format. The LLM score overrides the vector score if successful.
@@ -1461,26 +1678,37 @@ npm run db:migrate:remote  # Runs 0001_init.sql against production D1
 
 ---
 
+
+
 ### Q2: "Why did you use a Durable Object for the leaderboard instead of just reading from D1?"
 
 **Ideal Answer:**
+
 > "D1 is great for persistent storage but it's not designed for real-time pub/sub. If I used D1, the recruiter's dashboard would have to poll `GET /api/candidates?job_id=...` every few seconds — inefficient and slow. A Durable Object gives me two things: persistent state (the sorted leaderboard survives restarts) AND a WebSocket hub. Multiple recruiters connect to the same DO instance (identified by `job_id`), and when any candidate submits, the DO broadcasts to all of them simultaneously. It's effectively a real-time message bus with built-in persistence."
 
 ---
 
+
+
 ### Q3: "What would break if you removed the `export { LeaderboardDO }` line from `index.ts`?"
 
 **Ideal Answer:**
+
 > "The Durable Object class would not be exported from the Worker's main module. Cloudflare's runtime requires all Durable Object classes to be exported from the entry point so it can instantiate them when a request comes in. Without that export, any request to `/api/leaderboard/:job_id/ws` would crash with a 'Durable Object class not found' error."
 
 ---
 
+
+
 ### Q4: "Your CORS is set to `origin: "*"`. A security reviewer flags this. What do you tell them?"
 
 **Ideal Answer:**
+
 > "In development, `*` is acceptable because we don't know the frontend URL. In production, this should be locked to the specific domain — for example, `origin: 'https://hiring-screener.shashishanthan2706.workers.dev'`. With `*`, any website can make API calls to our backend on behalf of a logged-in user. Once we add auth, this becomes a real CSRF-adjacent risk. I'd also add `allowHeaders: ['Content-Type', 'Authorization']` since JWT auth uses the Authorization header."
 
 ---
+
+
 
 # Part 17 — Weakness Detection Checklist
 
@@ -1492,32 +1720,40 @@ Go through each area. Be honest about which ones you'd struggle to explain.
 - [ ] **What is a Durable Object?** — A stateful singleton that runs alongside Workers. One instance per named key. Has storage, WebSocket capabilities, and in-memory state.
 - [ ] **What is Vectorize?** — A vector database. Stores n-dimensional float arrays. Used for semantic search (find things that mean the same, not just same words).
 - [ ] **What is an embedding?** — A vector representation of text. Similar texts have similar vectors (close in high-dimensional space). `bge-base-en-v1.5` converts text to 768-dimensional vectors.
-- [ ] **Why `useRef` vs `useState` for WebSocket?** — State changes trigger re-renders. A WebSocket re-render would close and reopen the connection. Refs persist without triggering renders.
-- [ ] **Explain `useEffect` cleanup.** — The return function runs on unmount. Without it, the WebSocket would keep running after navigation.
+- [ ] **Why** `useRef` **vs** `useState` **for WebSocket?** — State changes trigger re-renders. A WebSocket re-render would close and reopen the connection. Refs persist without triggering renders.
+- [ ] **Explain** `useEffect` **cleanup.** — The return function runs on unmount. Without it, the WebSocket would keep running after navigation.
 - [ ] **What is PBKDF2?** — Password-Based Key Derivation Function 2. Applies a hash function many times (100k iterations) to make brute-force slow. Uses a random salt to prevent rainbow table attacks.
 - [ ] **What is a prepared statement?** — SQL query with `?` placeholders. Parameters are bound separately, preventing SQL injection.
 - [ ] **What is lazy loading in React?** — `lazy()` + `Suspense` splits a component into a separate chunk downloaded only when needed.
-- [ ] **What does `strokeDashoffset` do?** — Controls how much of an SVG stroke is visible. Used with `stroke-dasharray` to create progress circle animations.
+- [ ] **What does** `strokeDashoffset` **do?** — Controls how much of an SVG stroke is visible. Used with `stroke-dasharray` to create progress circle animations.
 - [ ] **What is the Hibernation API?** — Cloudflare's way to let Durable Objects sleep between WebSocket messages, reducing cost.
 - [ ] **What is CORS and why is it needed?** — Browser security policy. APIs must explicitly allow cross-origin requests with `Access-Control-Allow-Origin` headers.
 
 ---
 
+
+
 # Part 18 — Final Interview Readiness Report
+
+
 
 ## Interview Readiness Score: 88/100
 
-| Category | Score | Notes |
-|----------|-------|-------|
-| Project understanding | 95/100 | You built it — you know it |
-| React concepts | 85/100 | Strong on hooks, routing, state |
-| Backend/Worker concepts | 85/100 | Hono, D1, routing all solid |
-| AI/Vectorize concepts | 80/100 | Practice explaining embeddings simply |
-| Security | 75/100 | Know the weaknesses and fixes |
-| Performance | 80/100 | Lazy loading, WebSocket vs polling |
-| Database design | 85/100 | Schema, FK, prepared statements |
+
+| Category                | Score  | Notes                                 |
+| ----------------------- | ------ | ------------------------------------- |
+| Project understanding   | 95/100 | You built it — you know it            |
+| React concepts          | 85/100 | Strong on hooks, routing, state       |
+| Backend/Worker concepts | 85/100 | Hono, D1, routing all solid           |
+| AI/Vectorize concepts   | 80/100 | Practice explaining embeddings simply |
+| Security                | 75/100 | Know the weaknesses and fixes         |
+| Performance             | 80/100 | Lazy loading, WebSocket vs polling    |
+| Database design         | 85/100 | Schema, FK, prepared statements       |
+
 
 ---
+
+
 
 ## Biggest Strengths
 
@@ -1529,15 +1765,19 @@ Go through each area. Be honest about which ones you'd struggle to explain.
 
 ---
 
+
+
 ## Biggest Weaknesses to Fix Before Tomorrow
 
 1. **Auth system is incomplete** — Be upfront: "I built the full auth backend (PBKDF2, JWT, middleware) but haven't wired it to the frontend routes yet. It's my next sprint."
 2. **No tests** — "I would add Vitest + Testing Library for components and Hono's test utilities for routes."
-3. **CORS `*` in production** — Know the fix.
+3. **CORS** `*` **in production** — Know the fix.
 4. **No rate limiting** — Know the fix.
 5. **Full resume stored in D1** — Know the optimization (R2 object storage).
 
 ---
+
+
 
 ## Questions You're Most Likely to Be Asked
 
@@ -1551,6 +1791,8 @@ Go through each area. Be honest about which ones you'd struggle to explain.
 8. Is this app secure? What would you change?
 
 ---
+
+
 
 ## Last-Minute Revision Checklist (15 minutes)
 
@@ -1566,6 +1808,8 @@ Go through each area. Be honest about which ones you'd struggle to explain.
 - [ ] Know: What is an embedding?
 
 ---
+
+
 
 ## Cheat Sheet
 
@@ -1614,6 +1858,8 @@ KNOWN WEAKNESSES:
 
 ---
 
+
+
 ## One-Page Project Summary
 
 **HireSight** is an AI-powered hiring tool I built on the Cloudflare developer platform.
@@ -1623,6 +1869,7 @@ KNOWN WEAKNESSES:
 **How it works:** A recruiter posts a job (title + description). The system generates a shareable apply link. Candidates open the link, upload their PDF resume, and instantly receive an AI-generated match score (0–100) with reasoning. The recruiter watches all candidates rank themselves in real time on a live leaderboard — no page refresh needed.
 
 **Tech stack:**
+
 - **Frontend:** React 19 + TypeScript, served as a SPA from Cloudflare's CDN. Uses lazy loading for the PDF parser (pdfjs-dist, ~3MB).
 - **Backend:** Hono framework running on Cloudflare Workers — serverless, global, zero cold starts.
 - **Database:** Cloudflare D1 (SQLite) for job and candidate records.

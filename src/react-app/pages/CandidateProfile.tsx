@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
+function handleSignOut(navigate: ReturnType<typeof useNavigate>) {
+	localStorage.clear();
+	window.dispatchEvent(new Event("storage"));
+	navigate("/");
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Availability = "immediate" | "2_weeks" | "1_month" | "not_looking" | "";
@@ -432,7 +438,7 @@ export default function CandidateProfile() {
 					</p>
 				)}
 
-				<div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+				<div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
 					<button
 						type="submit"
 						className="btn btn-primary"
@@ -456,6 +462,30 @@ export default function CandidateProfile() {
 						</button>
 					)}
 				</div>
+
+				{/* Sign Out — placed here so the navbar stays clean */}
+				{!redirect && (
+					<div style={{ marginTop: "2.5rem", paddingTop: "1.5rem", borderTop: "1px solid var(--card-border)" }}>
+						<button
+							type="button"
+							onClick={() => handleSignOut(navigate)}
+							style={{
+								background: "none",
+								border: "none",
+								color: "var(--text-muted)",
+								fontSize: ".82rem",
+								cursor: "pointer",
+								padding: 0,
+								fontFamily: "inherit",
+								transition: "color 0.2s",
+							}}
+							onMouseEnter={e => (e.currentTarget.style.color = "var(--red)")}
+							onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
+						>
+							Sign out of HireSight
+						</button>
+					</div>
+				)}
 
 			</form>
 		</div>

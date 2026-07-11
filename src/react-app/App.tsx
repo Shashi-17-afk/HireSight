@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from "react";
-import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AuthPage from "./pages/AuthPage";
 
 const PostJob = lazy(() => import("./pages/PostJob"));
@@ -74,7 +74,6 @@ function RootRedirect() {
 
 function Navbar() {
 	const { pathname } = useLocation();
-	const navigate = useNavigate();
 	const [user, setUser] = useState<{ name: string; role: string } | null>(null);
 
 	useEffect(() => {
@@ -87,15 +86,7 @@ function Navbar() {
 		return () => window.removeEventListener("storage", syncAuth);
 	}, []);
 
-	function handleLogout() {
-		localStorage.clear();
-		setUser(null);
-		window.dispatchEvent(new Event("storage"));
-		navigate("/");
-	}
-
 	const isApply = pathname.startsWith("/apply");
-	const isJobs = pathname === "/jobs";
 
 	return (
 		<nav className="nav">
@@ -105,46 +96,68 @@ function Navbar() {
 			</Link>
 			<span className="nav-spacer" />
 
-		{user ? (
-			<div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
-				{user.role === "candidate" && (
-					<Link to="/jobs" className="nav-link" style={{ fontSize: ".82rem" }}>Browse Openings</Link>
-				)}
-				<Link
-					to={user.role === "HR" ? "/hr/dashboard" : "/candidate/dashboard"}
-					style={{ fontSize: ".83rem", color: "var(--text-secondary)", fontWeight: 600 }}
-				>
-					{user.name}
-					<span style={{ marginLeft: ".35rem", fontSize: ".72rem", opacity: .6 }}>
-						({user.role === "HR" ? "Recruiter" : "Candidate"})
-					</span>
-				</Link>
-				<button onClick={handleLogout} className="btn btn-outline" style={{ fontSize: ".78rem", padding: ".35rem .85rem" }}>
-					Logout
-				</button>
-			</div>
+			{user ? (
+				<div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
+					{user.role === "candidate" && (
+						<Link to="/jobs" className="nav-link" style={{ fontSize: ".82rem" }}>Browse Openings</Link>
+					)}
+					{/* Name links to profile (candidates) or dashboard (HR) — logout lives there */}
+					<Link
+						to={user.role === "candidate" ? "/candidate/profile" : "/hr/dashboard"}
+						className="nav-link"
+						style={{ fontSize: ".83rem", fontWeight: 600 }}
+					>
+						{user.name}
+						<span style={{ marginLeft: ".35rem", fontSize: ".7rem", opacity: .55, fontWeight: 400 }}>
+							{user.role === "HR" ? "· Recruiter" : "· Candidate"}
+						</span>
+					</Link>
+				</div>
 			) : (
 				<div style={{ display: "flex", gap: ".5rem" }}>
-					{isApply && (
-						<span className="nav-link" style={{ color: "var(--text-muted)", cursor: "default", fontSize: ".82rem" }}>
-							Candidate Application
-						</span>
-					)}
-					{isJobs && (
+					{isApply ? (
+						<Link to="/login/candidate" className="nav-link" style={{ fontSize: ".82rem" }}>Sign in</Link>
+					) : (
 						<>
-							<Link to="/login/hr" className="nav-link" style={{ fontSize: ".82rem" }}>Recruiter Login</Link>
-							<Link to="/login/candidate" className="nav-link" style={{ fontSize: ".82rem" }}>Candidate Login</Link>
-						</>
-					)}
-					{!isApply && !isJobs && (
-						<>
-							<Link to="/login/hr" className="nav-link" style={{ fontSize: ".82rem" }}>Recruiter Login</Link>
-							<Link to="/login/candidate" className="nav-link" style={{ fontSize: ".82rem" }}>Candidate Login</Link>
+							<Link to="/login/hr" className="nav-link" style={{ fontSize: ".82rem" }}>Recruiter</Link>
+							<Link to="/login/candidate" className="nav-link" style={{ fontSize: ".82rem" }}>Candidate</Link>
 						</>
 					)}
 				</div>
 			)}
 		</nav>
+	);
+}
+
+// ── Footer ────────────────────────────────────────────────────────────────────
+
+function Footer() {
+	const year = new Date().getFullYear();
+	return (
+		<footer className="footer">
+			<div className="footer-inner">
+				<div className="footer-brand">
+					<span className="footer-logo">Hire<span>Sight</span></span>
+					<p>AI-powered hiring —<br />faster, fairer, smarter.</p>
+				</div>
+				<div className="footer-links">
+					<div className="footer-col">
+						<span className="footer-col-title">Product</span>
+						<Link to="/jobs">Browse Openings</Link>
+						<Link to="/login/hr">Post a Job</Link>
+					</div>
+					<div className="footer-col">
+						<span className="footer-col-title">Portals</span>
+						<Link to="/login/hr">Recruiter Sign In</Link>
+						<Link to="/login/candidate">Candidate Sign In</Link>
+						<Link to="/register/candidate">Create Account</Link>
+					</div>
+				</div>
+			</div>
+			<div className="footer-bottom">
+				<span>© {year} HireSight. Built on Cloudflare Workers AI.</span>
+			</div>
+		</footer>
 	);
 }
 
@@ -155,6 +168,7 @@ export default function App() {
 		<>
 			<Navbar />
 			<Routes>
+
 				{/* Landing / root redirect */}
 				<Route path="/" element={<RootRedirect />} />
 
@@ -243,6 +257,7 @@ export default function App() {
 					}
 				/>
 			</Routes>
+			<Footer />
 		</>
 	);
 }

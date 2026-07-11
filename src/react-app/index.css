@@ -61,11 +61,23 @@ h1, h2, h3 {
 
 body {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
   background-image: var(--bg-gradient);
   background-attachment: fixed;
   color: var(--text-primary);
   overflow-x: hidden;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+#root > *:nth-child(2) {
+  flex: 1;
 }
 
 a { color: var(--brand-light); text-decoration: none; transition: color 0.2s ease; }
@@ -1027,6 +1039,110 @@ tbody tr:hover {
 .status-interview    { background: rgba(82,168,130,.1);   color: #52a882; border-color: rgba(82,168,130,.25); }
 .status-rejected     { background: rgba(192,82,72,.1);    color: #c05248; border-color: rgba(192,82,72,.25); }
 .status-hired        { background: rgba(82,168,130,.12);  color: #52a882; border-color: rgba(82,168,130,.3); }
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+
+.footer {
+  border-top: 1px solid rgba(193, 154, 94, 0.12);
+  background: rgba(8, 7, 6, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  margin-top: auto;
+}
+
+.footer-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 3rem 2rem 2rem;
+  display: flex;
+  gap: 3rem;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  max-width: 200px;
+}
+
+.footer-logo {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -.01em;
+}
+
+.footer-logo span {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.footer-brand p {
+  font-size: .8rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.footer-links {
+  display: flex;
+  gap: 3rem;
+  flex-wrap: wrap;
+}
+
+.footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: .65rem;
+}
+
+.footer-col-title {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--brand);
+  opacity: .7;
+  margin-bottom: .15rem;
+}
+
+.footer-col a {
+  font-size: .83rem;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.footer-col a:hover {
+  color: var(--brand-light);
+}
+
+.footer-bottom {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.25rem 2rem;
+  border-top: 1px solid rgba(193, 154, 94, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+
+.footer-bottom span {
+  font-size: .75rem;
+  color: var(--text-muted);
+  letter-spacing: .01em;
+}
+
+@media (max-width: 600px) {
+  .footer-inner { flex-direction: column; gap: 2rem; padding: 2rem 1.5rem 1.5rem; }
+  .footer-links { gap: 2rem; }
+  .footer-bottom { padding: 1rem 1.5rem; }
+}
 
 /* Per-field error message */
 .field-error {
