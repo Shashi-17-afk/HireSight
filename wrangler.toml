@@ -28,12 +28,18 @@ binding = "VECTORIZE"
 index_name = "resumes_index"
 remote = true
 
-# Durable Object for live leaderboard WebSocket updates
+# Durable Objects
 [durable_objects]
 bindings = [
-  { name = "LEADERBOARD", class_name = "LeaderboardDO" }
+  { name = "LEADERBOARD",       class_name = "LeaderboardDO" },
+  { name = "CANDIDATE_STATUS",  class_name = "CandidateStatusDO" }
 ]
 
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["LeaderboardDO"]
+
+# Free plan requires new_sqlite_classes even for DOs without SQLite storage.
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["CandidateStatusDO"]
