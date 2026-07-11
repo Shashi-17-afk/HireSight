@@ -34,6 +34,45 @@ candidates.get("/my-applications", authenticate(), requireCandidate(), async (c)
 });
 
 candidates.post("/", async (c) => {
+	// --- IP-based rate limiting: 5 submissions per IP per 60 s ---
+	const RATE_LIMIT = 5;
+	const WINDOW_SECS = 60;
+	const ip =
+		c.req.header("CF-Connecting-IP") ??
+		c.req.header("X-Forwarded-For")?.split(",")[0].trim() ??
+		"unknown";
+	const rlKey = `rl:${ip}`;
+
+	const rawRl = await c.env.RATE_LIMIT.get(rlKey);
+	const now = Math.floor(Date.now() / 1000);
+
+	let rlCount = 0;
+	let expiresAt = now + WINDOW_SECS;
+
+	if (rawRl) {
+		const stored = JSON.parse(rawRl) as { count: number; expiresAt: number };
+		rlCount = stored.count;
+		expiresAt = stored.expiresAt;
+	}
+
+	if (rlCount >= RATE_LIMIT) {
+		const retryAfter = Math.max(1, expiresAt - now);
+		return c.json(
+			{ error: "Too many submissions. Please wait before trying again.", retryAfter },
+			429,
+			{ "Retry-After": String(retryAfter) }
+		);
+	}
+
+	// Persist incremented count; TTL ticks down from the original window start.
+	const ttl = Math.max(1, expiresAt - now);
+	await c.env.RATE_LIMIT.put(
+		rlKey,
+		JSON.stringify({ count: rlCount + 1, expiresAt }),
+		{ expirationTtl: ttl }
+	);
+	// --- end rate limiting ---
+
 	// Resolve authenticated candidate from Bearer token (if present).
 	// authenticatedUserId stays null for anonymous external-link applies —
 	// those follow the exact same path they always did.

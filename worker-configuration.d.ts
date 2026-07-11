@@ -8,6 +8,7 @@ interface __BaseEnv_Env {
 	JWT_SECRET: string;
 	LEADERBOARD: DurableObjectNamespace<import("./src/worker/index").LeaderboardDO>;
 	CANDIDATE_STATUS: DurableObjectNamespace<import("./src/worker/index").CandidateStatusDO>;
+	RATE_LIMIT: KVNamespace;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {

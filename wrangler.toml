@@ -28,6 +28,11 @@ binding = "VECTORIZE"
 index_name = "resumes_index"
 remote = true
 
+# KV namespace for IP-based rate limiting on POST /api/candidates
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "ddb3129c24ac46b182ce87840eb25d1f"
+
 # Durable Objects
 [durable_objects]
 bindings = [
