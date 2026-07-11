@@ -839,6 +839,64 @@ tbody tr:hover {
   display: block;
 }
 
+/* ── Jobs Board ── */
+.job-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 1.75rem 2rem;
+  box-shadow: var(--shadow);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+
+.job-card:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: var(--shadow-md), 0 0 20px rgba(99, 102, 241, 0.08);
+  transform: translateY(-2px);
+}
+
+.job-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.job-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -.02em;
+  margin-bottom: .4rem;
+}
+
+.job-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.job-meta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: .2rem .65rem;
+  border-radius: 999px;
+}
+
+.job-description-preview {
+  font-size: .875rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .stats-row { grid-template-columns: 1fr; gap: 1rem; }
@@ -848,4 +906,7 @@ tbody tr:hover {
   .filter-bar { flex-direction: column; align-items: stretch; }
   .search-input-wrap { width: 100%; }
   .filter-select { width: 100%; }
+  .job-card { padding: 1.25rem; }
+  .job-card-top { flex-direction: column; gap: .85rem; }
+  .job-card-top .btn { width: 100%; }
 }

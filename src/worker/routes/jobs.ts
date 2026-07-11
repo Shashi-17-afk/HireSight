@@ -38,6 +38,18 @@ jobs.post("/", async (c) => {
   return c.json({ job_id: jobId, title: body.title.trim() }, 201);
 });
 
+// Fetch all jobs — used by the candidate jobs board
+jobs.get("/", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, title, description, created_at,
+      (SELECT COUNT(*) FROM candidates WHERE candidates.job_id = jobs.id) AS applicant_count
+     FROM jobs
+     ORDER BY created_at DESC`
+  ).all<{ id: string; title: string; description: string; created_at: string; applicant_count: number }>();
+
+  return c.json({ jobs: results ?? [] });
+});
+
 // Fetch a single job by ID (used by the candidate apply page)
 jobs.get("/:id", async (c) => {
   const job = await c.env.DB.prepare("SELECT id, title, description FROM jobs WHERE id = ?")
