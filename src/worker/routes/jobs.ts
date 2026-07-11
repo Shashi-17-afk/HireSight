@@ -1,8 +1,10 @@
 import { Hono } from "hono";
+import { authenticate, requireHR } from "../lib/auth";
+import type { AuthVariables } from "../lib/auth";
 
-const jobs = new Hono<{ Bindings: Env }>();
+const jobs = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
-jobs.post("/", async (c) => {
+jobs.post("/", authenticate(), requireHR(), async (c) => {
   const body = await c.req.json<{ title: string; description: string }>();
 
   if (!body.title || !body.description) {
