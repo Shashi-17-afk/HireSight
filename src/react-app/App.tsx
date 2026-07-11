@@ -6,6 +6,7 @@ const PostJob = lazy(() => import("./pages/PostJob"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const ApplyJob = lazy(() => import("./pages/ApplyJob"));
 const JobsBoard = lazy(() => import("./pages/JobsBoard"));
+const JobDetail = lazy(() => import("./pages/JobDetail"));
 const HRDashboard = lazy(() => import("./pages/HRDashboard"));
 const CandidateDashboard = lazy(() => import("./pages/CandidateDashboard"));
 const CandidateProfile = lazy(() => import("./pages/CandidateProfile"));
@@ -237,6 +238,10 @@ export default function App() {
 				<Route
 					path="/jobs"
 					element={<Suspense fallback={PageFallback}><JobsBoard /></Suspense>}
+				/>
+				<Route
+					path="/jobs/:job_id"
+					element={<Suspense fallback={PageFallback}><JobDetail /></Suspense>}
 				/>
 				<Route
 					path="/apply/:job_id"

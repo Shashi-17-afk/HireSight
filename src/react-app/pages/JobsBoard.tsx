@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 interface Job {
 	id: string;
@@ -20,19 +20,10 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function JobsBoard() {
-	const navigate = useNavigate();
 	const [jobs, setJobs] = useState<Job[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 	const [search, setSearch] = useState("");
-	// Tracks whether the signed-in candidate has a complete profile.
-	// null = not yet fetched; true/false = result.
-	const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
-
-	const candidateToken =
-		localStorage.getItem("role") === "candidate"
-			? localStorage.getItem("token")
-			: null;
 
 	useEffect(() => {
 		fetch("/api/jobs")
@@ -46,35 +37,13 @@ export default function JobsBoard() {
 			.finally(() => setLoading(false));
 	}, []);
 
-	// Prefetch profile completeness for authenticated candidates so the gate
-	// redirect is instant instead of happening inside the apply page.
-	useEffect(() => {
-		if (!candidateToken) return;
-		fetch("/api/profile", { headers: { Authorization: `Bearer ${candidateToken}` } })
-			.then((r) => r.json())
-			.then((data: { exists: boolean; profile: { is_complete: boolean } | null }) => {
-				setProfileComplete(data.profile?.is_complete ?? false);
-			})
-			.catch(() => setProfileComplete(false));
-	}, [candidateToken]);
-
-	function handleApply(jobId: string) {
-		if (candidateToken !== null && profileComplete === false) {
-			// Gate: redirect to profile form with a redirect-back param
-			navigate(`/candidate/profile?redirect=/apply/${jobId}`);
-		} else {
-			navigate(`/apply/${jobId}`);
-		}
-	}
-
 	const filtered = jobs.filter((j) => j.title.toLowerCase().includes(search.toLowerCase()));
 
 	return (
 		<div className="page">
 			<div className="hero" style={{ paddingBottom: "2rem" }}>
-				<div className="hero-badge">✦ Browse Open Roles</div>
 				<h1>Find your next <span>opportunity</span></h1>
-				<p>Every role below accepts instant AI-scored applications. Upload your resume and know your fit in seconds.</p>
+				<p>Every role accepts instant AI-scored applications. Upload your resume and know your fit in seconds.</p>
 			</div>
 
 			<div className="search-input-wrap" style={{ marginBottom: "1.5rem" }}>
@@ -121,24 +90,23 @@ export default function JobsBoard() {
 
 					return (
 						<div key={job.id} className="job-card">
-							<div className="job-card-top">
-								<div style={{ flex: 1, minWidth: 0 }}>
-									<h2 className="job-title">{job.title}</h2>
-									<p className="job-meta">
-										<span className="job-meta-badge">📅 {timeAgo(job.created_at)}</span>
-										<span className="job-meta-badge">👥 {job.applicant_count} applicant{job.applicant_count !== 1 ? "s" : ""}</span>
-									</p>
+					<div className="job-card-top">
+							<div style={{ flex: 1, minWidth: 0 }}>
+								<h2 className="job-title">{job.title}</h2>
+								<div className="job-meta">
+									<span className="job-meta-badge">📅 {timeAgo(job.created_at)}</span>
+									<span className="job-meta-badge">👥 {job.applicant_count} applicant{job.applicant_count !== 1 ? "s" : ""}</span>
 								</div>
-							<button
-								type="button"
-								className="btn btn-primary"
-								style={{ whiteSpace: "nowrap", flexShrink: 0 }}
-								onClick={() => handleApply(job.id)}
-							>
-								Apply Now →
-							</button>
 							</div>
-							<p className="job-description-preview">{preview}</p>
+							<Link
+								to={`/jobs/${job.id}`}
+								className="btn btn-outline"
+								style={{ whiteSpace: "nowrap", flexShrink: 0, fontSize: ".85rem" }}
+							>
+								View Details →
+							</Link>
+						</div>
+						<p className="job-description-preview">{preview}</p>
 						</div>
 					);
 				})}

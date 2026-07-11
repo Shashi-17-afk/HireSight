@@ -57,11 +57,15 @@ jobs.get("/", async (c) => {
   return c.json({ jobs: results ?? [] });
 });
 
-// Fetch a single job by ID (used by the candidate apply page)
+// Fetch a single job by ID — used by the detail page and the apply form
 jobs.get("/:id", async (c) => {
-  const job = await c.env.DB.prepare("SELECT id, title, description FROM jobs WHERE id = ?")
+  const job = await c.env.DB.prepare(
+    `SELECT id, title, description, created_at, status,
+       (SELECT COUNT(*) FROM candidates WHERE candidates.job_id = jobs.id) AS applicant_count
+     FROM jobs WHERE id = ?`
+  )
     .bind(c.req.param("id"))
-    .first<{ id: string; title: string; description: string }>();
+    .first<{ id: string; title: string; description: string; created_at: string; status: string; applicant_count: number }>();
 
   if (!job) return c.json({ error: "Job not found" }, 404);
   return c.json(job);

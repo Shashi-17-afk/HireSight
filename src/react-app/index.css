@@ -1040,6 +1040,49 @@ tbody tr:hover {
 .status-rejected     { background: rgba(192,82,72,.1);    color: #c05248; border-color: rgba(192,82,72,.25); }
 .status-hired        { background: rgba(82,168,130,.12);  color: #52a882; border-color: rgba(82,168,130,.3); }
 
+/* ── Job Detail description renderer ─────────────────────────────────────── */
+
+.job-detail-description {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.job-detail-para {
+  font-size: .94rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.job-detail-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+}
+
+.job-detail-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: .65rem;
+  font-size: .92rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.job-detail-list li::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand);
+  flex-shrink: 0;
+  margin-top: .55rem;
+  opacity: .7;
+}
+
 /* ── Footer ──────────────────────────────────────────────────────────────── */
 
 .footer {
