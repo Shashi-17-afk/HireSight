@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /hr/
+Disallow: /candidate/
+Disallow: /dashboard/
+Disallow: /post-job
+
+Sitemap: https://hiresight.shashishanthan2706.workers.dev/sitemap.xml

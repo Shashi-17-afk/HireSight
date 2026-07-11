@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import Seo from "../components/Seo";
 
 interface Job {
 	id: string;
@@ -41,6 +42,10 @@ export default function JobsBoard() {
 
 	return (
 		<div className="page">
+			<Seo
+				title="Browse Open Roles"
+				description="Explore all open positions on HireSight. Submit your resume and get instantly AI-scored and ranked."
+			/>
 			<div className="hero" style={{ paddingBottom: "2rem" }}>
 				<h1>Find your next <span>opportunity</span></h1>
 				<p>Every role accepts instant AI-scored applications. Upload your resume and know your fit in seconds.</p>

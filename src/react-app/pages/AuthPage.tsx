@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import Seo from "../components/Seo";
 
 interface AuthPageProps {
   mode: "login" | "register";
@@ -94,8 +95,20 @@ export default function AuthPage({ mode, role }: AuthPageProps) {
     }
   }
 
+  const seoTitle = isRegister
+    ? isHr ? "Create Recruiter Account" : "Join HireSight — Candidate Sign Up"
+    : isHr ? "Recruiter Sign In" : "Candidate Sign In";
+  const seoDesc = isRegister
+    ? isHr
+      ? "Get started free. Post your first job and receive AI-screened, ranked applicants immediately."
+      : "Create a profile, upload your resume, and get AI-matched to the best-fit open roles."
+    : isHr
+      ? "Sign in to your HireSight recruiter account to post jobs and view AI-ranked candidates."
+      : "Sign in to apply for roles and track your application status in real time.";
+
   return (
     <div className="page">
+      <Seo title={seoTitle} description={seoDesc} noIndex />
       <div className="hero" style={{ padding: "2rem 1rem 1.5rem" }}>
         <h1 style={{ fontSize: "2.2rem" }}>
           {isRegister ? "Join " : "Access "}

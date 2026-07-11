@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import Seo from "../components/Seo";
 
 interface JobFull {
 	id: string;
@@ -134,8 +135,17 @@ export default function JobDetail() {
 	}
 
 	// ── Detail ───────────────────────────────────────────────────────────────
+	const seoDesc = job
+		? job.description.replace(/\s+/g, " ").trim().slice(0, 155) + (job.description.length > 155 ? "…" : "")
+		: "View job details and apply instantly with AI-powered resume screening.";
+
 	return (
 		<div className="page" style={{ maxWidth: 820 }}>
+			<Seo
+				title={job ? job.title : "Job Details"}
+				description={seoDesc}
+				url={`https://hiresight.shashishanthan2706.workers.dev/jobs/${job_id}`}
+			/>
 
 			{/* Back navigation */}
 			<Link

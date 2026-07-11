@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import Seo from "../components/Seo";
 
 interface LeaderboardEntry {
   id: string;
@@ -134,6 +135,7 @@ export default function Dashboard() {
 
   return (
     <div className="page-wide">
+      <Seo title="Live Leaderboard" description="AI-ranked candidate leaderboard for this role." noIndex />
       <div className="dash-header">
         <div>
           <h1 className="page-title">Live Leaderboard</h1>

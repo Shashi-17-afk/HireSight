@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import Seo from "../components/Seo";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -118,6 +119,7 @@ export default function CandidateDashboard() {
 
   return (
     <div className="page">
+      <Seo title="My Applications" description="Track your job applications and AI scores on HireSight." noIndex />
 
       {/* Header ──────────────────────────────────────────────────────────── */}
       <div className="dash-header" style={{ marginBottom: "1.75rem" }}>

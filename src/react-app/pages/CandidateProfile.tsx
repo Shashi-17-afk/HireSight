@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import Seo from "../components/Seo";
 
 function handleSignOut(navigate: ReturnType<typeof useNavigate>) {
 	localStorage.clear();
@@ -182,6 +183,7 @@ export default function CandidateProfile() {
 
 	return (
 		<div className="page" style={{ maxWidth: 660 }}>
+			<Seo title="My Profile" description="Manage your HireSight candidate profile." noIndex />
 
 			{/* Gate banner — only shown when arriving from the apply gate */}
 			{redirect && (
