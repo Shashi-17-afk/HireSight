@@ -3,11 +3,15 @@ import PostJob from "./pages/PostJob";
 import Dashboard from "./pages/Dashboard";
 import { lazy, Suspense } from "react";
 const ApplyJob = lazy(() => import("./pages/ApplyJob"));
+const JobsBoard = lazy(() => import("./pages/JobsBoard"));
+
+const PageFallback = <div className="page" style={{ color: "var(--gray-400)" }}>Loading…</div>;
 
 function Navbar() {
   const { pathname } = useLocation();
   const isDash = pathname.startsWith("/dashboard");
   const isApply = pathname.startsWith("/apply");
+  const isJobs = pathname === "/jobs";
   return (
     <nav className="nav">
       <Link to="/" className="nav-logo" style={{ textDecoration: "none" }}>
@@ -19,9 +23,13 @@ function Navbar() {
         <Link to="/" className="nav-link">+ Post a Job</Link>
       )}
       {isApply && (
-        <span className="nav-link" style={{ color: "var(--gray-400)", cursor: "default" }}>
-          Candidate Application
-        </span>
+        <Link to="/jobs" className="nav-link">← All Roles</Link>
+      )}
+      {!isDash && !isApply && !isJobs && (
+        <Link to="/jobs" className="nav-link">Browse Roles</Link>
+      )}
+      {isJobs && (
+        <Link to="/" className="nav-link">+ Post a Job</Link>
       )}
     </nav>
   );
@@ -33,11 +41,19 @@ export default function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<PostJob />} />
+        <Route
+          path="/jobs"
+          element={
+            <Suspense fallback={PageFallback}>
+              <JobsBoard />
+            </Suspense>
+          }
+        />
         <Route path="/dashboard/:job_id" element={<Dashboard />} />
         <Route
           path="/apply/:job_id"
           element={
-            <Suspense fallback={<div className="page" style={{color:"var(--gray-400)"}}>Loading…</div>}>
+            <Suspense fallback={PageFallback}>
               <ApplyJob />
             </Suspense>
           }
