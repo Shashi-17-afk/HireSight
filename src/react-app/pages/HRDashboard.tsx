@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import Seo from "../components/Seo";
 
 interface Job {
   id: string;
@@ -101,6 +102,7 @@ export default function HRDashboard() {
 
   return (
     <div className="page-wide">
+      <Seo title="Recruiter Dashboard" description="Manage your HireSight job pipelines and view AI-ranked candidates." noIndex />
       <div className="dash-header">
         <div>
           <h1 className="page-title">HR Recruiter Dashboard</h1>

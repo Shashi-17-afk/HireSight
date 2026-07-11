@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import * as pdfjsLib from "pdfjs-dist";
+import Seo from "../components/Seo";
 
 // Use the bundled worker via Vite's ?url import
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -287,6 +288,11 @@ export default function ApplyJob() {
 
   return (
     <div className="page">
+      <Seo
+        title={job ? `Apply — ${job.title}` : "Apply"}
+        description="Submit your resume for this role. AI scores and ranks every application in real time."
+        noIndex
+      />
       {jobError ? (
         <div className="card" style={{ textAlign: "center", padding: "2rem" }}>
           <div style={{ fontSize: "2rem", marginBottom: ".75rem" }}>⚠️</div>

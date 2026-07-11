@@ -1,6 +1,8 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import AuthPage from "./pages/AuthPage";
+import Seo from "./components/Seo";
 
 const PostJob = lazy(() => import("./pages/PostJob"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -11,6 +13,7 @@ const HRDashboard = lazy(() => import("./pages/HRDashboard"));
 const CandidateDashboard = lazy(() => import("./pages/CandidateDashboard"));
 const CandidateProfile = lazy(() => import("./pages/CandidateProfile"));
 const CandidateDetail  = lazy(() => import("./pages/CandidateDetail"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const PageFallback = <div className="page" style={{ color: "var(--text-muted)", textAlign: "center", paddingTop: "4rem" }}>Loading…</div>;
 
@@ -41,8 +44,23 @@ function RootRedirect() {
 	if (auth?.role === "HR") return <Navigate to="/hr/dashboard" replace />;
 	if (auth?.role === "candidate") return <Navigate to="/candidate/dashboard" replace />;
 
+	const jsonLd = {
+		"@context": "https://schema.org",
+		"@type": "SoftwareApplication",
+		name: "HireSight",
+		applicationCategory: "BusinessApplication",
+		operatingSystem: "Web",
+		offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+		description: "AI-powered resume screener that ranks candidates on a live leaderboard.",
+		url: "https://hiresight.shashishanthan2706.workers.dev",
+	};
+
 	return (
 		<div className="page" style={{ textAlign: "center", paddingTop: "1rem" }}>
+			<Seo />
+			<Helmet>
+				<script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+			</Helmet>
 			<div className="hero">
 				<h1>Hire smarter with <span>HireSight</span></h1>
 				<p>Post a job, share a link. AI scores every resume instantly and ranks candidates on a live leaderboard.</p>
@@ -251,15 +269,7 @@ export default function App() {
 				{/* 404 */}
 				<Route
 					path="*"
-					element={
-						<div className="page" style={{ textAlign: "center", paddingTop: "4rem" }}>
-							<div style={{ fontSize: "3rem" }}>404</div>
-							<p style={{ color: "var(--text-muted)", marginTop: ".5rem" }}>Page not found</p>
-							<Link to="/" className="btn btn-primary" style={{ marginTop: "1.5rem", display: "inline-flex" }}>
-								Go Home
-							</Link>
-						</div>
-					}
+					element={<Suspense fallback={PageFallback}><NotFound /></Suspense>}
 				/>
 			</Routes>
 			<Footer />
