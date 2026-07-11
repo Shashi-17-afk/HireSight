@@ -34,10 +34,10 @@ export default function HRDashboard() {
     })
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load jobs");
-        return res.json() as Promise<Job[]>;
+        return res.json() as Promise<{ jobs: Job[] }>;
       })
       .then((data) => {
-        setJobs(data);
+        setJobs(data.jobs ?? []);
         setLoading(false);
       })
       .catch((err) => {
