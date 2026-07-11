@@ -6,7 +6,6 @@ Built for HR teams and candidates who want signal instead of noise in the first-
 
 ---
 
-![HireSight hero screenshot](docs/screenshots/hero.png)
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Shashi-17-afk/Cloudflare_Hackathon/ci.yml?label=CI&style=flat-square)](https://github.com/Shashi-17-afk/Cloudflare_Hackathon/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6366f1?style=flat-square)](LICENSE)
@@ -135,7 +134,7 @@ See [docs/architecture.md](docs/architecture.md) for the entity-relationship dia
 
 ## Demo
 
-**Live app:** [https://hiring-screener.shashishanthan2706.workers.dev](https://hiring-screener.shashishanthan2706.workers.dev)
+**Live app:** [https://hiresight.shashishanthan2706.workers.dev](https://hiresight.shashishanthan2706.workers.dev)
 
 You can register a new account on the live app.  
 For a quick tour without registration, browse the public job board at `/jobs` or open any `/apply/:job_id` link.
