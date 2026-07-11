@@ -174,6 +174,16 @@ The vector score is a cheap, fast signal (and the only score available when Vect
 
 ---
 
+## Known Limitations
+
+| # | Limitation | Accepted tradeoff |
+|---|-----------|-------------------|
+| 1 | Demo credentials in README have full write access rather than being read-only | Accepted as a known tradeoff for trial submission timeline. A read-only demo role would require an additional `role = "demo"` RBAC tier across all route middleware — deferred post-submission. |
+| 2 | Scanned PDFs (image-only, no text layer) return empty extracted text | Client-side detection shows a clear error; server-side OCR is a roadmap item. |
+| 3 | Vectorize and Workers AI require a live Cloudflare account even in local dev | Scoring falls back gracefully; noted in Quick Start. |
+
+---
+
 ## Build and Deployment
 
 ```
