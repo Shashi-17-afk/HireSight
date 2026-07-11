@@ -46,6 +46,7 @@ export default function Dashboard() {
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [fitFilter, setFitFilter] = useState("all");
+  const [minScore, setMinScore] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -120,14 +121,15 @@ export default function Dashboard() {
   const topScore = entries.length ? entries[0].score : 0;
   const strongFits = entries.filter((e) => e.score >= 80).length;
 
-  // Search and fit category filtering
+  // Search, fit category, and min-score filtering
   const filteredEntries = entries.filter((entry) => {
     const matchesSearch = entry.name.toLowerCase().includes(searchTerm.toLowerCase());
     let matchesFit = true;
     if (fitFilter === "strong") matchesFit = entry.score >= 80;
     else if (fitFilter === "potential") matchesFit = entry.score >= 50 && entry.score < 80;
     else if (fitFilter === "no-match") matchesFit = entry.score < 50;
-    return matchesSearch && matchesFit;
+    const matchesMin = entry.score >= minScore;
+    return matchesSearch && matchesFit && matchesMin;
   });
 
   return (
@@ -212,6 +214,49 @@ export default function Dashboard() {
             <option value="potential">Potential (50–79)</option>
             <option value="no-match">No Match (&lt;50)</option>
           </select>
+          <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
+            <label
+              htmlFor="min-score"
+              style={{ fontSize: ".78rem", fontWeight: 600, color: "var(--text-muted)", whiteSpace: "nowrap" }}
+            >
+              Min Score
+            </label>
+            <input
+              id="min-score"
+              type="number"
+              min={0}
+              max={100}
+              value={minScore}
+              onChange={(e) => setMinScore(Math.min(100, Math.max(0, Number(e.target.value))))}
+              style={{
+                width: 64,
+                background: "var(--card-bg)",
+                border: `1px solid ${minScore > 0 ? "var(--brand)" : "var(--card-border)"}`,
+                borderRadius: 10,
+                padding: ".6rem .75rem",
+                color: minScore > 0 ? "var(--brand-light)" : "var(--text-primary)",
+                fontSize: ".9rem",
+                fontWeight: minScore > 0 ? 700 : 400,
+                outline: "none",
+                fontFamily: "inherit",
+                boxShadow: minScore > 0 ? "0 0 0 3px var(--brand-glow)" : "none",
+                transition: "all 0.2s ease",
+              }}
+            />
+            {minScore > 0 && (
+              <button
+                onClick={() => setMinScore(0)}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--text-muted)", fontSize: ".85rem", padding: ".2rem",
+                  lineHeight: 1, fontFamily: "inherit",
+                }}
+                title="Clear min score filter"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -270,7 +315,11 @@ export default function Dashboard() {
         )}
 
         <div className="table-footer">
-          <span>{filteredEntries.length} candidate{filteredEntries.length !== 1 ? "s" : ""} shown • avg score: <strong>{avgScore || "—"}</strong></span>
+          <span>
+            {filteredEntries.length} of {entries.length} candidate{entries.length !== 1 ? "s" : ""} shown
+            {minScore > 0 && <> · <strong style={{ color: "var(--brand-light)" }}>min score: {minScore}</strong></>}
+            {" "}· avg score: <strong>{avgScore || "—"}</strong>
+          </span>
           <span style={{ marginLeft: "auto", display: "flex", gap: "1rem" }}>
             <span><span className="legend-dot" style={{ background: "var(--green)" }} />≥80 strong fit</span>
             <span><span className="legend-dot" style={{ background: "var(--yellow)" }} />50–79 potential</span>
