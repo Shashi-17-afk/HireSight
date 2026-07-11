@@ -1,8 +1,63 @@
 import { Hono } from "hono";
+import { verify } from "hono/jwt";
+import { authenticate, requireCandidate } from "../lib/auth";
+import type { AuthVariables } from "../lib/auth";
 
-const candidates = new Hono<{ Bindings: Env }>();
+const candidates = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
+
+// Authenticated candidate: view their own past applications
+candidates.get("/my-applications", authenticate(), requireCandidate(), async (c) => {
+	const user = c.get("user");
+
+	const userDetails = await c.env.DB.prepare("SELECT email FROM users WHERE id = ?")
+		.bind(user.id)
+		.first<{ email: string }>();
+
+	if (!userDetails) return c.json({ error: "User not found" }, 404);
+
+	const result = await c.env.DB.prepare(
+		`SELECT c.id, c.score, c.reasoning, c.created_at,
+		        j.title AS job_title, j.id AS job_id
+		 FROM candidates c
+		 JOIN jobs j ON c.job_id = j.id
+		 WHERE c.email = ?
+		 ORDER BY c.created_at DESC`
+	)
+		.bind(userDetails.email)
+		.all<{ id: string; score: number; reasoning: string; created_at: string; job_title: string; job_id: string }>();
+
+	return c.json(result.results);
+});
 
 candidates.post("/", async (c) => {
+	// Server-side profile-completeness backstop for authenticated candidates.
+	// If a Bearer token is present and belongs to a candidate, we verify
+	// candidate_profiles.is_complete before proceeding.
+	// No token → anonymous external link apply → skip entirely (untouched flow).
+	const authHeader = c.req.header("Authorization");
+	if (authHeader?.startsWith("Bearer ")) {
+		const token = authHeader.substring(7);
+		const jwtSecret = c.env.JWT_SECRET;
+		if (jwtSecret) {
+			try {
+				const payload = await verify(token, jwtSecret, "HS256");
+				if (typeof payload.userId === "string" && payload.role === "candidate") {
+					const prof = await c.env.DB.prepare(
+						"SELECT is_complete FROM candidate_profiles WHERE user_id = ?"
+					).bind(payload.userId).first<{ is_complete: number }>();
+					if (!prof || prof.is_complete === 0) {
+						return c.json({
+							error: "Complete your profile before applying.",
+							code: "PROFILE_INCOMPLETE",
+						}, 400);
+					}
+				}
+			} catch {
+				// Invalid / expired token — treat as anonymous and proceed.
+			}
+		}
+	}
+
   const body = await c.req.json<{
     job_id: string;
     name: string;
