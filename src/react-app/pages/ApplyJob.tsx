@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import * as pdfjsLib from "pdfjs-dist";
 import Seo from "../components/Seo";
+import AuthGate from "../components/AuthGate";
+import AlreadyApplied from "../components/AlreadyApplied";
+import ScoreResult from "../components/ScoreResult";
 
 // Use the bundled worker via Vite's ?url import
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -165,146 +168,19 @@ export default function ApplyJob() {
     }
   }
 
-  function scoreLabel(score: number) {
-    if (score >= 80) return "Strong Fit ✓";
-    if (score >= 50) return "Potential Match";
-    return "Not a Match";
-  }
-
   // Auth gate — show sign-in wall for anyone not logged in as a candidate.
   if (!isCandidate) {
-    return (
-      <div className="page" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
-        <div className="card" style={{ maxWidth: 440, width: "100%", textAlign: "center", padding: "3rem 2rem" }}>
-          <div style={{ fontSize: "2.8rem", marginBottom: "1.25rem" }}>🔒</div>
-          <h2 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: ".75rem", letterSpacing: "-.01em" }}>
-            Sign in to apply
-          </h2>
-          {job && (
-            <p style={{ color: "var(--text-secondary)", fontSize: ".92rem", marginBottom: "1.75rem", lineHeight: 1.65 }}>
-              You need a candidate account to apply for <strong style={{ color: "var(--text-primary)" }}>{job.title}</strong>.
-              It only takes a minute to get started.
-            </p>
-          )}
-          {!job && (
-            <p style={{ color: "var(--text-secondary)", fontSize: ".92rem", marginBottom: "1.75rem" }}>
-              You need a candidate account to apply for this role.
-            </p>
-          )}
-          <div style={{ display: "flex", flexDirection: "column", gap: ".75rem" }}>
-            <Link
-              to={`/login/candidate?redirect=${redirectParam}`}
-              className="btn btn-primary btn-full"
-              style={{ justifyContent: "center" }}
-            >
-              Sign in →
-            </Link>
-            <Link
-              to={`/register/candidate?redirect=${redirectParam}`}
-              className="btn btn-outline btn-full"
-              style={{ justifyContent: "center" }}
-            >
-              Create a free account
-            </Link>
-          </div>
-          {role === "HR" && (
-            <p style={{ marginTop: "1.5rem", fontSize: ".8rem", color: "var(--text-muted)" }}>
-              You're signed in as an HR user. Applications require a candidate account.
-            </p>
-          )}
-        </div>
-      </div>
-    );
+    return <AuthGate job={job} role={role} redirectParam={redirectParam} />;
   }
 
   // Already-applied state — server returned existing application instead of re-scoring.
   if (result?.alreadyApplied) {
-    const STATUS_LABEL: Record<string, string> = {
-      applied: "Applied", under_review: "Under Review", shortlisted: "Shortlisted",
-      interview: "Interview Scheduled", rejected: "Not Selected", hired: "Hired 🎉",
-    };
-    return (
-      <div className="page">
-        <div className="card score-result-card">
-          <div style={{ fontSize: "2rem", marginBottom: ".75rem" }}>📋</div>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: ".5rem" }}>
-            You've already applied
-          </h2>
-          <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem", fontSize: ".9rem" }}>
-            Your application for <strong style={{ color: "var(--text-primary)" }}>{job?.title}</strong> is already on file.
-          </p>
-          {result.status && (
-            <p style={{ marginBottom: "1rem" }}>
-              Status: <strong style={{ color: "var(--text-primary)" }}>
-                {STATUS_LABEL[result.status] ?? result.status}
-              </strong>
-            </p>
-          )}
-          {result.score != null && (
-            <p style={{ color: "var(--text-secondary)", fontSize: ".88rem", marginBottom: "1.5rem" }}>
-              AI match score: <strong style={{ color: "var(--text-primary)" }}>{result.score}/100</strong>
-              {result.reasoning && ` — ${result.reasoning}`}
-            </p>
-          )}
-          <a href="/candidate/dashboard" className="btn btn-primary" style={{ display: "inline-flex" }}>
-            View My Applications →
-          </a>
-        </div>
-      </div>
-    );
+    return <AlreadyApplied job={job} result={result} />;
   }
 
+  // Score result — show after successful submission.
   if (result) {
-    const score  = result.score  ?? 0;
-    const radius = 72;
-    const circ = 2 * Math.PI * radius;
-    const offset = circ - (score / 100) * circ;
-    const fillClass =
-      score >= 80
-        ? "score-circle-fill-green"
-        : score >= 50
-        ? "score-circle-fill-yellow"
-        : "score-circle-fill-red";
-    const scoreColor =
-      score >= 80 ? "var(--green)" : score >= 50 ? "var(--yellow)" : "var(--red)";
-
-    return (
-      <div className="page">
-        <div className="card score-result-card">
-          <div style={{ fontSize: "2rem", marginBottom: ".75rem" }}>
-            {score >= 80 ? "🎉" : score >= 50 ? "🤔" : "😔"}
-          </div>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "1.5rem", letterSpacing: "-.02em" }}>
-            Your AI Match Score
-          </h2>
-
-          <div className="score-circle-wrap">
-            <svg width="180" height="180" viewBox="0 0 180 180">
-              <circle className="score-circle-bg" cx="90" cy="90" r={radius} strokeWidth="10" />
-              <circle
-                className={`score-circle-fill ${fillClass}`}
-                cx="90" cy="90" r={radius}
-                strokeWidth="10"
-                strokeDasharray={circ}
-                strokeDashoffset={offset}
-              />
-            </svg>
-            <div className="score-circle-text">
-              <span className="score-number" style={{ color: scoreColor }}>{score}</span>
-              <span className="score-denom">/ 100</span>
-            </div>
-          </div>
-
-          <p className="score-label-text" style={{ color: scoreColor }}>{scoreLabel(score)}</p>
-          <p style={{ color: "var(--text-secondary)", fontSize: ".93rem", lineHeight: 1.65, maxWidth: "480px", margin: "0 auto 1.5rem" }}>
-            {result.reasoning}
-          </p>
-          <p style={{ fontSize: ".78rem", color: "var(--text-muted)" }}>
-            Application submitted. The hiring team will review your profile.
-          </p>
-        </div>
-      </div>
-    );
+    return <ScoreResult result={result} />;
   }
 
   return (

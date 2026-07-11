@@ -31,11 +31,12 @@ auth.post("/register/hr", async (c) => {
         passwordHash
       )
       .run();
-  } catch (err: any) {
-    if (err.message && err.message.includes("UNIQUE constraint failed")) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("UNIQUE constraint failed")) {
       return c.json({ error: "Email is already registered" }, 400);
     }
-    return c.json({ error: "Failed to create user: " + err.message }, 500);
+    return c.json({ error: "Failed to create user: " + msg }, 500);
   }
 
   const jwtSecret = c.env.JWT_SECRET;
@@ -77,11 +78,12 @@ auth.post("/register/candidate", async (c) => {
         passwordHash
       )
       .run();
-  } catch (err: any) {
-    if (err.message && err.message.includes("UNIQUE constraint failed")) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("UNIQUE constraint failed")) {
       return c.json({ error: "Email is already registered" }, 400);
     }
-    return c.json({ error: "Failed to create user: " + err.message }, 500);
+    return c.json({ error: "Failed to create user: " + msg }, 500);
   }
 
   const jwtSecret = c.env.JWT_SECRET;
