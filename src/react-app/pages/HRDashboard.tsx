@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 interface Job {
   id: string;
@@ -9,6 +9,7 @@ interface Job {
 }
 
 export default function HRDashboard() {
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -23,6 +24,12 @@ export default function HRDashboard() {
 
   const token = localStorage.getItem("token");
   const userName = localStorage.getItem("name") || "Recruiter";
+
+  function handleSignOut() {
+    localStorage.clear();
+    window.dispatchEvent(new Event("storage"));
+    navigate("/");
+  }
 
   function fetchJobs() {
     if (!token) return;
@@ -101,13 +108,20 @@ export default function HRDashboard() {
             Welcome back, <strong style={{ color: "var(--text-primary)" }}>{userName}</strong>. Manage your job screener pipelines.
           </p>
         </div>
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
           <button
             onClick={() => setShowPostForm(!showPostForm)}
             className="btn btn-primary"
             style={{ fontSize: ".875rem", padding: ".5rem 1.2rem" }}
           >
             {showPostForm ? "✕ Cancel" : "+ Post a Job"}
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="btn btn-outline"
+            style={{ fontSize: ".78rem", padding: ".5rem 1rem", color: "var(--text-muted)" }}
+          >
+            Sign Out
           </button>
         </div>
       </div>
