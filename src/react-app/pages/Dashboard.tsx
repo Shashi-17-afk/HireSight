@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Inbox, Search } from "lucide-react";
+import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import Seo from "../components/Seo";
 
 interface LeaderboardEntry {
@@ -38,6 +39,55 @@ function rankCell(rank: number, tied: boolean) {
         </span>
       )}
     </td>
+  );
+}
+
+interface LeaderboardRowProps {
+  entry: LeaderboardEntry;
+  rank: number;
+  tied: boolean;
+  isNew: boolean;
+  jobId: string;
+}
+
+function LeaderboardRow({ entry, rank, tied, isNew, jobId }: LeaderboardRowProps) {
+  const reduceMotion = useReducedMotion();
+
+  const cells = (
+    <>
+      {rankCell(rank, tied)}
+      <td style={{ fontWeight: 600 }}>{entry.name}</td>
+      <td>{scoreBadge(entry.score)}</td>
+      <td className="reasoning-text">{entry.reasoning}</td>
+      <td>
+        <Link
+          to={`/hr/candidate/${entry.id}?job_id=${jobId}`}
+          className="btn btn-outline"
+          style={{ fontSize: ".75rem", padding: ".25rem .65rem", whiteSpace: "nowrap" }}
+        >
+          View →
+        </Link>
+      </td>
+    </>
+  );
+
+  if (reduceMotion) {
+    return <tr key={entry.id}>{cells}</tr>;
+  }
+
+  return (
+    <motion.tr
+      layout="position"
+      initial={isNew ? { backgroundColor: "rgba(193, 154, 94, 0.15)" } : false}
+      animate={{ backgroundColor: "rgba(193, 154, 94, 0)" }}
+      transition={{
+        layout: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
+        backgroundColor: { duration: 2, ease: "easeOut" },
+      }}
+      style={{ position: "relative" }}
+    >
+      {cells}
+    </motion.tr>
   );
 }
 
@@ -123,7 +173,6 @@ export default function Dashboard() {
   const topScore = entries.length ? entries[0].score : 0;
   const strongFits = entries.filter((e) => e.score >= 80).length;
 
-  // Search, fit category, and min-score filtering
   const filteredEntries = entries.filter((entry) => {
     const matchesSearch = entry.name.toLowerCase().includes(searchTerm.toLowerCase());
     let matchesFit = true;
@@ -159,7 +208,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats row */}
       {entries.length > 0 && (
         <div className="stats-row">
           <div className="stat-card">
@@ -179,7 +227,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Apply link bar */}
       <div className="card-sm" style={{ marginBottom: "1.1rem", display: "flex", alignItems: "center", gap: ".75rem", flexWrap: "wrap" }}>
         <span style={{ fontSize: ".82rem", fontWeight: 600, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
           Apply Link:
@@ -196,7 +243,6 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* Filter and Search Bar */}
       {entries.length > 0 && (
         <div className="filter-bar">
           <div className="search-input-wrap">
@@ -303,31 +349,26 @@ export default function Dashboard() {
                   <th style={{ width: "5rem" }}></th>
                 </tr>
               </thead>
-              <tbody>
-                {filteredEntries.map((entry) => {
-                  const entryIndex = entries.findIndex((e) => e.id === entry.id);
-                  const tied =
-                    (entryIndex > 0 && entries[entryIndex - 1].score === entry.score) ||
-                    (entryIndex < entries.length - 1 && entries[entryIndex + 1].score === entry.score);
-                  return (
-                    <tr key={entry.id} className={newIds.has(entry.id) ? "row-new" : ""}>
-                      {rankCell(entryIndex + 1, tied)}
-                      <td style={{ fontWeight: 600 }}>{entry.name}</td>
-                      <td>{scoreBadge(entry.score)}</td>
-                      <td className="reasoning-text">{entry.reasoning}</td>
-                      <td>
-                        <Link
-                          to={`/hr/candidate/${entry.id}?job_id=${job_id ?? ""}`}
-                          className="btn btn-outline"
-                          style={{ fontSize: ".75rem", padding: ".25rem .65rem", whiteSpace: "nowrap" }}
-                        >
-                          View →
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
+              <LayoutGroup id="leaderboard">
+                <tbody>
+                  {filteredEntries.map((entry) => {
+                    const entryIndex = entries.findIndex((e) => e.id === entry.id);
+                    const tied =
+                      (entryIndex > 0 && entries[entryIndex - 1].score === entry.score) ||
+                      (entryIndex < entries.length - 1 && entries[entryIndex + 1].score === entry.score);
+                    return (
+                      <LeaderboardRow
+                        key={entry.id}
+                        entry={entry}
+                        rank={entryIndex + 1}
+                        tied={tied}
+                        isNew={newIds.has(entry.id)}
+                        jobId={job_id ?? ""}
+                      />
+                    );
+                  })}
+                </tbody>
+              </LayoutGroup>
             </table>
           </div>
         )}
