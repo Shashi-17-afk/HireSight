@@ -15,7 +15,7 @@
   /* ── Text ── */
   --text-primary: #f0ebe0;
   --text-secondary: #9a8e7e;
-  --text-muted: #6a5f52;
+  --text-muted: #8c7d6e;
 
   /* ── Brand — antique gold ── */
   --brand: #c19a5e;
@@ -36,10 +36,10 @@
   --yellow-border: rgba(201, 162, 52, 0.25);
   --yellow-glow: rgba(201, 162, 52, 0.18);
 
-  --red: #c05248;
-  --red-bg: rgba(192, 82, 72, 0.1);
-  --red-border: rgba(192, 82, 72, 0.25);
-  --red-glow: rgba(192, 82, 72, 0.18);
+  --red: #cc5e54;
+  --red-bg: rgba(204, 94, 84, 0.1);
+  --red-border: rgba(204, 94, 84, 0.25);
+  --red-glow: rgba(204, 94, 84, 0.18);
 
   /* ── Radius / Shadow ── */
   --radius: 14px;
@@ -1037,7 +1037,7 @@ tbody tr:hover {
 .status-review       { background: rgba(201,162,52,.1);   color: #c9a234; border-color: rgba(201,162,52,.28); }
 .status-shortlisted  { background: rgba(193,154,94,.14);  color: #c19a5e; border-color: rgba(193,154,94,.32); }
 .status-interview    { background: rgba(82,168,130,.1);   color: #52a882; border-color: rgba(82,168,130,.25); }
-.status-rejected     { background: rgba(192,82,72,.1);    color: #c05248; border-color: rgba(192,82,72,.25); }
+.status-rejected     { background: rgba(204,94,84,.1);    color: var(--red); border-color: rgba(204,94,84,.25); }
 .status-hired        { background: rgba(82,168,130,.12);  color: #52a882; border-color: rgba(82,168,130,.3); }
 
 /* ── Job Detail description renderer ─────────────────────────────────────── */
@@ -1234,4 +1234,50 @@ select.input {
   border-color: var(--brand);
   background: rgba(193, 154, 94, 0.05);
   box-shadow: 0 0 0 3px var(--brand-glow);
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .page,
+  .page-wide {
+    animation: none;
+  }
+
+  .live-dot {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .spinner {
+    animation: none;
+    border-top-color: transparent;
+  }
+
+  .row-new,
+  .card-flash {
+    animation: none;
+  }
+
+  .score-circle-fill {
+    transition: none;
+  }
+
+  .pill:hover,
+  .btn-primary:hover,
+  .btn-outline:hover,
+  .stat-card:hover,
+  .job-card:hover {
+    transform: none;
+  }
 }
