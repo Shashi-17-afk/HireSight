@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Briefcase } from "lucide-react";
 import Seo from "../components/Seo";
 
 interface Job {
@@ -192,7 +193,9 @@ export default function HRDashboard() {
         </div>
       ) : jobs.length === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: "5rem 2rem" }}>
-          <div className="empty-state-icon">💼</div>
+          <div className="empty-state-icon">
+            <Briefcase size={40} strokeWidth={1.5} />
+          </div>
           <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--text-primary)" }}>No jobs posted yet</h2>
           <p style={{ color: "var(--text-secondary)", maxWidth: "340px", margin: ".5rem auto 1.5rem" }}>
             Create your first job posting to generate an apply link and launch the AI candidate screening leaderboard.

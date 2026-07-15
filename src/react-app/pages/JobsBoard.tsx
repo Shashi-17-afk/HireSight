@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Inbox, Search } from "lucide-react";
 import Seo from "../components/Seo";
 
 interface Job {
@@ -59,6 +60,7 @@ export default function JobsBoard() {
 			</div>
 
 			<div className="search-input-wrap" style={{ marginBottom: "1.5rem" }}>
+				<Search className="search-input-icon" size={16} aria-hidden="true" />
 				<input
 					type="text"
 					placeholder="Search roles by title…"
@@ -87,7 +89,9 @@ export default function JobsBoard() {
 			{!loading && !error && filtered.length === 0 && (
 				<div className="card">
 					<div className="empty-state">
-						<div className="empty-state-icon">{search ? "🔍" : "📭"}</div>
+						<div className="empty-state-icon">
+							{search ? <Search size={40} strokeWidth={1.5} /> : <Inbox size={40} strokeWidth={1.5} />}
+						</div>
 						<p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: ".95rem" }}>
 							{search ? "No roles match your search" : "No open roles yet"}
 						</p>

@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "hono": "^4.11.1",
+    "lucide-react": "^1.24.0",
+    "motion": "^12.42.2",
     "pdfjs-dist": "^6.0.227",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
