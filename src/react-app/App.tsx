@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from "react";
-import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AuthPage from "./pages/AuthPage";
 
 const PostJob = lazy(() => import("./pages/PostJob"));
@@ -36,10 +36,16 @@ function ProtectedRoute({ children, allowedRole }: { children: React.ReactNode; 
 	return <>{children}</>;
 }
 
+function signOut() {
+	localStorage.clear();
+	window.dispatchEvent(new Event("storage"));
+}
+
 // ── Navbar ────────────────────────────────────────────────────────────────────
 
 function Navbar() {
 	const { pathname } = useLocation();
+	const navigate = useNavigate();
 	const [user, setUser] = useState<{ name: string; role: string } | null>(null);
 
 	useEffect(() => {
@@ -54,6 +60,11 @@ function Navbar() {
 
 	const isHome = pathname === "/";
 	const isApply = pathname.startsWith("/apply");
+
+	function handleSignOut() {
+		signOut();
+		navigate("/");
+	}
 
 	return (
 		<nav className="nav">
@@ -78,7 +89,7 @@ function Navbar() {
 					{user.role === "candidate" && (
 						<Link to="/jobs" className="nav-link" style={{ fontSize: ".82rem" }}>Browse Openings</Link>
 					)}
-					{/* Name links to profile (candidates) or dashboard (HR) — logout lives there */}
+					{/* Name links to profile (candidates) or dashboard (HR) */}
 					<Link
 						to={user.role === "candidate" ? "/candidate/profile" : "/hr/dashboard"}
 						className="nav-link"
@@ -89,6 +100,9 @@ function Navbar() {
 							{user.role === "HR" ? "· Recruiter" : "· Candidate"}
 						</span>
 					</Link>
+					<button type="button" onClick={handleSignOut} className="nav-signout">
+						Sign out
+					</button>
 				</div>
 			) : (
 				<div style={{ display: "flex", gap: ".5rem" }}>

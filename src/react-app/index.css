@@ -183,6 +183,25 @@ a:hover { color: var(--brand); text-decoration: none; }
   text-decoration: none;
 }
 
+.nav-signout {
+  font-size: .78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: .45rem .85rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.nav-signout:hover {
+  color: var(--red);
+  border-color: rgba(204, 94, 84, 0.35);
+  background: rgba(204, 94, 84, 0.06);
+}
+
 /* ── Hero ── */
 .hero {
   text-align: center;
