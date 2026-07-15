@@ -33,7 +33,6 @@ export default function NotFound() {
         {/* Gold decorative number */}
         <div
           style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
             fontSize: "clamp(5rem, 18vw, 7.5rem)",
             fontWeight: 700,
             lineHeight: 1,
@@ -48,7 +47,6 @@ export default function NotFound() {
 
         <h1
           style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
             fontSize: "1.4rem",
             fontWeight: 700,
             color: "var(--text-primary)",

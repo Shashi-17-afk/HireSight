@@ -184,6 +184,26 @@ The vector score is a cheap, fast signal (and the only score available when Vect
 
 ---
 
+## Design System Roadmap
+
+Deferred UI/UX improvements identified in the Phase 1 design audit (Impeccable + Taste Skill, product mode). These are tracked for a future pass — not blocking current functionality.
+
+| ID | Issue | Tier | Notes |
+|----|-------|------|-------|
+| T3 | 22+ ad-hoc font sizes, no coherent type scale | Medium | Define an 8-step rem scale (e.g. 0.75 / 0.875 / 1 / 1.125 / 1.25 / 1.5 / 1.875 / 2.25) |
+| T4 | `clamp()` on hero H1 | Low | Product UI should use fixed rem sizes, not viewport-fluid headings |
+| T5 | Tight letter-spacing on score number at 3rem | Low | Adjust to -0.02em at large sizes |
+| C3 | `status-applied` and `status-shortlisted` visually indistinguishable | Medium | Separate color families — applied = neutral, shortlisted = distinct accent |
+| C4 | Spinner hardcoded to page-bg colors (`#0b0a09`) | Medium | Use `currentColor` or a semantic token so spinners are visible on cards |
+| P2 | Stat card `::before` top-stripe decoration | Medium | Remove decorative accent; hierarchy via value + label only |
+| P3 | `transition: all` on inputs and buttons | Medium | Scope to `border-color, background-color, box-shadow, transform` |
+| L1 | Five different card padding values | Medium | Tokenize `--card-pad` and `--card-pad-sm` |
+| L2 | Page-load `fadeIn` on `.page` / `.page-wide` | Medium | Remove or gate behind `prefers-reduced-motion` only |
+
+**Completed in Phase 2 (2026-07-15):** C1 (text-muted contrast), C2 (red contrast), P5 (reduced-motion), T1 (Inter-only typography), T2 (gradient text removal), P1 (ghost-card shadow removal), P4 (lucide-react icons).
+
+---
+
 ## Build and Deployment
 
 ```
