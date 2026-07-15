@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { ClipboardList } from "lucide-react";
 import Seo from "../components/Seo";
 
 function handleSignOut(navigate: ReturnType<typeof useNavigate>) {
@@ -188,7 +189,9 @@ export default function CandidateProfile() {
 			{/* Gate banner — only shown when arriving from the apply gate */}
 			{redirect && (
 				<div className="profile-banner">
-					<span className="profile-banner-icon">📋</span>
+					<span className="profile-banner-icon">
+						<ClipboardList size={22} strokeWidth={1.5} aria-hidden="true" />
+					</span>
 					<div>
 						<strong>Complete your profile to apply</strong>
 						<p>Fill in the 3 required fields below. You'll be taken straight to the job after saving.</p>

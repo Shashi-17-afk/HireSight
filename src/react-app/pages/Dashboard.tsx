@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { Inbox, Search } from "lucide-react";
 import Seo from "../components/Seo";
 
 interface LeaderboardEntry {
@@ -199,6 +200,7 @@ export default function Dashboard() {
       {entries.length > 0 && (
         <div className="filter-bar">
           <div className="search-input-wrap">
+            <Search className="search-input-icon" size={16} aria-hidden="true" />
             <input
               type="text"
               placeholder="Search candidates by name..."
@@ -273,7 +275,9 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                <div className="empty-state-icon">📭</div>
+                <div className="empty-state-icon">
+                  <Inbox size={40} strokeWidth={1.5} />
+                </div>
                 <p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: ".95rem" }}>No candidates yet</p>
                 <p style={{ color: "var(--text-secondary)" }}>Share the apply link above to start receiving AI-scored applications. New candidates appear here in real time.</p>
               </>
@@ -281,7 +285,9 @@ export default function Dashboard() {
           </div>
         ) : filteredEntries.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">🔍</div>
+            <div className="empty-state-icon">
+              <Search size={40} strokeWidth={1.5} />
+            </div>
             <p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: ".95rem" }}>No matches found</p>
             <p style={{ color: "var(--text-secondary)" }}>Try adjusting your search query or filter settings.</p>
           </div>

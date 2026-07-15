@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { FileText } from "lucide-react";
 import Seo from "../components/Seo";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -171,7 +172,9 @@ export default function CandidateDashboard() {
         </div>
       ) : applications.length === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: "4rem 2rem" }}>
-          <div className="empty-state-icon">📄</div>
+          <div className="empty-state-icon">
+            <FileText size={40} strokeWidth={1.5} />
+          </div>
           <h2 style={{ fontSize: "1.15rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: ".5rem" }}>
             No applications yet
           </h2>

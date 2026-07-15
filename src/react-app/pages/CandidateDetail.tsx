@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
+import { Link2 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -182,7 +183,9 @@ export default function CandidateDetail() {
 			{/* Anonymous note */}
 			{data.isAnonymous && (
 				<div className="profile-banner" style={{ marginBottom: "1.25rem" }}>
-					<span className="profile-banner-icon">🔗</span>
+					<span className="profile-banner-icon">
+						<Link2 size={22} strokeWidth={1.5} aria-hidden="true" />
+					</span>
 					<div>
 						<strong>External link application</strong>
 						<p>This candidate applied via the public shareable link without an account. Status tracking is not available.</p>
