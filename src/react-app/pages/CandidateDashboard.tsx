@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { FileText } from "lucide-react";
 import Seo from "../components/Seo";
+import AnimatedStatusBadge from "../components/AnimatedStatusBadge";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -22,21 +23,6 @@ function scoreBadge(score: number) {
   if (score >= 80) return <span className="badge badge-green">{score} / 100</span>;
   if (score >= 50) return <span className="badge badge-yellow">{score} / 100</span>;
   return <span className="badge badge-red">{score} / 100</span>;
-}
-
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  applied:      { label: "Applied",       cls: "status-applied" },
-  under_review: { label: "Under Review",  cls: "status-review" },
-  shortlisted:  { label: "Shortlisted",   cls: "status-shortlisted" },
-  interview:    { label: "Interview",     cls: "status-interview" },
-  rejected:     { label: "Not Selected",  cls: "status-rejected" },
-  hired:        { label: "Hired 🎉",      cls: "status-hired" },
-};
-
-function statusBadge(status: string | null) {
-  if (!status) return null;
-  const meta = STATUS_META[status] ?? { label: status, cls: "status-applied" };
-  return <span className={`status-badge ${meta.cls}`}>{meta.label}</span>;
 }
 
 function timeAgo(dateStr: string): string {
@@ -197,7 +183,7 @@ export default function CandidateDashboard() {
                   </span>
                 </div>
                 <div style={{ display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}>
-                  {statusBadge(app.status)}
+                  <AnimatedStatusBadge status={app.status} />
                   {scoreBadge(app.score)}
                 </div>
               </div>
