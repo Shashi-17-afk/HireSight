@@ -169,7 +169,6 @@ export default function JobDetail() {
 			{/* Header */}
 			<div style={{ marginBottom: "2rem" }}>
 				<h1 style={{
-					fontFamily: "'Playfair Display', Georgia, serif",
 					fontSize: "clamp(1.75rem, 4vw, 2.4rem)",
 					fontWeight: 700,
 					letterSpacing: "-.02em",
