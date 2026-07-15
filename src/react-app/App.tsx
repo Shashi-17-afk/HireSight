@@ -1,8 +1,6 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
 import AuthPage from "./pages/AuthPage";
-import Seo from "./components/Seo";
 
 const PostJob = lazy(() => import("./pages/PostJob"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -14,6 +12,7 @@ const CandidateDashboard = lazy(() => import("./pages/CandidateDashboard"));
 const CandidateProfile = lazy(() => import("./pages/CandidateProfile"));
 const CandidateDetail  = lazy(() => import("./pages/CandidateDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const HomePage = lazy(() => import("./pages/HomePage"));
 
 const PageFallback = <div className="page" style={{ color: "var(--text-muted)", textAlign: "center", paddingTop: "4rem" }}>Loading…</div>;
 
@@ -37,58 +36,6 @@ function ProtectedRoute({ children, allowedRole }: { children: React.ReactNode; 
 	return <>{children}</>;
 }
 
-// ── Landing / root redirect ───────────────────────────────────────────────────
-
-function RootRedirect() {
-	const auth = getAuth();
-	if (auth?.role === "HR") return <Navigate to="/hr/dashboard" replace />;
-	if (auth?.role === "candidate") return <Navigate to="/candidate/dashboard" replace />;
-
-	const jsonLd = {
-		"@context": "https://schema.org",
-		"@type": "SoftwareApplication",
-		name: "HireSight",
-		applicationCategory: "BusinessApplication",
-		operatingSystem: "Web",
-		offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-		description: "AI-powered resume screener that ranks candidates on a live leaderboard.",
-		url: "https://hiresight.shashishanthan2706.workers.dev",
-	};
-
-	return (
-		<div className="page" style={{ textAlign: "center", paddingTop: "1rem" }}>
-			<Seo />
-			<Helmet>
-				<script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
-			</Helmet>
-			<div className="hero">
-				<h1>Hire smarter with <span>HireSight</span></h1>
-				<p>Post a job, share a link. AI scores every resume instantly and ranks candidates on a live leaderboard.</p>
-				<div className="feature-pills">
-					<span className="pill">🧠 Neural AI Scoring</span>
-					<span className="pill">⚡ Real-time Leaderboard</span>
-					<span className="pill">🔗 Shareable Apply Links</span>
-					<span className="pill">📄 Browser-side PDF Parsing</span>
-				</div>
-			</div>
-
-			<div style={{ display: "flex", gap: "1.25rem", justifyContent: "center", flexWrap: "wrap", marginBottom: "2rem" }}>
-				<Link to="/login/hr" className="btn btn-primary" style={{ padding: "1rem 2rem", fontSize: "1rem" }}>
-					Recruiter Portal →
-				</Link>
-				<Link to="/login/candidate" className="btn btn-outline" style={{ padding: "1rem 2rem", fontSize: "1rem" }}>
-					Candidate Portal →
-				</Link>
-			</div>
-
-			<p style={{ fontSize: ".82rem", color: "var(--text-muted)" }}>
-				Looking for open roles?{" "}
-				<Link to="/jobs" style={{ fontWeight: 600, color: "var(--brand-light)" }}>Browse job listings →</Link>
-			</p>
-		</div>
-	);
-}
-
 // ── Navbar ────────────────────────────────────────────────────────────────────
 
 function Navbar() {
@@ -105,14 +52,25 @@ function Navbar() {
 		return () => window.removeEventListener("storage", syncAuth);
 	}, []);
 
+	const isHome = pathname === "/";
 	const isApply = pathname.startsWith("/apply");
 
 	return (
 		<nav className="nav">
 			<Link to="/" className="nav-logo" style={{ textDecoration: "none" }}>
-				<span className="nav-logo-icon">✨</span>
+				<span className="nav-logo-icon">HS</span>
 				Hire<span>Sight</span>
 			</Link>
+
+			{!user && isHome && (
+				<div className="nav-links-landing">
+					<a href="#features" className="nav-link">Features</a>
+					<a href="#how-it-works" className="nav-link">How it works</a>
+					<a href="#pricing" className="nav-link">Pricing</a>
+					<a href="#faq" className="nav-link">FAQ</a>
+				</div>
+			)}
+
 			<span className="nav-spacer" />
 
 			{user ? (
@@ -163,13 +121,21 @@ function Footer() {
 					<div className="footer-col">
 						<span className="footer-col-title">Product</span>
 						<Link to="/jobs">Browse Openings</Link>
-						<Link to="/login/hr">Post a Job</Link>
+						<Link to="/register/hr">Post a Job</Link>
+						<a href="/#features">Features</a>
+						<a href="/#pricing">Pricing</a>
 					</div>
 					<div className="footer-col">
 						<span className="footer-col-title">Portals</span>
 						<Link to="/login/hr">Recruiter Sign In</Link>
 						<Link to="/login/candidate">Candidate Sign In</Link>
 						<Link to="/register/candidate">Create Account</Link>
+					</div>
+					<div className="footer-col">
+						<span className="footer-col-title">Support</span>
+						<a href="/#faq">FAQ</a>
+						<a href="/#how-it-works">How it works</a>
+						<a href="mailto:hello@hiresight.app">Contact</a>
 					</div>
 				</div>
 			</div>
@@ -188,8 +154,8 @@ export default function App() {
 			<Navbar />
 			<Routes>
 
-				{/* Landing / root redirect */}
-				<Route path="/" element={<RootRedirect />} />
+				{/* Landing home page */}
+				<Route path="/" element={<Suspense fallback={PageFallback}><HomePage /></Suspense>} />
 
 				{/* Auth pages (public) */}
 				<Route path="/login/hr" element={<AuthPage mode="login" role="hr" />} />
