@@ -9,7 +9,7 @@ Built for HR teams and candidates who want signal instead of noise in the first-
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Shashi-17-afk/Cloudflare_Hackathon/ci.yml?label=CI&style=flat-square)](https://github.com/Shashi-17-afk/Cloudflare_Hackathon/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6366f1?style=flat-square)](LICENSE)
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-hiring--screener.workers.dev-10b981?style=flat-square)](https://hiring-screener.shashishanthan2706.workers.dev)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-hiring--screener.workers.dev-10b981?style=flat-square)](https://hiresight.shashishanthan2706.workers.dev)
 
 ---
 
