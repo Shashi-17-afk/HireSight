@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Briefcase } from "lucide-react";
+import { Plus, Copy, Check, ArrowRight, LogOut, Inbox } from "lucide-react";
 import Seo from "../components/Seo";
 
 interface Job {
@@ -8,6 +8,17 @@ interface Job {
   title: string;
   description: string;
   created_at: string;
+  applicant_count?: number;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
 }
 
 export default function HRDashboard() {
@@ -16,7 +27,6 @@ export default function HRDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   
-  // Posting job state
   const [showPostForm, setShowPostForm] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -104,42 +114,48 @@ export default function HRDashboard() {
   return (
     <div className="page-wide">
       <Seo title="Recruiter Dashboard" description="Manage your HireSight job pipelines and view AI-ranked candidates." noIndex />
-      <div className="dash-header">
+
+      {/* Header Banner */}
+      <div className="card" style={{ marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1.5rem" }}>
         <div>
-          <h1 className="page-title">HR Recruiter Dashboard</h1>
-          <p className="page-sub" style={{ marginBottom: 0 }}>
-            Welcome back, <strong style={{ color: "var(--text-primary)" }}>{userName}</strong>. Manage your job screener pipelines.
+          <span className="section-tag">Recruiter Workspace</span>
+          <h1 style={{ fontSize: "2.4rem", margin: "0.4rem 0" }}>
+            Welcome, <span className="pill-highlight pill-yellow">{userName}</span>
+          </h1>
+          <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>
+            Manage active job postings, monitor real-time candidate leaderboards, and copy apply links.
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
           <button
             onClick={() => setShowPostForm(!showPostForm)}
-            className="btn btn-primary"
-            style={{ fontSize: ".875rem", padding: ".5rem 1.2rem" }}
+            className="btn btn-dark-pill btn-lg"
           >
-            {showPostForm ? "✕ Cancel" : "+ Post a Job"}
+            {showPostForm ? "✕ Close Form" : <><Plus size={18} /> Post a Job</>}
           </button>
           <button
             onClick={handleSignOut}
-            className="btn btn-outline"
-            style={{ fontSize: ".78rem", padding: ".5rem 1rem", color: "var(--text-muted)" }}
+            className="btn btn-secondary btn-lg"
           >
-            Sign Out
+            <LogOut size={16} /> Sign Out
           </button>
         </div>
       </div>
 
+      {/* Inline Post Job Form */}
       {showPostForm && (
-        <div className="card" style={{ marginBottom: "2rem", border: "1px solid var(--brand)" }}>
+        <div className="card" style={{ marginBottom: "2.5rem", border: "2px solid var(--pill-yellow)" }}>
+          <h2 style={{ fontSize: "1.6rem", marginBottom: "1rem" }}>
+            Publish New <span className="pill-highlight pill-pink">Job Role</span>
+          </h2>
           <form onSubmit={(e) => void handlePostJob(e)}>
-            <p className="section-label" style={{ fontWeight: 800, color: "var(--brand-light)", marginBottom: "1rem" }}>
-              ✦ Publish New Job Posting
-            </p>
-            <div className="form-group">
-              <label htmlFor="title">Job Title</label>
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.4rem" }}>
+                Job Role Title
+              </label>
               <input
-                id="title"
                 type="text"
+                className="form-input"
                 placeholder="e.g. Senior Backend Engineer"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -147,102 +163,103 @@ export default function HRDashboard() {
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="description">Job Description</label>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.4rem" }}>
+                Job Description
+              </label>
               <textarea
-                id="description"
-                placeholder="Paste job details, responsibilities, and skill requirements..."
+                className="form-input"
+                placeholder="Paste key responsibilities, required technical skills, and qualification criteria..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={7}
+                rows={6}
+                style={{ resize: "vertical" }}
                 required
               />
             </div>
 
-            {postError && <p className="error-text">⚠ {postError}</p>}
+            {postError && (
+              <p style={{ color: "var(--status-red)", fontSize: "0.9rem", marginBottom: "1rem", fontWeight: 600 }}>
+                ⚠ {postError}
+              </p>
+            )}
 
-            <div style={{ display: "flex", gap: ".75rem", marginTop: ".5rem" }}>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={postLoading || !title.trim() || !description.trim()}
-              >
-                {postLoading ? <span className="spinner" /> : "Publish Job →"}
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={() => setShowPostForm(false)}
-              >
-                Cancel
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="btn btn-dark-pill btn-lg"
+              disabled={postLoading || !title.trim() || !description.trim()}
+            >
+              {postLoading ? "Creating job..." : <>Publish Job & Generate Apply Link <ArrowRight size={18} /></>}
+            </button>
           </form>
         </div>
       )}
 
-      {loading ? (
-        <div className="card" style={{ textAlign: "center", padding: "4rem" }}>
-          <span className="spinner" style={{ width: "32px", height: "32px" }} />
-          <p style={{ color: "var(--text-secondary)", marginTop: "1rem" }}>Loading your active jobs list...</p>
-        </div>
-      ) : error ? (
-        <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
-          <div style={{ fontSize: "2rem", marginBottom: ".5rem" }}>⚠️</div>
-          <p style={{ color: "var(--red)" }}>{error}</p>
-        </div>
-      ) : jobs.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "5rem 2rem" }}>
-          <div className="empty-state-icon">
-            <Briefcase size={40} strokeWidth={1.5} />
-          </div>
-          <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--text-primary)" }}>No jobs posted yet</h2>
-          <p style={{ color: "var(--text-secondary)", maxWidth: "340px", margin: ".5rem auto 1.5rem" }}>
-            Create your first job posting to generate an apply link and launch the AI candidate screening leaderboard.
-          </p>
-          <button onClick={() => setShowPostForm(true)} className="btn btn-primary">
-            + Post a Job Now
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: "grid", gap: "1.25rem" }}>
-          {jobs.map((job) => (
-            <div key={job.id} className="card-sm" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div style={{ display: "flex", justifyContent: "between", alignItems: "start", width: "100%", flexWrap: "wrap", gap: ".5rem" }}>
-                <div style={{ flex: 1 }}>
-                  <h2 style={{ fontSize: "1.15rem", fontWeight: 800, color: "var(--text-primary)" }}>{job.title}</h2>
-                  <p style={{ fontSize: ".75rem", color: "var(--text-muted)", marginTop: ".15rem" }}>
-                    Posted on: {new Date(job.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div style={{ display: "flex", gap: ".5rem" }}>
-                  <Link to={`/dashboard/${job.id}`} className="btn btn-primary" style={{ fontSize: ".82rem", padding: ".4rem .9rem" }}>
-                    Leaderboard 📊
-                  </Link>
-                </div>
-              </div>
+      {/* Jobs Pipeline Section */}
+      <div style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <h2 style={{ fontSize: "1.8rem" }}>
+          Active <span className="pill-highlight pill-green">Job Pipelines</span> ({jobs.length})
+        </h2>
+      </div>
 
-              <p style={{ fontSize: ".875rem", color: "var(--text-secondary)", lineClamp: 2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5 }}>
-                {job.description}
-              </p>
-
-              <div style={{ borderTop: "1px solid var(--card-border)", paddingTop: ".85rem", display: "flex", alignItems: "center", gap: ".75rem", flexWrap: "wrap" }}>
-                <span style={{ fontSize: ".8rem", fontWeight: 600, color: "var(--text-muted)" }}>Apply Link:</span>
-                <code style={{ fontSize: ".78rem", color: "var(--brand-light)", flex: 1, wordBreak: "break-all" }}>
-                  {`${window.location.origin}/apply/${job.id}`}
-                </code>
-                <button
-                  onClick={() => copyLink(job.id)}
-                  className="btn btn-outline"
-                  style={{ fontSize: ".78rem", padding: ".3rem .75rem" }}
-                >
-                  {copiedId === job.id ? "✓ Copied!" : "Copy Link"}
-                </button>
-              </div>
-            </div>
-          ))}
+      {loading && (
+        <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
+          <p style={{ fontSize: "1.05rem" }}>Loading active job postings...</p>
         </div>
       )}
+
+      {error && (
+        <div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
+          <p style={{ color: "var(--status-red)", fontWeight: 600, marginBottom: "1rem" }}>{error}</p>
+          <button onClick={fetchJobs} className="btn btn-secondary btn-sm">Try Again</button>
+        </div>
+      )}
+
+      {!loading && !error && jobs.length === 0 && (
+        <div className="card" style={{ textAlign: "center", padding: "3.5rem 2rem" }}>
+          <Inbox size={44} style={{ color: "var(--text-muted)", marginBottom: "1rem" }} />
+          <h3 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>No active job postings</h3>
+          <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}>
+            Create your first job role to generate a shareable apply link and start screening candidates with Workers AI.
+          </p>
+          <button onClick={() => setShowPostForm(true)} className="btn btn-dark-pill">
+            <Plus size={18} /> Create Your First Job
+          </button>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        {jobs.map((j) => (
+          <div key={j.id} className="card" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+              <div>
+                <h3 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: "0.3rem" }}>{j.title}</h3>
+                <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                  <span className="badge badge-blue">📅 Posted {timeAgo(j.created_at)}</span>
+                  <span className="badge badge-green">⚡ Real-time Leaderboard</span>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "0.65rem", alignItems: "center", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => copyLink(j.id)}
+                >
+                  {copiedId === j.id ? <><Check size={14} /> Link Copied</> : <><Copy size={14} /> Copy Apply Link</>}
+                </button>
+                <Link to={`/dashboard/${j.id}`} className="btn btn-dark-pill btn-sm">
+                  View Live Leaderboard <ArrowRight size={14} />
+                </Link>
+              </div>
+            </div>
+
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.98rem", lineHeight: 1.6 }}>
+              {j.description.length > 200 ? j.description.slice(0, 200).trimEnd() + "..." : j.description}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

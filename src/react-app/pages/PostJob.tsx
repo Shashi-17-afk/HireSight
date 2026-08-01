@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { Copy, Check, ArrowRight, PlusCircle } from "lucide-react";
+import Seo from "../components/Seo";
 
 export default function PostJob() {
   const [title, setTitle] = useState("");
@@ -20,9 +22,13 @@ export default function PostJob() {
     setError("");
     setLoading(true);
     try {
+      const token = localStorage.getItem("token") ?? "";
       const res = await fetch("/api/jobs", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ title: title.trim(), description: description.trim() }),
       });
       if (!res.ok) {
@@ -45,105 +51,116 @@ export default function PostJob() {
   }
 
   return (
-    <div className="page">
-      {!result && (
-        <div className="hero">
-          <div className="hero-badge">✦ Powered by Cloudflare Workers AI</div>
-          <h1>Hire smarter with <span>HireSight</span></h1>
-          <p>Post a job, share a link. Our AI scores every resume instantly and ranks candidates on a live leaderboard.</p>
-          <div className="feature-pills">
-            <span className="pill">🧠 Neural AI Scoring</span>
-            <span className="pill">⚡ Real-time Leaderboard</span>
-            <span className="pill">🔗 Shareable Apply Links</span>
-            <span className="pill">📄 Browser-side PDF Parsing</span>
-          </div>
-        </div>
-      )}
+    <div className="page" style={{ maxWidth: 740 }}>
+      <Seo title="Post a New Job Role" description="Create a job posting and generate an instant AI resume screening apply link." noIndex />
+
+      <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+        <span className="section-tag">Recruiter Workspace</span>
+        <h1 style={{ fontSize: "2.6rem", margin: "0.5rem 0" }}>
+          Publish a <span className="pill-highlight pill-yellow">Job Opening</span>
+        </h1>
+        <p style={{ color: "var(--text-secondary)", fontSize: "1.05rem" }}>
+          Define the job title and requirements. Workers AI will score and rank every applicant resume on a live leaderboard.
+        </p>
+      </div>
 
       <div className="card">
         {!result ? (
           <form onSubmit={(e) => void handleSubmit(e)}>
-            <p className="section-label">New Job Posting</p>
-            <div className="form-group">
-              <label htmlFor="title">Job Title</label>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.4rem" }}>
+                Job Role Title
+              </label>
               <input
-                id="title"
                 type="text"
-                placeholder="e.g. Senior Backend Engineer"
+                className="form-input"
+                placeholder="e.g. Senior Full-Stack Engineer"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="description">Job Description</label>
+            <div style={{ marginBottom: "1.75rem" }}>
+              <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.4rem" }}>
+                Job Description & Criteria
+              </label>
               <textarea
-                id="description"
-                placeholder="Paste the full job description — required skills, experience level, responsibilities…"
+                className="form-input"
+                placeholder="Paste the job description — key technical skills, experience requirements, responsibilities..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={9}
+                rows={8}
+                style={{ resize: "vertical" }}
                 required
               />
             </div>
 
             {error && (
-              <p className="error-text">⚠ {error}</p>
+              <p style={{ color: "var(--status-red)", fontSize: "0.9rem", marginBottom: "1rem", fontWeight: 600 }}>
+                ⚠ {error}
+              </p>
             )}
 
             <button
               type="submit"
-              className="btn btn-primary btn-full"
+              className="btn btn-dark-pill btn-lg"
+              style={{ width: "100%" }}
               disabled={loading || !title.trim() || !description.trim()}
             >
-              {loading ? <><span className="spinner" /> Creating job…</> : "Create Job & Generate Apply Link →"}
+              {loading ? (
+                "Publishing job role..."
+              ) : (
+                <>Create Job & Generate Apply Link <ArrowRight size={18} /></>
+              )}
             </button>
           </form>
         ) : (
-          <>
-            <div style={{ display: "flex", alignItems: "center", gap: ".875rem", marginBottom: "1.25rem" }}>
-              <div style={{
-                width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-                background: "linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.2))",
-                border: "1.5px solid rgba(16,185,129,0.4)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "1.35rem"
-              }}>🎉</div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: "1.05rem", letterSpacing: "-.01em" }}>{result.title}</div>
-                <div style={{ fontSize: ".83rem", color: "var(--text-secondary)", marginTop: ".1rem" }}>
-                  Job posted — share the apply link with candidates
-                </div>
-              </div>
+          <div style={{ textAlign: "center", padding: "1rem 0" }}>
+            <div style={{
+              width: 60, height: 60, borderRadius: "50%",
+              background: "var(--status-green-bg)", color: "var(--status-green)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "1.8rem", margin: "0 auto 1.25rem"
+            }}>
+              ✓
             </div>
+            <h2 style={{ fontSize: "1.8rem", marginBottom: "0.5rem" }}>{result.title}</h2>
+            <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
+              Job successfully created! Share this unique apply link with candidates:
+            </p>
 
-            <div className="success-box">
-              <h3>✨ Candidate Apply Link</h3>
-              <p style={{ fontSize: ".83rem", color: "var(--text-secondary)", marginBottom: ".25rem" }}>
-                Anyone with this link can upload their resume and get an AI score instantly.
-              </p>
-              <div className="copy-link">
-                <input readOnly value={applyLink} onClick={(e) => (e.target as HTMLInputElement).select()} />
-                <button className="btn btn-outline" onClick={copyLink} type="button" style={{ flexShrink: 0 }}>
-                  {copied ? "✓ Copied!" : "Copy Link"}
+            <div style={{ background: "var(--card-bg-alt)", padding: "1.25rem", borderRadius: "var(--radius-md)", border: "1px solid var(--card-border)", marginBottom: "2rem" }}>
+              <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.85rem", marginBottom: "0.5rem", textAlign: "left" }}>
+                Shareable Candidate Apply Link
+              </label>
+              <div style={{ display: "flex", gap: "0.65rem", alignItems: "center" }}>
+                <input
+                  type="text"
+                  readOnly
+                  className="form-input"
+                  value={applyLink}
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <button className="btn btn-dark-pill" onClick={copyLink} type="button" style={{ flexShrink: 0 }}>
+                  {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy</>}
                 </button>
               </div>
             </div>
 
-            <div style={{ marginTop: "1.5rem", display: "flex", gap: ".75rem", flexWrap: "wrap" }}>
-              <Link to={dashLink} className="btn btn-primary">
-                View Live Leaderboard →
+            <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
+              <Link to={dashLink} className="btn btn-dark-pill btn-lg">
+                View Live Leaderboard <ArrowRight size={18} />
               </Link>
               <button
-                className="btn btn-outline"
+                className="btn btn-secondary btn-lg"
                 onClick={() => { setResult(null); setTitle(""); setDescription(""); }}
                 type="button"
               >
-                Post Another Job
+                <PlusCircle size={18} /> Post Another Job
               </button>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
