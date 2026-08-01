@@ -9,6 +9,7 @@ const applications = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 // ── GET /api/applications/hired ────────────────────────────────────────────────
 // List all hired or offered candidates across all jobs for the HR recruiter roster.
 applications.get('/hired', authenticate(), requireHR(), async (c) => {
+	const hrUser = c.get('user');
 	const { results } = await c.env.DB.prepare(`
 		SELECT
 			a.id                      AS application_id,
@@ -30,9 +31,9 @@ applications.get('/hired', authenticate(), requireHR(), async (c) => {
 		JOIN candidates cand ON cand.id = a.candidate_submission_id
 		JOIN jobs j          ON j.id    = a.job_id
 		LEFT JOIN candidate_profiles cp ON cp.user_id = a.user_id
-		WHERE a.status IN ('hired', 'offered')
+		WHERE (j.user_id = ? OR j.user_id IS NULL) AND a.status IN ('hired', 'offered')
 		ORDER BY a.updated_at DESC
-	`).all();
+	`).bind(hrUser.id).all();
 
 	return c.json({ hired: results ?? [] });
 });
