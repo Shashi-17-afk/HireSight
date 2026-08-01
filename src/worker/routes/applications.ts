@@ -6,6 +6,37 @@ import type { ApplicationStatus } from '../types/ats';
 
 const applications = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
+// ── GET /api/applications/hired ────────────────────────────────────────────────
+// List all hired or offered candidates across all jobs for the HR recruiter roster.
+applications.get('/hired', authenticate(), requireHR(), async (c) => {
+	const { results } = await c.env.DB.prepare(`
+		SELECT
+			a.id                      AS application_id,
+			a.user_id,
+			a.status,
+			a.updated_at              AS hired_at,
+			a.job_id,
+			j.title                   AS job_title,
+			cand.id                   AS candidate_submission_id,
+			cand.name                 AS candidate_name,
+			cand.email                AS candidate_email,
+			cand.score                AS ai_score,
+			cand.reasoning            AS ai_reasoning,
+			cp.phone,
+			cp.headline,
+			cp.linkedin_url,
+			cp.github_url
+		FROM applications a
+		JOIN candidates cand ON cand.id = a.candidate_submission_id
+		JOIN jobs j          ON j.id    = a.job_id
+		LEFT JOIN candidate_profiles cp ON cp.user_id = a.user_id
+		WHERE a.status IN ('hired', 'offered')
+		ORDER BY a.updated_at DESC
+	`).all();
+
+	return c.json({ hired: results ?? [] });
+});
+
 // ── GET /api/applications?job_id=  ───────────────────────────────────────────
 // List all applications for a job, enriched with profile + AI data.
 // Used by CandidateDetail to populate the leaderboard "View →" panel.
