@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, ArrowRight, Save, LogOut } from "lucide-react";
 import Seo from "../components/Seo";
 
 function handleSignOut(navigate: ReturnType<typeof useNavigate>) {
@@ -9,18 +9,14 @@ function handleSignOut(navigate: ReturnType<typeof useNavigate>) {
 	navigate("/");
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 type Availability = "immediate" | "2_weeks" | "1_month" | "not_looking" | "";
 type RoleType     = "full_time" | "part_time" | "contract" | "remote" | "";
 
 interface FormState {
-	// Required for is_complete
 	phone:        string;
 	location:     string;
 	linkedin_url: string;
 	github_url:   string;
-	// Optional
 	portfolio_url:       string;
 	resume_url:          string;
 	headline:            string;
@@ -44,8 +40,6 @@ const EMPTY: FormState = {
 	preferred_role_type: "", expected_salary: "",
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function filled(v: string) { return v.trim().length > 0; }
 
 function clientIsComplete(f: FormState): boolean {
@@ -55,8 +49,6 @@ function clientIsComplete(f: FormState): boolean {
 function fieldError(issues: ZodIssue[], name: string): string | undefined {
 	return issues.find((i) => i.path[0] === name)?.message;
 }
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function CandidateProfile() {
 	const navigate = useNavigate();
@@ -73,7 +65,6 @@ export default function CandidateProfile() {
 
 	const token = localStorage.getItem("token");
 
-	// Pre-populate form from server on mount
 	useEffect(() => {
 		if (!token) { setLoading(false); return; }
 
@@ -146,9 +137,6 @@ export default function CandidateProfile() {
 			}
 
 			setSaveSuccess(true);
-			// Only redirect to the apply page if the profile is actually complete.
-			// If the user saved with required fields missing, stay on the profile
-			// page so they can see the badge turn red and fix it.
 			if (redirect && data.is_complete) {
 				navigate(redirect);
 			} else if (redirect && !data.is_complete) {
@@ -166,8 +154,7 @@ export default function CandidateProfile() {
 	if (loading) {
 		return (
 			<div className="page" style={{ textAlign: "center", paddingTop: "4rem" }}>
-				<span className="spinner" style={{ borderTopColor: "var(--brand)" }} />
-				<p style={{ marginTop: "1rem", color: "var(--text-muted)" }}>Loading profile…</p>
+				<p style={{ marginTop: "1rem", color: "var(--text-muted)", fontSize: "1.05rem" }}>Loading candidate profile...</p>
 			</div>
 		);
 	}
@@ -175,55 +162,61 @@ export default function CandidateProfile() {
 	if (loadError) {
 		return (
 			<div className="page">
-				<div className="card" style={{ textAlign: "center" }}>
-					<p className="error-text">{loadError}</p>
+				<div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
+					<p style={{ color: "var(--status-red)", fontWeight: 600 }}>{loadError}</p>
 				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="page" style={{ maxWidth: 660 }}>
-			<Seo title="My Profile" description="Manage your HireSight candidate profile." noIndex />
+		<div className="page" style={{ maxWidth: 740 }}>
+			<Seo title="My Candidate Profile" description="Manage your HireSight candidate profile." noIndex />
 
-			{/* Gate banner — only shown when arriving from the apply gate */}
+			{/* Gate banner */}
 			{redirect && (
 				<div className="profile-banner">
-					<span className="profile-banner-icon">
-						<ClipboardList size={22} strokeWidth={1.5} aria-hidden="true" />
-					</span>
+					<div className="profile-banner-icon">
+						<ClipboardList size={22} style={{ color: "var(--brand)" }} />
+					</div>
 					<div>
-						<strong>Complete your profile to apply</strong>
-						<p>Fill in the 3 required fields below. You'll be taken straight to the job after saving.</p>
+						<strong style={{ fontSize: "1.05rem", display: "block", marginBottom: "0.2rem" }}>Complete your profile to apply</strong>
+						<p style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>
+							Fill in the 3 required fields below. You'll be taken straight to the job after saving.
+						</p>
 					</div>
 				</div>
 			)}
 
-			<div style={{ marginBottom: "2rem" }}>
-				<h1 style={{ fontSize: "1.55rem", fontWeight: 700, marginBottom: ".4rem" }}>
-					Your Profile
-				</h1>
-				<div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
+			<div className="card" style={{ marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+				<div>
+					<span className="section-tag">Candidate Settings</span>
+					<h1 style={{ fontSize: "2rem", margin: "0.4rem 0 0.5rem" }}>
+						Your <span className="pill-highlight pill-pink">Candidate Profile</span>
+					</h1>
+					<p style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>
+						Keep your information updated for instant AI resume matching.
+					</p>
+				</div>
+				<div>
 					<span className={`complete-badge ${isComplete ? "complete-badge-yes" : "complete-badge-no"}`}>
-						{isComplete ? "✓ Profile complete" : "○ Profile incomplete"}
+						{isComplete ? "✓ Profile complete" : "○ Action required"}
 					</span>
-					{!isComplete && (
-						<span style={{ fontSize: ".78rem", color: "var(--text-muted)" }}>
-							— phone + location + LinkedIn or GitHub required
-						</span>
-					)}
 				</div>
 			</div>
 
-			<form onSubmit={handleSubmit} noValidate>
+			<form onSubmit={(e) => void handleSubmit(e)} noValidate>
 
-				{/* ── Required fields ─────────────────────────────────────────── */}
+				{/* Required fields section */}
 				<div className="form-section">
-					<div className="form-section-header">Required to apply</div>
+					<div className="form-section-header">
+						<span>Required for Job Applications</span>
+						<span style={{ fontSize: "0.8rem", fontWeight: 400, color: "var(--text-muted)" }}>* Required fields</span>
+					</div>
 
 					<div className="form-row-2">
 						<div className="form-group">
-							<label className="label" htmlFor="phone">Phone *</label>
+							<label className="label" htmlFor="phone">Phone Number *</label>
 							<input
 								id="phone"
 								type="tel"
@@ -236,7 +229,7 @@ export default function CandidateProfile() {
 						</div>
 
 						<div className="form-group">
-							<label className="label" htmlFor="location">Location *</label>
+							<label className="label" htmlFor="location">City & Country *</label>
 							<input
 								id="location"
 								type="text"
@@ -251,12 +244,12 @@ export default function CandidateProfile() {
 
 					<div className="form-row-2">
 						<div className="form-group">
-							<label className="label" htmlFor="linkedin_url">LinkedIn URL *†</label>
+							<label className="label" htmlFor="linkedin_url">LinkedIn URL *</label>
 							<input
 								id="linkedin_url"
 								type="url"
 								className={`input ${fieldError(issues, "linkedin_url") ? "input-error" : ""}`}
-								placeholder="https://linkedin.com/in/you"
+								placeholder="https://linkedin.com/in/username"
 								value={form.linkedin_url}
 								onChange={(e) => set("linkedin_url", e.target.value)}
 							/>
@@ -264,34 +257,34 @@ export default function CandidateProfile() {
 						</div>
 
 						<div className="form-group">
-							<label className="label" htmlFor="github_url">GitHub URL *†</label>
+							<label className="label" htmlFor="github_url">GitHub URL *</label>
 							<input
 								id="github_url"
 								type="url"
 								className={`input ${fieldError(issues, "github_url") ? "input-error" : ""}`}
-								placeholder="https://github.com/you"
+								placeholder="https://github.com/username"
 								value={form.github_url}
 								onChange={(e) => set("github_url", e.target.value)}
 							/>
 							{fieldError(issues, "github_url") && <p className="field-error">{fieldError(issues, "github_url")}</p>}
 						</div>
 					</div>
-					<p style={{ fontSize: ".75rem", color: "var(--text-muted)", marginTop: "-.5rem", marginBottom: ".25rem" }}>
-						† At least one of LinkedIn or GitHub is required.
+					<p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+						* At least one social profile link (LinkedIn or GitHub) is required.
 					</p>
 				</div>
 
-				{/* ── Professional summary ────────────────────────────────────── */}
+				{/* Professional summary */}
 				<div className="form-section">
-					<div className="form-section-header">Professional summary</div>
+					<div className="form-section-header">Professional Summary</div>
 
 					<div className="form-group">
-						<label className="label" htmlFor="headline">Headline</label>
+						<label className="label" htmlFor="headline">Professional Headline</label>
 						<input
 							id="headline"
 							type="text"
 							className="input"
-							placeholder='e.g. "Full-Stack Engineer · 3 yrs · TypeScript + Go"'
+							placeholder='e.g. "Senior Full-Stack Engineer · 4 yrs · React + TypeScript"'
 							maxLength={120}
 							value={form.headline}
 							onChange={(e) => set("headline", e.target.value)}
@@ -299,25 +292,25 @@ export default function CandidateProfile() {
 					</div>
 
 					<div className="form-group">
-						<label className="label" htmlFor="bio">Bio</label>
+						<label className="label" htmlFor="bio">About You & Bio</label>
 						<textarea
 							id="bio"
 							className="input"
-							placeholder="A short intro about your background and what you're looking for…"
+							placeholder="Briefly describe your background, accomplishments, and career interests..."
 							rows={4}
 							maxLength={1000}
 							value={form.bio}
 							onChange={(e) => set("bio", e.target.value)}
 							style={{ resize: "vertical" }}
 						/>
-						<p style={{ fontSize: ".72rem", color: "var(--text-muted)", textAlign: "right", marginTop: ".25rem" }}>
+						<p style={{ fontSize: "0.75rem", color: "var(--text-muted)", textAlign: "right", marginTop: "0.25rem" }}>
 							{form.bio.length}/1000
 						</p>
 					</div>
 
 					<div className="form-row-2">
 						<div className="form-group">
-							<label className="label" htmlFor="years">Years of experience</label>
+							<label className="label" htmlFor="years">Years of Experience</label>
 							<input
 								id="years"
 								type="number"
@@ -331,36 +324,36 @@ export default function CandidateProfile() {
 						</div>
 
 						<div className="form-group">
-							<label className="label" htmlFor="skills">Skills</label>
+							<label className="label" htmlFor="skills">Key Skills</label>
 							<input
 								id="skills"
 								type="text"
 								className="input"
-								placeholder="TypeScript, React, Go, Postgres"
+								placeholder="TypeScript, React, Go, PostgreSQL"
 								value={form.skills}
 								onChange={(e) => set("skills", e.target.value)}
 							/>
-							<p style={{ fontSize: ".72rem", color: "var(--text-muted)", marginTop: ".25rem" }}>
-								Comma-separated
+							<p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+								Comma-separated skills list
 							</p>
 						</div>
 					</div>
 				</div>
 
-				{/* ── Preferences ─────────────────────────────────────────────── */}
+				{/* Work Preferences */}
 				<div className="form-section">
-					<div className="form-section-header">Preferences</div>
+					<div className="form-section-header">Work Preferences</div>
 
 					<div className="form-row-2">
 						<div className="form-group">
-							<label className="label" htmlFor="role_type">Role type</label>
+							<label className="label" htmlFor="role_type">Preferred Role Type</label>
 							<select
 								id="role_type"
 								className="input"
 								value={form.preferred_role_type}
 								onChange={(e) => set("preferred_role_type", e.target.value as RoleType)}
 							>
-								<option value="">— Select —</option>
+								<option value="">— Select preferred role —</option>
 								<option value="full_time">Full-time</option>
 								<option value="part_time">Part-time</option>
 								<option value="contract">Contract</option>
@@ -376,8 +369,8 @@ export default function CandidateProfile() {
 								value={form.availability}
 								onChange={(e) => set("availability", e.target.value as Availability)}
 							>
-								<option value="">— Select —</option>
-								<option value="immediate">Immediate</option>
+								<option value="">— Select notice period —</option>
+								<option value="immediate">Immediate start</option>
 								<option value="2_weeks">2 weeks notice</option>
 								<option value="1_month">1 month notice</option>
 								<option value="not_looking">Not actively looking</option>
@@ -386,25 +379,25 @@ export default function CandidateProfile() {
 					</div>
 
 					<div className="form-group">
-						<label className="label" htmlFor="salary">Expected salary</label>
+						<label className="label" htmlFor="salary">Expected Salary Range</label>
 						<input
 							id="salary"
 							type="text"
 							className="input"
-							placeholder='e.g. "₹15–20 LPA" or "$120k"'
+							placeholder='e.g. "$120,000 - $140,000" or "₹15–20 LPA"'
 							value={form.expected_salary}
 							onChange={(e) => set("expected_salary", e.target.value)}
 						/>
 					</div>
 				</div>
 
-				{/* ── Links ───────────────────────────────────────────────────── */}
+				{/* Additional links */}
 				<div className="form-section">
-					<div className="form-section-header">Additional links</div>
+					<div className="form-section-header">Portfolio & Resume Links</div>
 
 					<div className="form-row-2">
 						<div className="form-group">
-							<label className="label" htmlFor="portfolio_url">Portfolio</label>
+							<label className="label" htmlFor="portfolio_url">Personal Website / Portfolio</label>
 							<input
 								id="portfolio_url"
 								type="url"
@@ -417,12 +410,12 @@ export default function CandidateProfile() {
 						</div>
 
 						<div className="form-group">
-							<label className="label" htmlFor="resume_url">Resume URL</label>
+							<label className="label" htmlFor="resume_url">External Resume Link</label>
 							<input
 								id="resume_url"
 								type="url"
 								className={`input ${fieldError(issues, "resume_url") ? "input-error" : ""}`}
-								placeholder="https://drive.google.com/…"
+								placeholder="https://drive.google.com/..."
 								value={form.resume_url}
 								onChange={(e) => set("resume_url", e.target.value)}
 							/>
@@ -431,36 +424,36 @@ export default function CandidateProfile() {
 					</div>
 				</div>
 
-				{/* ── Submit ──────────────────────────────────────────────────── */}
+				{/* Feedback alerts */}
 				{saveError && (
-					<p className="error-text" style={{ marginBottom: "1rem", justifyContent: "flex-start" }}>
+					<p style={{ color: "var(--status-red)", fontWeight: 600, fontSize: "0.9rem", marginBottom: "1.25rem" }}>
 						⚠ {saveError}
 					</p>
 				)}
 				{saveSuccess && !redirect && (
-					<p style={{ marginBottom: "1rem", color: "var(--success)", fontWeight: 600, fontSize: ".9rem" }}>
-						✓ Profile saved successfully.
+					<p style={{ color: "var(--status-green)", fontWeight: 600, fontSize: "0.95rem", marginBottom: "1.25rem" }}>
+						✓ Profile saved successfully!
 					</p>
 				)}
 
-				<div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+				<div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", marginTop: "1rem" }}>
 					<button
 						type="submit"
-						className="btn btn-primary"
+						className="btn btn-dark-pill btn-lg"
 						disabled={saving}
-						style={{ minWidth: 160 }}
+						style={{ minWidth: 180 }}
 					>
 						{saving
-							? <><span className="spinner" /> Saving…</>
+							? "Saving profile..."
 							: redirect
-								? "Save & Continue →"
-								: "Save Profile"}
+								? <>Save & Continue <ArrowRight size={16} /></>
+								: <>Save Profile <Save size={16} /></>}
 					</button>
 
 					{!redirect && (
 						<button
 							type="button"
-							className="btn btn-outline"
+							className="btn btn-secondary btn-lg"
 							onClick={() => navigate("/candidate/dashboard")}
 						>
 							Back to Dashboard
@@ -468,9 +461,8 @@ export default function CandidateProfile() {
 					)}
 				</div>
 
-				{/* Sign Out — placed here so the navbar stays clean */}
 				{!redirect && (
-					<div style={{ marginTop: "2.5rem", paddingTop: "1.5rem", borderTop: "1px solid var(--card-border)" }}>
+					<div style={{ marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid var(--card-border)", textAlign: "right" }}>
 						<button
 							type="button"
 							onClick={() => handleSignOut(navigate)}
@@ -478,16 +470,15 @@ export default function CandidateProfile() {
 								background: "none",
 								border: "none",
 								color: "var(--text-muted)",
-								fontSize: ".82rem",
+								fontSize: "0.85rem",
+								fontWeight: 600,
 								cursor: "pointer",
-								padding: 0,
-								fontFamily: "inherit",
-								transition: "color 0.2s",
+								display: "inline-flex",
+								alignItems: "center",
+								gap: "0.4rem"
 							}}
-							onMouseEnter={e => (e.currentTarget.style.color = "var(--red)")}
-							onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
 						>
-							Sign out of HireSight
+							<LogOut size={14} /> Sign out of HireSight
 						</button>
 					</div>
 				)}

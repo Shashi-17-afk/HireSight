@@ -5,8 +5,8 @@ import Seo from "../components/Seo";
 import AuthGate from "../components/AuthGate";
 import AlreadyApplied from "../components/AlreadyApplied";
 import ScoreResult from "../components/ScoreResult";
+import { Upload, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
 
-// Use the bundled worker via Vite's ?url import
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -44,7 +44,6 @@ async function extractTextFromPDF(file: File): Promise<string> {
 export default function ApplyJob() {
   const { job_id } = useParams<{ job_id: string }>();
 
-  // Auth gate — must be a logged-in candidate to apply.
   const token = localStorage.getItem("token");
   const role  = localStorage.getItem("role");
   const isCandidate = !!token && role === "candidate";
@@ -54,8 +53,6 @@ export default function ApplyJob() {
   const [jobError, setJobError] = useState("");
   const [jobLoading, setJobLoading] = useState(true);
 
-  // Pre-populate name from the logged-in candidate's account so the
-  // candidates table row is always linked to the right identity.
   const storedName = isCandidate ? (localStorage.getItem("name") ?? "") : "";
   const [name, setName] = useState(storedName);
   const [email, setEmail] = useState("");
@@ -68,12 +65,10 @@ export default function ApplyJob() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [result, setResult] = useState<ScoreResult | null>(null);
-  // Seconds remaining before the rate-limit window resets (0 = not rate-limited).
   const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Tick the rate-limit countdown down by 1 every second until it hits 0.
   useEffect(() => {
     if (rateLimitCountdown <= 0) return;
     const timer = setTimeout(() => setRateLimitCountdown((n) => n - 1), 1000);
@@ -95,10 +90,8 @@ export default function ApplyJob() {
       .finally(() => setJobLoading(false));
   }
 
-  // Fetch job details to show the job title
   useEffect(() => {
     loadJob();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job_id]);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -168,23 +161,20 @@ export default function ApplyJob() {
     }
   }
 
-  // Auth gate — show sign-in wall for anyone not logged in as a candidate.
   if (!isCandidate) {
     return <AuthGate job={job} role={role} redirectParam={redirectParam} />;
   }
 
-  // Already-applied state — server returned existing application instead of re-scoring.
   if (result?.alreadyApplied) {
     return <AlreadyApplied job={job} result={result} />;
   }
 
-  // Score result — show after successful submission.
   if (result) {
     return <ScoreResult result={result} />;
   }
 
   return (
-    <div className="page">
+    <div className="page" style={{ maxWidth: "700px" }}>
       <Seo
         title={job ? `Apply — ${job.title}` : "Apply"}
         description="Submit your resume for this role. AI scores and ranks every application in real time."
@@ -192,33 +182,37 @@ export default function ApplyJob() {
       />
       {jobLoading ? (
         <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
-          <span className="spinner" style={{ borderTopColor: "var(--brand)" }} />
-          <p style={{ marginTop: "1rem", fontSize: ".9rem" }}>Loading job details…</p>
+          <p style={{ fontSize: "1.05rem" }}>Loading job details...</p>
         </div>
       ) : jobError ? (
         <div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
-          <div style={{ fontSize: "2rem", marginBottom: ".75rem" }}>⚠️</div>
-          <p style={{ color: "var(--red)", marginBottom: "1.25rem" }}>{jobError}</p>
-          <button onClick={loadJob} className="btn btn-outline" style={{ fontSize: ".85rem" }}>
+          <AlertCircle size={36} style={{ color: "var(--status-red)", marginBottom: "0.5rem" }} />
+          <p style={{ color: "var(--status-red)", marginBottom: "1.25rem", fontWeight: 600 }}>{jobError}</p>
+          <button onClick={loadJob} className="btn btn-secondary btn-sm">
             Try Again
           </button>
         </div>
       ) : (
         <>
-          <h1 className="page-title">Apply for this Role</h1>
-          {job && (
-            <p className="page-sub">
-              Applying for: <strong style={{ color: "var(--text-primary)" }}>{job.title}</strong>
+          <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+            <span className="section-tag">Instant AI Screener</span>
+            <h1 style={{ fontSize: "2.5rem", margin: "0.5rem 0" }}>
+              Apply for <span className="pill-highlight pill-yellow">{job?.title}</span>
+            </h1>
+            <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>
+              Upload your PDF resume to receive instant AI scoring & live leaderboard rank.
             </p>
-          )}
+          </div>
 
           <div className="card">
             <form onSubmit={(e) => void handleSubmit(e)}>
-              <div className="form-group">
-                <label htmlFor="name">Full Name</label>
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.4rem" }}>
+                  Full Name
+                </label>
                 <input
-                  id="name"
                   type="text"
+                  className="form-input"
                   placeholder="Jane Smith"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -228,11 +222,13 @@ export default function ApplyJob() {
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="email">Email Address</label>
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.4rem" }}>
+                  Email Address
+                </label>
                 <input
-                  id="email"
                   type="email"
+                  className="form-input"
                   placeholder="jane@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -240,10 +236,20 @@ export default function ApplyJob() {
                 />
               </div>
 
-              <div className="form-group">
-                <label>Resume (PDF)</label>
+              <div style={{ marginBottom: "2rem" }}>
+                <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.4rem" }}>
+                  Resume (PDF format)
+                </label>
                 <div
-                  className={`drop-zone ${dragover ? "dragover" : ""} ${file && extractedText ? "has-file" : ""}`}
+                  style={{
+                    border: dragover ? "2px dashed var(--brand)" : "2px dashed var(--card-border)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "2.5rem 1.5rem",
+                    textAlign: "center",
+                    background: dragover ? "var(--pill-yellow-bg)" : "var(--card-bg-alt)",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease"
+                  }}
                   onDragOver={(e) => { e.preventDefault(); setDragover(true); }}
                   onDragLeave={() => setDragover(false)}
                   onDrop={(e) => {
@@ -255,44 +261,50 @@ export default function ApplyJob() {
                       void handleFileChange(synth);
                     }
                   }}
+                  onClick={() => fileInputRef.current?.click()}
                 >
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="application/pdf"
                     onChange={(e) => void handleFileChange(e)}
+                    style={{ display: "none" }}
                     required={!extractedText}
                   />
                   {extracting ? (
-                    <>
-                      <div className="drop-zone-icon">⏳</div>
-                      <div className="drop-zone-text">Reading your PDF…</div>
-                      <div className="drop-zone-sub">Extracting text with AI</div>
-                    </>
+                    <div>
+                      <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⏳</div>
+                      <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>Reading PDF resume...</div>
+                      <div style={{ color: "var(--text-muted)", fontSize: "0.88rem" }}>Extracting text for Workers AI</div>
+                    </div>
                   ) : file && extractedText ? (
-                    <>
-                      <div className="drop-zone-icon">✅</div>
-                      <div className="drop-zone-text">{file.name}</div>
-                      <div className="drop-zone-sub">{extractedText.length.toLocaleString()} characters extracted — ready to score</div>
-                    </>
+                    <div>
+                      <CheckCircle2 size={36} style={{ color: "var(--status-green)", margin: "0 auto 0.5rem" }} />
+                      <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{file.name}</div>
+                      <div style={{ color: "var(--status-green)", fontSize: "0.88rem", fontWeight: 600, marginTop: "0.25rem" }}>
+                        {extractedText.length.toLocaleString()} characters extracted — ready for scoring
+                      </div>
+                    </div>
                   ) : (
-                    <>
-                      <div className="drop-zone-icon">📄</div>
-                      <div className="drop-zone-text">Drop your PDF here or click to browse</div>
-                      <div className="drop-zone-sub">PDF files only · Text-based (not scanned)</div>
-                    </>
+                    <div>
+                      <Upload size={36} style={{ color: "var(--text-muted)", margin: "0 auto 0.5rem" }} />
+                      <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>Drop your PDF here or click to browse</div>
+                      <div style={{ color: "var(--text-muted)", fontSize: "0.88rem", marginTop: "0.25rem" }}>PDF files only · Text-based format</div>
+                    </div>
                   )}
                 </div>
                 {extractError && (
-                  <p className="error-text" style={{ marginTop: ".4rem" }}>⚠ {extractError}</p>
+                  <p style={{ color: "var(--status-red)", fontSize: "0.85rem", marginTop: "0.5rem", fontWeight: 600 }}>
+                    ⚠ {extractError}
+                  </p>
                 )}
               </div>
 
               {submitError && (
-                <p className="error-text">
+                <p style={{ color: "var(--status-red)", fontSize: "0.9rem", marginBottom: "1rem", fontWeight: 600 }}>
                   ⚠ {submitError}
                   {rateLimitCountdown > 0 && (
-                    <span style={{ marginLeft: ".5rem", fontWeight: 700 }}>
+                    <span style={{ marginLeft: "0.5rem" }}>
                       Try again in {rateLimitCountdown}s
                     </span>
                   )}
@@ -301,23 +313,20 @@ export default function ApplyJob() {
 
               <button
                 type="submit"
-                className="btn btn-primary btn-full"
+                className="btn btn-dark-pill btn-lg"
+                style={{ width: "100%" }}
                 disabled={submitting || extracting || !extractedText || !name.trim() || !email.trim() || rateLimitCountdown > 0}
               >
                 {submitting ? (
-                  <><span className="spinner" /> Scoring with AI…</>
+                  "Scoring with Workers AI..."
                 ) : rateLimitCountdown > 0 ? (
-                  `Rate limited — wait ${rateLimitCountdown}s`
+                  `Please wait ${rateLimitCountdown}s`
                 ) : (
-                  "Submit & Get AI Score →"
+                  <>Submit Application <ArrowRight size={18} /></>
                 )}
               </button>
             </form>
           </div>
-
-          <p style={{ marginTop: "1rem", fontSize: ".78rem", color: "var(--text-muted)", textAlign: "center" }}>
-            Your resume is analyzed instantly. Score appears immediately after submission.
-          </p>
         </>
       )}
     </div>

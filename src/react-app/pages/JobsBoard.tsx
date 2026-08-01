@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Inbox, Search } from "lucide-react";
+import { Inbox, Search, ArrowRight } from "lucide-react";
 import Seo from "../components/Seo";
 
 interface Job {
@@ -43,7 +43,6 @@ export default function JobsBoard() {
 
 	useEffect(() => {
 		loadJobs();
-	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	const filtered = jobs.filter((j) => j.title.toLowerCase().includes(search.toLowerCase()));
@@ -54,16 +53,25 @@ export default function JobsBoard() {
 				title="Browse Open Roles"
 				description="Explore all open positions on HireSight. Submit your resume and get instantly AI-scored and ranked."
 			/>
-			<div className="hero" style={{ paddingBottom: "2rem" }}>
-				<h1>Find your next <span>opportunity</span></h1>
-				<p>Every role accepts instant AI-scored applications. Upload your resume and know your fit in seconds.</p>
+
+			<div style={{ textAlign: "center", marginBottom: "3rem" }}>
+				<span className="section-tag">Career Opportunities</span>
+				<h1 style={{ fontSize: "2.8rem", margin: "0.5rem 0 1rem" }}>
+					Find your next <span className="pill-highlight pill-yellow">dream role</span>
+				</h1>
+				<p style={{ color: "var(--text-secondary)", maxWidth: "580px", margin: "0 auto", fontSize: "1.1rem" }}>
+					Every role accepts instant AI-scored applications. Upload your resume and know your match fit in seconds.
+				</p>
 			</div>
 
-			<div className="search-input-wrap" style={{ marginBottom: "1.5rem" }}>
-				<Search className="search-input-icon" size={16} aria-hidden="true" />
+			{/* Search Input Bar */}
+			<div style={{ position: "relative", maxWidth: "600px", margin: "0 auto 2.5rem" }}>
+				<Search size={18} style={{ position: "absolute", left: "1.2rem", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
 				<input
 					type="text"
-					placeholder="Search roles by title…"
+					className="form-input"
+					style={{ paddingLeft: "3rem" }}
+					placeholder="Search roles by job title or keyword..."
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
 				/>
@@ -71,72 +79,56 @@ export default function JobsBoard() {
 
 			{loading && (
 				<div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
-					<span className="spinner" style={{ borderTopColor: "var(--brand)" }} />
-					<p style={{ marginTop: "1rem", fontSize: ".9rem" }}>Loading open roles…</p>
+					<p style={{ fontSize: "1.05rem" }}>Loading open roles...</p>
 				</div>
 			)}
 
-		{error && (
-			<div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
-				<div style={{ fontSize: "2rem", marginBottom: ".5rem" }}>⚠️</div>
-				<p style={{ color: "var(--red)", marginBottom: "1.25rem" }}>{error}</p>
-				<button onClick={loadJobs} className="btn btn-outline" style={{ fontSize: ".85rem" }}>
-					Try Again
-				</button>
-			</div>
-		)}
+			{error && (
+				<div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
+					<p style={{ color: "var(--status-red)", marginBottom: "1.25rem", fontWeight: 600 }}>{error}</p>
+					<button onClick={loadJobs} className="btn btn-secondary btn-sm">
+						Try Again
+					</button>
+				</div>
+			)}
 
 			{!loading && !error && filtered.length === 0 && (
-				<div className="card">
-					<div className="empty-state">
-						<div className="empty-state-icon">
-							{search ? <Search size={40} strokeWidth={1.5} /> : <Inbox size={40} strokeWidth={1.5} />}
-						</div>
-						<p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: ".95rem" }}>
-							{search ? "No roles match your search" : "No open roles yet"}
-						</p>
-						<p style={{ color: "var(--text-secondary)" }}>
-							{search ? "Try a different keyword." : "Check back soon — new roles are posted regularly."}
-						</p>
-					</div>
+				<div className="card" style={{ textAlign: "center", padding: "3.5rem 2rem" }}>
+					<Inbox size={44} style={{ color: "var(--text-muted)", marginBottom: "1rem" }} />
+					<h3 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>
+						{search ? "No roles match your search" : "No open roles yet"}
+					</h3>
+					<p style={{ color: "var(--text-secondary)" }}>
+						{search ? "Try searching with a different keyword." : "Check back soon — new positions are added frequently."}
+					</p>
 				</div>
 			)}
 
-			<div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+			<div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 				{filtered.map((job) => {
 					const preview = job.description.length > 180
 						? job.description.slice(0, 180).trimEnd() + "…"
 						: job.description;
 
 					return (
-						<div key={job.id} className="job-card">
-					<div className="job-card-top">
-							<div style={{ flex: 1, minWidth: 0 }}>
-								<h2 className="job-title">{job.title}</h2>
-								<div className="job-meta">
-									<span className="job-meta-badge">📅 {timeAgo(job.created_at)}</span>
-									<span className="job-meta-badge">👥 {job.applicant_count} applicant{job.applicant_count !== 1 ? "s" : ""}</span>
+						<div key={job.id} className="card card-interactive" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+							<div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+								<div>
+									<h2 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: "0.4rem" }}>{job.title}</h2>
+									<div style={{ display: "flex", gap: "0.75rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+										<span className="badge badge-blue">📅 {timeAgo(job.created_at)}</span>
+										<span className="badge badge-green">👥 {job.applicant_count} applicant{job.applicant_count !== 1 ? "s" : ""}</span>
+									</div>
 								</div>
+								<Link to={`/jobs/${job.id}`} className="btn btn-dark-pill btn-sm">
+									View Details <ArrowRight size={14} />
+								</Link>
 							</div>
-							<Link
-								to={`/jobs/${job.id}`}
-								className="btn btn-outline"
-								style={{ whiteSpace: "nowrap", flexShrink: 0, fontSize: ".85rem" }}
-							>
-								View Details →
-							</Link>
-						</div>
-						<p className="job-description-preview">{preview}</p>
+							<p style={{ color: "var(--text-secondary)", fontSize: "0.98rem", lineHeight: 1.6 }}>{preview}</p>
 						</div>
 					);
 				})}
 			</div>
-
-			{!loading && !error && filtered.length > 0 && (
-				<p style={{ textAlign: "center", marginTop: "2rem", fontSize: ".8rem", color: "var(--text-muted)" }}>
-					{filtered.length} open role{filtered.length !== 1 ? "s" : ""} · AI-scored applications
-				</p>
-			)}
 		</div>
 	);
 }
