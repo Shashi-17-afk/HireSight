@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Inbox, Search } from "lucide-react";
+import { Inbox, Search, ArrowLeft, ExternalLink, Copy, Check, Radio } from "lucide-react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import Seo from "../components/Seo";
 
@@ -16,24 +16,22 @@ type WsStatus = "connecting" | "connected" | "disconnected";
 
 function scoreBadge(score: number) {
   if (score >= 80)
-    return <span className="badge badge-green">{score}</span>;
+    return <span className="score-pill score-high">★ {score} Fit</span>;
   if (score >= 50)
-    return <span className="badge badge-yellow">{score}</span>;
-  return <span className="badge badge-red">{score}</span>;
+    return <span className="score-pill score-mid">● {score} Fit</span>;
+  return <span className="score-pill score-low">▲ {score} Fit</span>;
 }
 
 function rankCell(rank: number, tied: boolean) {
-  const cls =
-    rank === 1 ? "rank-cell rank-1" : rank === 2 ? "rank-cell rank-2" : rank === 3 ? "rank-cell rank-3" : "rank-cell";
-  const label = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+  const label = rank === 1 ? "🥇 #1" : rank === 2 ? "🥈 #2" : rank === 3 ? "🥉 #3" : `#${rank}`;
   return (
-    <td className={cls}>
+    <td style={{ fontWeight: 700, fontFamily: "var(--font-heading)" }}>
       {label}
       {tied && (
         <span title="Tied score — earlier applicant ranked higher" style={{
-          marginLeft: ".3rem", fontSize: ".65rem", fontWeight: 700,
-          background: "var(--gray-100)", color: "var(--gray-500)",
-          padding: ".1rem .3rem", borderRadius: 4, verticalAlign: "middle",
+          marginLeft: "0.3rem", fontSize: "0.65rem", fontWeight: 700,
+          background: "var(--card-bg-alt)", color: "var(--text-muted)",
+          padding: "0.1rem 0.35rem", borderRadius: "var(--radius-full)", verticalAlign: "middle"
         }}>
           =
         </span>
@@ -56,16 +54,16 @@ function LeaderboardRow({ entry, rank, tied, isNew, jobId }: LeaderboardRowProps
   const cells = (
     <>
       {rankCell(rank, tied)}
-      <td style={{ fontWeight: 600 }}>{entry.name}</td>
+      <td style={{ fontWeight: 700, fontFamily: "var(--font-heading)", fontSize: "1rem" }}>{entry.name}</td>
       <td>{scoreBadge(entry.score)}</td>
-      <td className="reasoning-text">{entry.reasoning}</td>
+      <td style={{ color: "var(--text-secondary)", fontSize: "0.92rem", lineHeight: 1.5, maxWidth: "420px" }}>{entry.reasoning}</td>
       <td>
         <Link
           to={`/hr/candidate/${entry.id}?job_id=${jobId}`}
-          className="btn btn-outline"
-          style={{ fontSize: ".75rem", padding: ".25rem .65rem", whiteSpace: "nowrap" }}
+          className="btn btn-dark-pill btn-sm"
+          style={{ whiteSpace: "nowrap" }}
         >
-          View →
+          View Candidate →
         </Link>
       </td>
     </>
@@ -78,13 +76,12 @@ function LeaderboardRow({ entry, rank, tied, isNew, jobId }: LeaderboardRowProps
   return (
     <motion.tr
       layout="position"
-      initial={isNew ? { backgroundColor: "rgba(193, 154, 94, 0.15)" } : false}
-      animate={{ backgroundColor: "rgba(193, 154, 94, 0)" }}
+      initial={isNew ? { backgroundColor: "rgba(249, 195, 90, 0.3)" } : false}
+      animate={{ backgroundColor: "rgba(255, 255, 255, 0)" }}
       transition={{
-        layout: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
+        layout: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
         backgroundColor: { duration: 2, ease: "easeOut" },
       }}
-      style={{ position: "relative" }}
     >
       {cells}
     </motion.tr>
@@ -98,12 +95,18 @@ export default function Dashboard() {
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
   const [fitFilter, setFitFilter] = useState("all");
-  const [minScore, setMinScore] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const applyLink = `${window.location.origin}/apply/${job_id ?? ""}`;
+
+  function copyLink() {
+    void navigator.clipboard.writeText(applyLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   useEffect(() => {
     if (!job_id) return;
@@ -171,7 +174,6 @@ export default function Dashboard() {
     ? Math.round(entries.reduce((sum, e) => sum + e.score, 0) / entries.length)
     : 0;
   const topScore = entries.length ? entries[0].score : 0;
-  const strongFits = entries.filter((e) => e.score >= 80).length;
 
   const filteredEntries = entries.filter((entry) => {
     const matchesSearch = entry.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -179,212 +181,161 @@ export default function Dashboard() {
     if (fitFilter === "strong") matchesFit = entry.score >= 80;
     else if (fitFilter === "potential") matchesFit = entry.score >= 50 && entry.score < 80;
     else if (fitFilter === "no-match") matchesFit = entry.score < 50;
-    const matchesMin = entry.score >= minScore;
-    return matchesSearch && matchesFit && matchesMin;
+    return matchesSearch && matchesFit;
   });
 
   return (
     <div className="page-wide">
-      <Seo title="Live Leaderboard" description="AI-ranked candidate leaderboard for this role." noIndex />
-      <div className="dash-header">
+      <Seo title="Live Candidate Leaderboard" description="AI-ranked candidate leaderboard for this role." noIndex />
+
+      {/* Header Banner */}
+      <div className="card" style={{ marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1.5rem" }}>
         <div>
-          <h1 className="page-title">Live Leaderboard</h1>
-          <p className="page-sub" style={{ marginBottom: 0 }}>
-            Job ID: <code style={{ fontSize: ".78rem", background: "rgba(255,255,255,0.06)", color: "var(--text-secondary)", padding: ".15rem .45rem", borderRadius: 4 }}>{job_id}</code>
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+            <span className="section-tag" style={{ margin: 0 }}>Live Leaderboard</span>
+            {status === "connected" && (
+              <span className="badge badge-green">
+                <Radio size={12} style={{ animation: "pulse 2s infinite" }} /> Connected Live
+              </span>
+            )}
+            {status === "connecting" && <span className="badge badge-yellow">Connecting...</span>}
+            {status === "disconnected" && <span className="badge badge-red">Reconnecting...</span>}
+          </div>
+          <h1 style={{ fontSize: "2.4rem" }}>
+            Real-Time <span className="pill-highlight pill-pink">Candidate Rankings</span>
+          </h1>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: ".75rem", flexWrap: "wrap" }}>
-          {status === "connected" && (
-            <span className="live-pill"><span className="live-dot" /> LIVE</span>
-          )}
-          {status === "connecting" && <span className="connecting">Connecting…</span>}
-          {status === "disconnected" && (
-            <span className="connecting" style={{ color: "var(--red)" }}>Reconnecting…</span>
-          )}
-          <Link to="/hr/dashboard" className="btn btn-outline" style={{ fontSize: ".85rem", padding: ".45rem 1rem" }}>
-            ← Dashboard
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          <Link to="/hr/dashboard" className="btn btn-secondary btn-lg">
+            <ArrowLeft size={16} /> Back to Dashboard
           </Link>
         </div>
       </div>
 
+      {/* Metrics Row */}
       {entries.length > 0 && (
-        <div className="stats-row">
-          <div className="stat-card">
-            <div className="stat-value">{entries.length}</div>
-            <div className="stat-label">Candidates</div>
+        <div className="grid-3" style={{ marginBottom: "2rem" }}>
+          <div className="card-flat">
+            <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>Total Applicants</div>
+            <div style={{ fontSize: "2.5rem", fontWeight: 700, fontFamily: "var(--font-heading)", marginTop: "0.25rem" }}>{entries.length}</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-value" style={{ color: topScore >= 80 ? "var(--green)" : topScore >= 50 ? "var(--yellow)" : "var(--red)" }}>
+          <div className="card-flat">
+            <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>Top Match Score</div>
+            <div style={{ fontSize: "2.5rem", fontWeight: 700, fontFamily: "var(--font-heading)", marginTop: "0.25rem", color: topScore >= 80 ? "var(--status-green)" : "var(--status-yellow)" }}>
               {topScore}
             </div>
-            <div className="stat-label">Top Score</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-value">{strongFits}</div>
-            <div className="stat-label">Strong Fits ≥80</div>
+          <div className="card-flat">
+            <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>Average Fit Score</div>
+            <div style={{ fontSize: "2.5rem", fontWeight: 700, fontFamily: "var(--font-heading)", marginTop: "0.25rem" }}>{avgScore}</div>
           </div>
         </div>
       )}
 
-      <div className="card-sm" style={{ marginBottom: "1.1rem", display: "flex", alignItems: "center", gap: ".75rem", flexWrap: "wrap" }}>
-        <span style={{ fontSize: ".82rem", fontWeight: 600, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
-          Apply Link:
-        </span>
-        <code style={{ fontSize: ".78rem", color: "var(--text-muted)", wordBreak: "break-all", flex: 1 }}>
-          {applyLink}
-        </code>
-        <Link
-          to={`/apply/${job_id ?? ""}`}
-          className="btn btn-outline"
-          style={{ fontSize: ".8rem", padding: ".35rem .9rem", whiteSpace: "nowrap" }}
-        >
-          Open ↗
-        </Link>
+      {/* Shareable Apply Bar */}
+      <div className="card-flat" style={{ marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: "260px" }}>
+          <span style={{ fontSize: "0.85rem", fontWeight: 700, fontFamily: "var(--font-heading)" }}>Apply Link: </span>
+          <code style={{ fontSize: "0.85rem", color: "var(--text-secondary)", wordBreak: "break-all" }}>{applyLink}</code>
+        </div>
+        <div style={{ display: "flex", gap: "0.6rem" }}>
+          <button className="btn btn-secondary btn-sm" onClick={copyLink} type="button">
+            {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy Apply Link</>}
+          </button>
+          <Link to={`/apply/${job_id ?? ""}`} target="_blank" className="btn btn-dark-pill btn-sm">
+            Open Apply Page <ExternalLink size={14} />
+          </Link>
+        </div>
       </div>
 
+      {/* Filter Controls */}
       {entries.length > 0 && (
-        <div className="filter-bar">
-          <div className="search-input-wrap">
-            <Search className="search-input-icon" size={16} aria-hidden="true" />
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+          <div style={{ position: "relative", flex: 1, minWidth: "240px" }}>
+            <Search size={16} style={{ position: "absolute", left: "1rem", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
             <input
               type="text"
-              placeholder="Search candidates by name..."
+              className="form-input"
+              style={{ paddingLeft: "2.6rem" }}
+              placeholder="Search candidate name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+
           <select
-            className="filter-select"
+            className="form-input"
+            style={{ width: "auto" }}
             value={fitFilter}
             onChange={(e) => setFitFilter(e.target.value)}
           >
-            <option value="all">All Fits</option>
+            <option value="all">All Fit Levels</option>
             <option value="strong">Strong Fits (≥80)</option>
-            <option value="potential">Potential (50–79)</option>
-            <option value="no-match">No Match (&lt;50)</option>
+            <option value="potential">Potential Fits (50–79)</option>
+            <option value="no-match">Low Fits (&lt;50)</option>
           </select>
-          <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
-            <label
-              htmlFor="min-score"
-              style={{ fontSize: ".78rem", fontWeight: 600, color: "var(--text-muted)", whiteSpace: "nowrap" }}
-            >
-              Min Score
-            </label>
-            <input
-              id="min-score"
-              type="number"
-              min={0}
-              max={100}
-              value={minScore}
-              onChange={(e) => setMinScore(Math.min(100, Math.max(0, Number(e.target.value))))}
-              style={{
-                width: 64,
-                background: "var(--card-bg)",
-                border: `1px solid ${minScore > 0 ? "var(--brand)" : "var(--card-border)"}`,
-                borderRadius: 10,
-                padding: ".6rem .75rem",
-                color: minScore > 0 ? "var(--brand-light)" : "var(--text-primary)",
-                fontSize: ".9rem",
-                fontWeight: minScore > 0 ? 700 : 400,
-                outline: "none",
-                fontFamily: "inherit",
-                boxShadow: minScore > 0 ? "0 0 0 3px var(--brand-glow)" : "none",
-                transition: "all 0.2s ease",
-              }}
-            />
-            {minScore > 0 && (
-              <button
-                onClick={() => setMinScore(0)}
-                style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  color: "var(--text-muted)", fontSize: ".85rem", padding: ".2rem",
-                  lineHeight: 1, fontFamily: "inherit",
-                }}
-                title="Clear min score filter"
-              >
-                ✕
-              </button>
-            )}
-          </div>
         </div>
       )}
 
-      <div className="card">
+      {/* Leaderboard Table Container */}
+      <div className="table-container">
         {entries.length === 0 ? (
-          <div className="empty-state">
+          <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
             {status === "connecting" ? (
-              <>
-                <span className="spinner" style={{ borderTopColor: "var(--brand)", marginBottom: "1rem" }} />
-                <p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: ".95rem" }}>Connecting to live feed…</p>
-                <p style={{ color: "var(--text-secondary)" }}>Establishing WebSocket connection.</p>
-              </>
+              <p style={{ fontSize: "1.05rem", color: "var(--text-muted)" }}>Connecting to live WebSocket feed...</p>
             ) : (
               <>
-                <div className="empty-state-icon">
-                  <Inbox size={40} strokeWidth={1.5} />
-                </div>
-                <p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: ".95rem" }}>No candidates yet</p>
-                <p style={{ color: "var(--text-secondary)" }}>Share the apply link above to start receiving AI-scored applications. New candidates appear here in real time.</p>
+                <Inbox size={44} style={{ color: "var(--text-muted)", marginBottom: "1rem" }} />
+                <h3 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>No applications yet</h3>
+                <p style={{ color: "var(--text-secondary)", maxWidth: "480px", margin: "0 auto 1.5rem" }}>
+                  Share the apply link with candidates. New resume applications will score instantly and appear on this leaderboard in real time.
+                </p>
+                <button className="btn btn-dark-pill" onClick={copyLink} type="button">
+                  {copied ? <><Check size={16} /> Link Copied</> : <><Copy size={16} /> Copy Apply Link</>}
+                </button>
               </>
             )}
           </div>
         ) : filteredEntries.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <Search size={40} strokeWidth={1.5} />
-            </div>
-            <p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: ".95rem" }}>No matches found</p>
+          <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
+            <Search size={44} style={{ color: "var(--text-muted)", marginBottom: "1rem" }} />
+            <h3 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>No matching candidates</h3>
             <p style={{ color: "var(--text-secondary)" }}>Try adjusting your search query or filter settings.</p>
           </div>
         ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>Candidate</th>
-                  <th>Score</th>
-                  <th>AI Reasoning</th>
-                  <th style={{ width: "5rem" }}></th>
-                </tr>
-              </thead>
-              <LayoutGroup id="leaderboard">
-                <tbody>
-                  {filteredEntries.map((entry) => {
-                    const entryIndex = entries.findIndex((e) => e.id === entry.id);
-                    const tied =
-                      (entryIndex > 0 && entries[entryIndex - 1].score === entry.score) ||
-                      (entryIndex < entries.length - 1 && entries[entryIndex + 1].score === entry.score);
-                    return (
-                      <LeaderboardRow
-                        key={entry.id}
-                        entry={entry}
-                        rank={entryIndex + 1}
-                        tied={tied}
-                        isNew={newIds.has(entry.id)}
-                        jobId={job_id ?? ""}
-                      />
-                    );
-                  })}
-                </tbody>
-              </LayoutGroup>
-            </table>
-          </div>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ width: "90px" }}>Rank</th>
+                <th>Candidate Name</th>
+                <th style={{ width: "140px" }}>AI Fit Score</th>
+                <th>Workers AI Reasoning</th>
+                <th style={{ width: "160px" }}>Action</th>
+              </tr>
+            </thead>
+            <LayoutGroup id="leaderboard">
+              <tbody>
+                {filteredEntries.map((entry) => {
+                  const entryIndex = entries.findIndex((e) => e.id === entry.id);
+                  const tied =
+                    (entryIndex > 0 && entries[entryIndex - 1].score === entry.score) ||
+                    (entryIndex < entries.length - 1 && entries[entryIndex + 1].score === entry.score);
+                  return (
+                    <LeaderboardRow
+                      key={entry.id}
+                      entry={entry}
+                      rank={entryIndex + 1}
+                      tied={tied}
+                      isNew={newIds.has(entry.id)}
+                      jobId={job_id ?? ""}
+                    />
+                  );
+                })}
+              </tbody>
+            </LayoutGroup>
+          </table>
         )}
-
-        <div className="table-footer">
-          <span>
-            {filteredEntries.length} of {entries.length} candidate{entries.length !== 1 ? "s" : ""} shown
-            {minScore > 0 && <> · <strong style={{ color: "var(--brand-light)" }}>min score: {minScore}</strong></>}
-            {" "}· avg score: <strong>{avgScore || "—"}</strong>
-          </span>
-          <span style={{ marginLeft: "auto", display: "flex", gap: "1rem" }}>
-            <span><span className="legend-dot" style={{ background: "var(--green)" }} />≥80 strong fit</span>
-            <span><span className="legend-dot" style={{ background: "var(--yellow)" }} />50–79 potential</span>
-            <span><span className="legend-dot" style={{ background: "var(--red)" }} />&lt;50 no match</span>
-          </span>
-        </div>
       </div>
     </div>
   );
