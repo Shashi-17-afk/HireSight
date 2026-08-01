@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Seo from "../components/Seo";
 
+
 interface AuthPageProps {
   mode: "login" | "register";
   role: "hr" | "candidate";
@@ -21,13 +22,13 @@ export default function AuthPage({ mode, role }: AuthPageProps) {
   const isHr = role === "hr";
   const isRegister = mode === "register";
 
-  const title = `${isHr ? "HR / Recruiter" : "Candidate"} ${
+  const title = `${isHr ? "Recruiter" : "Candidate"} ${
     isRegister ? "Registration" : "Sign In"
   }`;
   
   const sub = isRegister
-    ? `Create your account to start ${isHr ? "screening applicants" : "tracking applications"}.`
-    : `Welcome back! Please enter your details to access the dashboard.`;
+    ? `Create your account to start ${isHr ? "screening applicants with AI" : "applying & tracking roles"}.`
+    : `Welcome back! Enter your credentials to access your dashboard.`;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -74,10 +75,8 @@ export default function AuthPage({ mode, role }: AuthPageProps) {
         localStorage.setItem("userId", data.userId ?? "");
         localStorage.setItem("email", email.trim().toLowerCase());
         
-        // Dispatch custom storage event so App navbar can update instantly
         window.dispatchEvent(new Event("storage"));
 
-        // Redirect: honour ?redirect= param (candidates only), else go to dashboard
         if (redirectTo && data.role === "candidate") {
           navigate(redirectTo);
         } else if (data.role === "HR") {
@@ -98,45 +97,66 @@ export default function AuthPage({ mode, role }: AuthPageProps) {
   const seoTitle = isRegister
     ? isHr ? "Create Recruiter Account" : "Join HireSight — Candidate Sign Up"
     : isHr ? "Recruiter Sign In" : "Candidate Sign In";
-  const seoDesc = isRegister
-    ? isHr
-      ? "Get started free. Post your first job and receive AI-screened, ranked applicants immediately."
-      : "Create a profile, upload your resume, and get AI-matched to the best-fit open roles."
-    : isHr
-      ? "Sign in to your HireSight recruiter account to post jobs and view AI-ranked candidates."
-      : "Sign in to apply for roles and track your application status in real time.";
 
   return (
-    <div className="page">
-      <Seo title={seoTitle} description={seoDesc} noIndex />
-      <div className="hero" style={{ padding: "2rem 1rem 1.5rem" }}>
-        <h1 style={{ fontSize: "2.2rem" }}>
-          {isRegister ? "Join " : "Access "}
-          <span>HireSight</span>
-        </h1>
-        <p style={{ maxWidth: 440, fontSize: ".95rem", margin: ".5rem auto 1.5rem" }}>{sub}</p>
-      </div>
+    <div className="page" style={{ maxWidth: "480px", paddingTop: "2.5rem" }}>
+      <Seo title={seoTitle} noIndex />
 
-      <div className="card" style={{ maxWidth: 460, margin: "0 auto" }}>
-        <h2
+      {/* Role Toggle Header */}
+      <div style={{ display: "flex", background: "var(--card-bg-alt)", padding: "0.3rem", borderRadius: "var(--radius-full)", marginBottom: "2rem", border: "1px solid var(--card-border)" }}>
+        <Link
+          to={`/${mode}/hr${redirectTo ? `?redirect=${redirectTo}` : ""}`}
           style={{
-            fontSize: "1.25rem",
-            fontWeight: 800,
-            marginBottom: "1.5rem",
-            letterSpacing: "-.02em",
+            flex: 1,
             textAlign: "center",
+            padding: "0.6rem 1rem",
+            borderRadius: "var(--radius-full)",
+            fontFamily: "var(--font-heading)",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+            background: isHr ? "var(--brand)" : "transparent",
+            color: isHr ? "var(--text-inverse)" : "var(--text-secondary)",
+            transition: "all 0.2s ease"
           }}
         >
-          {title}
-        </h2>
+          Recruiter Portal
+        </Link>
+        <Link
+          to={`/${mode}/candidate${redirectTo ? `?redirect=${redirectTo}` : ""}`}
+          style={{
+            flex: 1,
+            textAlign: "center",
+            padding: "0.6rem 1rem",
+            borderRadius: "var(--radius-full)",
+            fontFamily: "var(--font-heading)",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+            background: !isHr ? "var(--brand)" : "transparent",
+            color: !isHr ? "var(--text-inverse)" : "var(--text-secondary)",
+            transition: "all 0.2s ease"
+          }}
+        >
+          Candidate Portal
+        </Link>
+      </div>
 
+      <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+        <h1 style={{ fontSize: "2.2rem", marginBottom: "0.5rem" }}>
+          {title.split(" ")[0]} <span className="pill-highlight pill-pink">{title.split(" ").slice(1).join(" ")}</span>
+        </h1>
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.98rem" }}>{sub}</p>
+      </div>
+
+      <div className="card">
         <form onSubmit={(e) => void handleSubmit(e)}>
           {isRegister && (
-            <div className="form-group">
-              <label htmlFor="name">Full Name</label>
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.88rem", marginBottom: "0.4rem" }}>
+                Full Name
+              </label>
               <input
-                id="name"
                 type="text"
+                className="form-input"
                 placeholder="Jane Smith"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -145,37 +165,14 @@ export default function AuthPage({ mode, role }: AuthPageProps) {
             </div>
           )}
 
-          <div className="form-group">
-            <label htmlFor="email">Email Address</label>
-            <input
-              id="email"
-              type="email"
-              placeholder="jane@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-          </div>
-
           {isRegister && isHr && (
-            <div className="form-group">
-              <label htmlFor="company">Company Name (Optional)</label>
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.88rem", marginBottom: "0.4rem" }}>
+                Company Name (Optional)
+              </label>
               <input
-                id="company"
                 type="text"
+                className="form-input"
                 placeholder="Acme Corp"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
@@ -183,67 +180,66 @@ export default function AuthPage({ mode, role }: AuthPageProps) {
             </div>
           )}
 
-          {error && <p className="error-text" style={{ marginBottom: "1rem" }}>⚠ {error}</p>}
+          <div style={{ marginBottom: "1.25rem" }}>
+            <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.88rem", marginBottom: "0.4rem" }}>
+              Email Address
+            </label>
+            <input
+              type="email"
+              className="form-input"
+              placeholder="jane@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div style={{ marginBottom: "1.75rem" }}>
+            <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.88rem", marginBottom: "0.4rem" }}>
+              Password
+            </label>
+            <input
+              type="password"
+              className="form-input"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          {error && (
+            <p style={{ color: "var(--status-red)", fontSize: "0.88rem", marginBottom: "1rem", fontWeight: 600 }}>
+              ⚠ {error}
+            </p>
+          )}
 
           <button
             type="submit"
-            className="btn btn-primary btn-full"
+            className="btn btn-dark-pill btn-lg"
+            style={{ width: "100%" }}
             disabled={loading}
-            style={{ marginTop: ".5rem" }}
           >
-            {loading ? (
-              <>
-                <span className="spinner" /> Working…
-              </>
-            ) : isRegister ? (
-              "Create Account →"
-            ) : (
-              "Sign In →"
-            )}
+            {loading ? "Processing..." : isRegister ? "Create Account" : "Sign In"}
           </button>
         </form>
 
-        <div
-          style={{
-            marginTop: "1.5rem",
-            textAlign: "center",
-            fontSize: ".83rem",
-            color: "var(--text-secondary)",
-          }}
-        >
+        <div style={{ marginTop: "1.75rem", paddingTop: "1.25rem", borderTop: "1px solid var(--card-border)", textAlign: "center", fontSize: "0.9rem" }}>
           {isRegister ? (
-            <>
+            <p style={{ color: "var(--text-secondary)" }}>
               Already have an account?{" "}
-              <Link to={`/login/${role}`} style={{ fontWeight: 600 }}>
-                Sign In
+              <Link to={`/login/${role}${redirectTo ? `?redirect=${redirectTo}` : ""}`} style={{ fontWeight: 700, color: "var(--text-primary)" }}>
+                Sign in
               </Link>
-            </>
+            </p>
           ) : (
-            <>
+            <p style={{ color: "var(--text-secondary)" }}>
               Don't have an account?{" "}
-              <Link to={`/register/${role}`} style={{ fontWeight: 600 }}>
-                Register
+              <Link to={`/register/${role}${redirectTo ? `?redirect=${redirectTo}` : ""}`} style={{ fontWeight: 700, color: "var(--text-primary)" }}>
+                Register now
               </Link>
-            </>
+            </p>
           )}
-        </div>
-
-        <div
-          style={{
-            marginTop: "1rem",
-            paddingTop: "1rem",
-            borderTop: "1px solid var(--card-border)",
-            textAlign: "center",
-            fontSize: ".83rem",
-          }}
-        >
-          Switch to{" "}
-          <Link
-            to={isRegister ? `/register/${isHr ? "candidate" : "hr"}` : `/login/${isHr ? "candidate" : "hr"}`}
-            style={{ fontWeight: 600, color: "var(--brand-light)" }}
-          >
-            {isHr ? "Candidate Portal" : "Recruiter Portal"}
-          </Link>
         </div>
       </div>
     </div>

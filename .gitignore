@@ -170,3 +170,10 @@ dist
 .agents/
 skills-lock.json
 
+# Internal documentation
+INTERVIEW_PREP.md
+CHANGELOG.md
+CONTRIBUTING.md
+AGENTS.md
+
+

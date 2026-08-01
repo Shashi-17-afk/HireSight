@@ -43,6 +43,8 @@ function signOut() {
 
 // ── Navbar ────────────────────────────────────────────────────────────────────
 
+// ── Navbar ────────────────────────────────────────────────────────────────────
+
 function Navbar() {
 	const { pathname } = useLocation();
 	const navigate = useNavigate();
@@ -58,7 +60,6 @@ function Navbar() {
 		return () => window.removeEventListener("storage", syncAuth);
 	}, []);
 
-	const isHome = pathname === "/";
 	const isApply = pathname.startsWith("/apply");
 
 	function handleSignOut() {
@@ -68,36 +69,40 @@ function Navbar() {
 
 	return (
 		<nav className="nav">
-			<Link to="/" className="nav-logo" style={{ textDecoration: "none" }}>
-				<span className="nav-logo-icon">HS</span>
-				Hire<span>Sight</span>
+			<Link to="/" className="nav-logo">
+				HireSight<span className="nav-logo-dot" />
 			</Link>
 
-			{!user && isHome && (
-				<div className="nav-links-landing">
-					<a href="#features" className="nav-link">Features</a>
-					<a href="#how-it-works" className="nav-link">How it works</a>
-					<a href="#pricing" className="nav-link">Pricing</a>
-					<a href="#faq" className="nav-link">FAQ</a>
-				</div>
-			)}
+			<div className="nav-links-landing">
+				<a href="/#features" className="nav-link">Features</a>
+				<a href="/#how-it-works" className="nav-link">How it works</a>
+				<a href="/#pricing" className="nav-link">Pricing</a>
+				<a href="/#faq" className="nav-link">FAQ</a>
+			</div>
 
 			<span className="nav-spacer" />
 
 			{user ? (
-				<div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
-					{user.role === "candidate" && (
-						<Link to="/jobs" className="nav-link" style={{ fontSize: ".82rem" }}>Browse Openings</Link>
+				<div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+					<Link
+						to={user.role === "candidate" ? "/candidate/dashboard" : "/hr/dashboard"}
+						className="nav-link"
+						style={{ fontWeight: 600, fontSize: "0.9rem" }}
+					>
+						Dashboard
+					</Link>
+					{user.role === "candidate" ? (
+						<Link to="/jobs" className="btn btn-secondary btn-sm">Browse Openings</Link>
+					) : (
+						<Link to="/register/hr" className="btn btn-secondary btn-sm">Post Job</Link>
 					)}
-					{/* Name links to profile (candidates) or dashboard (HR) */}
 					<Link
 						to={user.role === "candidate" ? "/candidate/profile" : "/hr/dashboard"}
-						className="nav-link"
-						style={{ fontSize: ".83rem", fontWeight: 600 }}
+						className="nav-user-badge"
 					>
-						{user.name}
-						<span style={{ marginLeft: ".35rem", fontSize: ".7rem", opacity: .55, fontWeight: 400 }}>
-							{user.role === "HR" ? "· Recruiter" : "· Candidate"}
+						<span>{user.name}</span>
+						<span style={{ fontSize: "0.75rem", opacity: 0.6 }}>
+							{user.role === "HR" ? "Recruiter" : "Candidate"}
 						</span>
 					</Link>
 					<button type="button" onClick={handleSignOut} className="nav-signout">
@@ -105,13 +110,13 @@ function Navbar() {
 					</button>
 				</div>
 			) : (
-				<div style={{ display: "flex", gap: ".5rem" }}>
+				<div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
 					{isApply ? (
-						<Link to="/login/candidate" className="nav-link" style={{ fontSize: ".82rem" }}>Sign in</Link>
+						<Link to="/login/candidate" className="btn btn-dark-pill btn-sm">Sign in</Link>
 					) : (
 						<>
-							<Link to="/login/hr" className="nav-link" style={{ fontSize: ".82rem" }}>Recruiter</Link>
-							<Link to="/login/candidate" className="nav-link" style={{ fontSize: ".82rem" }}>Candidate</Link>
+							<Link to="/login/hr" className="btn btn-outline btn-sm">Recruiter</Link>
+							<Link to="/login/candidate" className="btn btn-dark-pill btn-sm">Candidate</Link>
 						</>
 					)}
 				</div>
@@ -128,33 +133,34 @@ function Footer() {
 		<footer className="footer">
 			<div className="footer-inner">
 				<div className="footer-brand">
-					<span className="footer-logo">Hire<span>Sight</span></span>
-					<p>AI-powered hiring —<br />faster, fairer, smarter.</p>
+					<span className="footer-logo">
+						HireSight<span className="nav-logo-dot" style={{ marginLeft: "4px" }} />
+					</span>
+					<p>AI-powered recruitment —<br />faster, fairer, smarter hiring.</p>
 				</div>
-				<div className="footer-links">
-					<div className="footer-col">
-						<span className="footer-col-title">Product</span>
-						<Link to="/jobs">Browse Openings</Link>
-						<Link to="/register/hr">Post a Job</Link>
-						<a href="/#features">Features</a>
-						<a href="/#pricing">Pricing</a>
-					</div>
-					<div className="footer-col">
-						<span className="footer-col-title">Portals</span>
-						<Link to="/login/hr">Recruiter Sign In</Link>
-						<Link to="/login/candidate">Candidate Sign In</Link>
-						<Link to="/register/candidate">Create Account</Link>
-					</div>
-					<div className="footer-col">
-						<span className="footer-col-title">Support</span>
-						<a href="/#faq">FAQ</a>
-						<a href="/#how-it-works">How it works</a>
-						<a href="mailto:hello@hiresight.app">Contact</a>
-					</div>
+				<div className="footer-col">
+					<span className="footer-col-title">Product</span>
+					<Link to="/jobs">Browse Openings</Link>
+					<Link to="/register/hr">Post a Job</Link>
+					<a href="/#features">Features</a>
+					<a href="/#pricing">Pricing</a>
+				</div>
+				<div className="footer-col">
+					<span className="footer-col-title">Portals</span>
+					<Link to="/login/hr">Recruiter Sign In</Link>
+					<Link to="/login/candidate">Candidate Sign In</Link>
+					<Link to="/register/candidate">Create Account</Link>
+				</div>
+				<div className="footer-col">
+					<span className="footer-col-title">Support</span>
+					<a href="/#faq">FAQ</a>
+					<a href="/#how-it-works">How it works</a>
+					<a href="mailto:hello@hiresight.app">Contact Us</a>
 				</div>
 			</div>
 			<div className="footer-bottom">
 				<span>© {year} HireSight. Built on Cloudflare Workers AI.</span>
+				<span>Designed for modern hiring teams</span>
 			</div>
 		</footer>
 	);
