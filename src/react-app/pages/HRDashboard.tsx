@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Copy, Check, ArrowRight, LogOut, Inbox } from "lucide-react";
+import { Plus, Copy, Check, ArrowRight, LogOut, Inbox, UserCheck, ExternalLink, Mail, Phone } from "lucide-react";
 import Seo from "../components/Seo";
 
 interface Job {
@@ -11,7 +11,26 @@ interface Job {
   applicant_count?: number;
 }
 
+interface HiredCandidate {
+  application_id: string;
+  user_id: string | null;
+  status: string;
+  hired_at: string;
+  job_id: string;
+  job_title: string;
+  candidate_submission_id: string;
+  candidate_name: string;
+  candidate_email: string;
+  ai_score: number | null;
+  ai_reasoning: string | null;
+  phone?: string | null;
+  headline?: string | null;
+  linkedin_url?: string | null;
+  github_url?: string | null;
+}
+
 function timeAgo(dateStr: string): string {
+  if (!dateStr) return "recently";
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 60) return `${mins}m ago`;
@@ -24,8 +43,10 @@ function timeAgo(dateStr: string): string {
 export default function HRDashboard() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [hiredList, setHiredList] = useState<HiredCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState<"jobs" | "hired">("jobs");
   
   const [showPostForm, setShowPostForm] = useState(false);
   const [title, setTitle] = useState("");
@@ -43,30 +64,33 @@ export default function HRDashboard() {
     navigate("/");
   }
 
-  function fetchJobs() {
+  function fetchJobsAndHired() {
     if (!token) return;
     setLoading(true);
-    fetch("/api/jobs", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load jobs");
-        return res.json() as Promise<{ jobs: Job[] }>;
-      })
-      .then((data) => {
-        setJobs(data.jobs ?? []);
+    setError("");
+
+    const fetchJobsReq = fetch("/api/jobs", {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((r) => r.json() as Promise<{ jobs?: Job[] }>);
+
+    const fetchHiredReq = fetch("/api/applications/hired", {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((r) => r.json() as Promise<{ hired?: HiredCandidate[] }>);
+
+    Promise.all([fetchJobsReq, fetchHiredReq])
+      .then(([jobsData, hiredData]) => {
+        setJobs(jobsData.jobs ?? []);
+        setHiredList(hiredData.hired ?? []);
         setLoading(false);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Error fetching jobs");
+        setError(err instanceof Error ? err.message : "Error loading dashboard data");
         setLoading(false);
       });
   }
 
   useEffect(() => {
-    fetchJobs();
+    fetchJobsAndHired();
   }, [token]);
 
   async function handlePostJob(e: React.FormEvent) {
@@ -96,7 +120,7 @@ export default function HRDashboard() {
       setTitle("");
       setDescription("");
       setShowPostForm(false);
-      fetchJobs();
+      fetchJobsAndHired();
     } catch (err) {
       setPostError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -111,6 +135,9 @@ export default function HRDashboard() {
     setTimeout(() => setCopiedId(null), 2000);
   }
 
+  const hiredCount = hiredList.filter((h) => h.status === "hired").length;
+  const offeredCount = hiredList.filter((h) => h.status === "offered").length;
+
   return (
     <div className="page-wide">
       <Seo title="Recruiter Dashboard" description="Manage your HireSight job pipelines and view AI-ranked candidates." noIndex />
@@ -123,7 +150,7 @@ export default function HRDashboard() {
             Welcome, <span className="pill-highlight pill-yellow">{userName}</span>
           </h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>
-            Manage active job postings, monitor real-time candidate leaderboards, and copy apply links.
+            Manage active job postings, track hired candidates, and monitor real-time applicant leaderboards.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
@@ -139,6 +166,26 @@ export default function HRDashboard() {
           >
             <LogOut size={16} /> Sign Out
           </button>
+        </div>
+      </div>
+
+      {/* Summary Metrics Row */}
+      <div className="grid-3" style={{ marginBottom: "2.5rem" }}>
+        <div className="card-flat">
+          <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>Active Job Openings</div>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700, fontFamily: "var(--font-heading)", marginTop: "0.25rem" }}>{jobs.length}</div>
+        </div>
+        <div className="card-flat">
+          <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>Candidates Hired</div>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700, fontFamily: "var(--font-heading)", marginTop: "0.25rem", color: "var(--status-green)" }}>
+            {hiredCount}
+          </div>
+        </div>
+        <div className="card-flat">
+          <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>Offers Extended</div>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700, fontFamily: "var(--font-heading)", marginTop: "0.25rem", color: "var(--status-blue)" }}>
+            {offeredCount}
+          </div>
         </div>
       </div>
 
@@ -195,71 +242,197 @@ export default function HRDashboard() {
         </div>
       )}
 
-      {/* Jobs Pipeline Section */}
-      <div style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <h2 style={{ fontSize: "1.8rem" }}>
-          Active <span className="pill-highlight pill-green">Job Pipelines</span> ({jobs.length})
-        </h2>
+      {/* Section Tabs */}
+      <div style={{ display: "flex", gap: "0.5rem", background: "var(--card-bg-alt)", padding: "0.3rem", borderRadius: "var(--radius-full)", marginBottom: "2rem", width: "fit-content", border: "1px solid var(--card-border)" }}>
+        <button
+          type="button"
+          onClick={() => setActiveTab("jobs")}
+          style={{
+            padding: "0.6rem 1.4rem",
+            borderRadius: "var(--radius-full)",
+            fontFamily: "var(--font-heading)",
+            fontWeight: 600,
+            fontSize: "0.92rem",
+            border: "none",
+            cursor: "pointer",
+            background: activeTab === "jobs" ? "var(--brand)" : "transparent",
+            color: activeTab === "jobs" ? "var(--text-inverse)" : "var(--text-secondary)",
+            transition: "all 0.2s ease"
+          }}
+        >
+          Active Job Roles ({jobs.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("hired")}
+          style={{
+            padding: "0.6rem 1.4rem",
+            borderRadius: "var(--radius-full)",
+            fontFamily: "var(--font-heading)",
+            fontWeight: 600,
+            fontSize: "0.92rem",
+            border: "none",
+            cursor: "pointer",
+            background: activeTab === "hired" ? "var(--brand)" : "transparent",
+            color: activeTab === "hired" ? "var(--text-inverse)" : "var(--text-secondary)",
+            transition: "all 0.2s ease"
+          }}
+        >
+          Hired Talent Roster ({hiredList.length})
+        </button>
       </div>
 
-      {loading && (
-        <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
-          <p style={{ fontSize: "1.05rem" }}>Loading active job postings...</p>
+      {/* Tab 1: Active Job Roles */}
+      {activeTab === "jobs" && (
+        <div>
+          {loading && (
+            <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
+              <p style={{ fontSize: "1.05rem" }}>Loading active job postings...</p>
+            </div>
+          )}
+
+          {error && (
+            <div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
+              <p style={{ color: "var(--status-red)", fontWeight: 600, marginBottom: "1rem" }}>{error}</p>
+              <button onClick={fetchJobsAndHired} className="btn btn-secondary btn-sm">Try Again</button>
+            </div>
+          )}
+
+          {!loading && !error && jobs.length === 0 && (
+            <div className="card" style={{ textAlign: "center", padding: "3.5rem 2rem" }}>
+              <Inbox size={44} style={{ color: "var(--text-muted)", marginBottom: "1rem" }} />
+              <h3 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>No active job postings</h3>
+              <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}>
+                Create your first job role to generate a shareable apply link and start screening candidates with Workers AI.
+              </p>
+              <button onClick={() => setShowPostForm(true)} className="btn btn-dark-pill">
+                <Plus size={18} /> Create Your First Job
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            {jobs.map((j) => (
+              <div key={j.id} className="card" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+                  <div>
+                    <h3 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: "0.3rem" }}>{j.title}</h3>
+                    <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                      <span className="badge badge-blue">📅 Posted {timeAgo(j.created_at)}</span>
+                      <span className="badge badge-green">⚡ Real-time Leaderboard</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "0.65rem", alignItems: "center", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => copyLink(j.id)}
+                    >
+                      {copiedId === j.id ? <><Check size={14} /> Link Copied</> : <><Copy size={14} /> Copy Apply Link</>}
+                    </button>
+                    <Link to={`/dashboard/${j.id}`} className="btn btn-dark-pill btn-sm">
+                      View Live Leaderboard <ArrowRight size={14} />
+                    </Link>
+                  </div>
+                </div>
+
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.98rem", lineHeight: 1.6 }}>
+                  {j.description.length > 200 ? j.description.slice(0, 200).trimEnd() + "..." : j.description}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {error && (
-        <div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
-          <p style={{ color: "var(--status-red)", fontWeight: 600, marginBottom: "1rem" }}>{error}</p>
-          <button onClick={fetchJobs} className="btn btn-secondary btn-sm">Try Again</button>
-        </div>
-      )}
+      {/* Tab 2: Hired Talent Roster ("Whom you hired and for what role") */}
+      {activeTab === "hired" && (
+        <div>
+          {loading && (
+            <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
+              <p style={{ fontSize: "1.05rem" }}>Loading hired talent roster...</p>
+            </div>
+          )}
 
-      {!loading && !error && jobs.length === 0 && (
-        <div className="card" style={{ textAlign: "center", padding: "3.5rem 2rem" }}>
-          <Inbox size={44} style={{ color: "var(--text-muted)", marginBottom: "1rem" }} />
-          <h3 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>No active job postings</h3>
-          <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}>
-            Create your first job role to generate a shareable apply link and start screening candidates with Workers AI.
-          </p>
-          <button onClick={() => setShowPostForm(true)} className="btn btn-dark-pill">
-            <Plus size={18} /> Create Your First Job
-          </button>
-        </div>
-      )}
+          {!loading && hiredList.length === 0 && (
+            <div className="card" style={{ textAlign: "center", padding: "4rem 2rem" }}>
+              <UserCheck size={48} style={{ color: "var(--text-muted)", marginBottom: "1rem" }} />
+              <h3 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>No candidates hired yet</h3>
+              <p style={{ color: "var(--text-secondary)", maxWidth: "520px", margin: "0 auto 1.5rem" }}>
+                When you review applicants on the live leaderboard and change their pipeline status to <strong>Hired</strong> or <strong>Offered</strong>, they will be showcased right here!
+              </p>
+              <button onClick={() => setActiveTab("jobs")} className="btn btn-dark-pill">
+                View Open Leaderboards <ArrowRight size={16} />
+              </button>
+            </div>
+          )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-        {jobs.map((j) => (
-          <div key={j.id} className="card" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
-              <div>
-                <h3 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: "0.3rem" }}>{j.title}</h3>
-                <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                  <span className="badge badge-blue">📅 Posted {timeAgo(j.created_at)}</span>
-                  <span className="badge badge-green">⚡ Real-time Leaderboard</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            {hiredList.map((h) => (
+              <div key={h.application_id} className="card" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.3rem" }}>
+                      <h3 style={{ fontSize: "1.5rem", fontWeight: 700 }}>{h.candidate_name}</h3>
+                      <span className={`badge ${h.status === "hired" ? "badge-green" : "badge-blue"}`}>
+                        {h.status === "hired" ? "✓ Hired" : "✦ Offer Extended"}
+                      </span>
+                      {h.ai_score !== null && (
+                        <span className="score-pill score-high">★ {h.ai_score} AI Fit</span>
+                      )}
+                    </div>
+
+                    <div style={{ fontSize: "1.05rem", fontWeight: 600, color: "var(--text-primary)", marginBottom: "0.4rem" }}>
+                      Role: <span className="pill-highlight pill-yellow">{h.job_title}</span>
+                    </div>
+
+                    {h.headline && (
+                      <p style={{ fontSize: "0.92rem", color: "var(--text-secondary)", fontStyle: "italic", marginBottom: "0.4rem" }}>
+                        "{h.headline}"
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Link
+                      to={`/hr/candidate/${h.candidate_submission_id}?job_id=${h.job_id}`}
+                      className="btn btn-dark-pill btn-sm"
+                    >
+                      View Candidate Detail <ArrowRight size={14} />
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Candidate Contact & Social Links Bar */}
+                <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", paddingTop: "0.75rem", borderTop: "1px solid var(--card-border)", fontSize: "0.9rem", color: "var(--text-secondary)" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+                    <Mail size={14} /> {h.candidate_email}
+                  </span>
+                  {h.phone && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+                      <Phone size={14} /> {h.phone}
+                    </span>
+                  )}
+                  {h.linkedin_url && (
+                    <a href={h.linkedin_url} target="_blank" rel="noreferrer" style={{ fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                      LinkedIn <ExternalLink size={12} />
+                    </a>
+                  )}
+                  {h.github_url && (
+                    <a href={h.github_url} target="_blank" rel="noreferrer" style={{ fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                      GitHub <ExternalLink size={12} />
+                    </a>
+                  )}
+                  <span style={{ marginLeft: "auto", fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                    Decision Date: {timeAgo(h.hired_at)}
+                  </span>
                 </div>
               </div>
-
-              <div style={{ display: "flex", gap: "0.65rem", alignItems: "center", flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => copyLink(j.id)}
-                >
-                  {copiedId === j.id ? <><Check size={14} /> Link Copied</> : <><Copy size={14} /> Copy Apply Link</>}
-                </button>
-                <Link to={`/dashboard/${j.id}`} className="btn btn-dark-pill btn-sm">
-                  View Live Leaderboard <ArrowRight size={14} />
-                </Link>
-              </div>
-            </div>
-
-            <p style={{ color: "var(--text-secondary)", fontSize: "0.98rem", lineHeight: 1.6 }}>
-              {j.description.length > 200 ? j.description.slice(0, 200).trimEnd() + "..." : j.description}
-            </p>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
