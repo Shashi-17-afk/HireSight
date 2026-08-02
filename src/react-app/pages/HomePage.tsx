@@ -97,10 +97,11 @@ const PLANS = [
 		cta: "Get started free",
 		ctaTo: "/register/hr",
 		featured: true,
+		razorpay: false,
 	},
 	{
 		name: "Growth",
-		price: "$49",
+		price: "₹4,099",
 		period: "/ month",
 		desc: "For growing teams hiring at higher volume.",
 		features: [
@@ -110,9 +111,11 @@ const PLANS = [
 			"Priority Workers AI inference",
 			"Automated email notifications",
 		],
-		cta: "Coming soon",
-		ctaTo: "/login/hr",
+		cta: "Subscribe — ₹4,099/mo",
+		ctaTo: "",
 		featured: false,
+		razorpay: true,
+		amountPaise: 409900,
 	},
 	{
 		name: "Enterprise",
@@ -129,6 +132,7 @@ const PLANS = [
 		cta: "Contact sales",
 		ctaTo: "mailto:hello@hiresight.app",
 		featured: false,
+		razorpay: false,
 	},
 ];
 
@@ -173,10 +177,107 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 export default function HomePage() {
 	const [email, setEmail] = useState("");
 	const [subscribed, setSubscribed] = useState(false);
+	const [paymentLoading, setPaymentLoading] = useState(false);
+	const [paymentMsg, setPaymentMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
 	function handleSubscribe(e: React.FormEvent) {
 		e.preventDefault();
 		if (email) setSubscribed(true);
+	}
+
+	async function handleRazorpayCheckout(amountPaise: number, planName: string) {
+		const token = localStorage.getItem("token");
+		if (!token) {
+			setPaymentMsg({ type: "error", text: "Please sign in as a recruiter to subscribe." });
+			return;
+		}
+
+		setPaymentLoading(true);
+		setPaymentMsg(null);
+
+		try {
+			// Step 1: Create order
+			const orderRes = await fetch("/api/payments/create-order", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({ amount: amountPaise, currency: "INR", plan: planName }),
+			});
+
+			if (!orderRes.ok) {
+				const errData = (await orderRes.json()) as { error?: string };
+				throw new Error(errData.error ?? "Failed to create payment order");
+			}
+
+			const order = (await orderRes.json()) as {
+				order_id: string;
+				amount: number;
+				currency: string;
+				key_id: string;
+			};
+
+			// Step 2: Open Razorpay modal
+			const userName = localStorage.getItem("name") ?? "";
+
+			const options: RazorpayOptions = {
+				key: order.key_id,
+				amount: order.amount,
+				currency: order.currency,
+				name: "HireSight",
+				description: `${planName.charAt(0).toUpperCase() + planName.slice(1)} Plan — Monthly`,
+				order_id: order.order_id,
+				prefill: { name: userName },
+				theme: { color: "#1a1a2e" },
+				modal: {
+					ondismiss: () => {
+						setPaymentLoading(false);
+						setPaymentMsg({ type: "error", text: "Payment cancelled." });
+					},
+				},
+				handler: async (response: RazorpayResponse) => {
+					// Step 3: Verify payment signature
+					try {
+						const verifyRes = await fetch("/api/payments/verify", {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+								Authorization: `Bearer ${token}`,
+							},
+							body: JSON.stringify({
+								razorpay_order_id: response.razorpay_order_id,
+								razorpay_payment_id: response.razorpay_payment_id,
+								razorpay_signature: response.razorpay_signature,
+							}),
+						});
+
+						if (!verifyRes.ok) {
+							const errData = (await verifyRes.json()) as { error?: string };
+							throw new Error(errData.error ?? "Payment verification failed");
+						}
+
+						setPaymentMsg({ type: "success", text: "Payment successful! Your Growth plan is now active. 🎉" });
+					} catch (verifyErr) {
+						setPaymentMsg({
+							type: "error",
+							text: verifyErr instanceof Error ? verifyErr.message : "Payment verification failed.",
+						});
+					} finally {
+						setPaymentLoading(false);
+					}
+				},
+			};
+
+			const rzp = new window.Razorpay(options);
+			rzp.open();
+		} catch (err) {
+			setPaymentMsg({
+				type: "error",
+				text: err instanceof Error ? err.message : "Something went wrong.",
+			});
+			setPaymentLoading(false);
+		}
 	}
 
 	return (
@@ -312,6 +413,13 @@ export default function HomePage() {
 					</h2>
 				</div>
 
+				{paymentMsg && (
+					<div className={`payment-toast payment-toast--${paymentMsg.type}`}>
+						<span>{paymentMsg.text}</span>
+						<button type="button" className="payment-toast-close" onClick={() => setPaymentMsg(null)}>✕</button>
+					</div>
+				)}
+
 				<div className="grid-3">
 					{PLANS.map((p, i) => (
 						<div key={i} className={`pricing-card${p.featured ? " featured" : ""}`}>
@@ -329,13 +437,26 @@ export default function HomePage() {
 								))}
 							</ul>
 							<div style={{ marginTop: "auto" }}>
-								<Link
-									to={p.ctaTo}
-									className={`btn ${p.featured ? "btn-secondary" : "btn-primary"}`}
-									style={{ width: "100%" }}
-								>
-									{p.cta}
-								</Link>
+								{p.razorpay ? (
+									<button
+										type="button"
+										id="razorpay-checkout-btn"
+										className="btn btn-primary"
+										style={{ width: "100%" }}
+										disabled={paymentLoading}
+										onClick={() => void handleRazorpayCheckout(p.amountPaise!, p.name.toLowerCase())}
+									>
+										{paymentLoading ? "Processing…" : p.cta}
+									</button>
+								) : (
+									<Link
+										to={p.ctaTo}
+										className={`btn ${p.featured ? "btn-secondary" : "btn-primary"}`}
+										style={{ width: "100%" }}
+									>
+										{p.cta}
+									</Link>
+								)}
 							</div>
 						</div>
 					))}

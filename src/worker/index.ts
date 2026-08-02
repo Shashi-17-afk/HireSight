@@ -8,6 +8,7 @@ import candidates from "./routes/candidates";
 import auth from "./routes/auth";
 import profile from "./routes/profile";
 import applications from "./routes/applications";
+import payments from "./routes/payments";
 import { authenticate, requireHR } from "./lib/auth";
 import type { AuthVariables } from "./lib/auth";
 
@@ -43,6 +44,9 @@ app.route("/api/profile", profile);
 
 // Applications — HR pipeline (GET list, GET detail, PATCH status)
 app.route("/api/applications", applications);
+
+// Payments — Razorpay checkout (create-order + verify)
+app.route("/api/payments", payments);
 
 // Candidate real-time status WebSocket.
 // Browsers can't send custom headers on WS upgrades, so JWT is passed as ?token=
