@@ -143,17 +143,17 @@ export default function HRDashboard() {
       <Seo title="Recruiter Dashboard" description="Manage your HireSight job pipelines and view AI-ranked candidates." noIndex />
 
       {/* Header Banner */}
-      <div className="card" style={{ marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1.5rem" }}>
+      <div className="card dash-card-header">
         <div>
           <span className="section-tag">Recruiter Workspace</span>
-          <h1 style={{ fontSize: "2.4rem", margin: "0.4rem 0" }}>
+          <h1 className="dash-title">
             Welcome, <span className="pill-highlight pill-yellow">{userName}</span>
           </h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>
             Manage active job postings, track hired candidates, and monitor real-time applicant leaderboards.
           </p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+        <div className="dash-header-actions">
           <button
             onClick={() => setShowPostForm(!showPostForm)}
             className="btn btn-dark-pill btn-lg"
@@ -173,17 +173,17 @@ export default function HRDashboard() {
       <div className="grid-3" style={{ marginBottom: "2.5rem" }}>
         <div className="card-flat">
           <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>Active Job Openings</div>
-          <div style={{ fontSize: "2.5rem", fontWeight: 700, fontFamily: "var(--font-heading)", marginTop: "0.25rem" }}>{jobs.length}</div>
+          <div className="metric-value">{jobs.length}</div>
         </div>
         <div className="card-flat">
           <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>Candidates Hired</div>
-          <div style={{ fontSize: "2.5rem", fontWeight: 700, fontFamily: "var(--font-heading)", marginTop: "0.25rem", color: "var(--status-green)" }}>
+          <div className="metric-value" style={{ color: "var(--status-green)" }}>
             {hiredCount}
           </div>
         </div>
         <div className="card-flat">
           <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>Offers Extended</div>
-          <div style={{ fontSize: "2.5rem", fontWeight: 700, fontFamily: "var(--font-heading)", marginTop: "0.25rem", color: "var(--status-blue)" }}>
+          <div className="metric-value" style={{ color: "var(--status-blue)" }}>
             {offeredCount}
           </div>
         </div>
@@ -243,40 +243,18 @@ export default function HRDashboard() {
       )}
 
       {/* Section Tabs */}
-      <div style={{ display: "flex", gap: "0.5rem", background: "var(--card-bg-alt)", padding: "0.3rem", borderRadius: "var(--radius-full)", marginBottom: "2rem", width: "fit-content", border: "1px solid var(--card-border)" }}>
+      <div className="tab-bar">
         <button
           type="button"
           onClick={() => setActiveTab("jobs")}
-          style={{
-            padding: "0.6rem 1.4rem",
-            borderRadius: "var(--radius-full)",
-            fontFamily: "var(--font-heading)",
-            fontWeight: 600,
-            fontSize: "0.92rem",
-            border: "none",
-            cursor: "pointer",
-            background: activeTab === "jobs" ? "var(--brand)" : "transparent",
-            color: activeTab === "jobs" ? "var(--text-inverse)" : "var(--text-secondary)",
-            transition: "all 0.2s ease"
-          }}
+          className={`tab-bar-btn${activeTab === "jobs" ? " active" : ""}`}
         >
           Active Job Roles ({jobs.length})
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("hired")}
-          style={{
-            padding: "0.6rem 1.4rem",
-            borderRadius: "var(--radius-full)",
-            fontFamily: "var(--font-heading)",
-            fontWeight: 600,
-            fontSize: "0.92rem",
-            border: "none",
-            cursor: "pointer",
-            background: activeTab === "hired" ? "var(--brand)" : "transparent",
-            color: activeTab === "hired" ? "var(--text-inverse)" : "var(--text-secondary)",
-            transition: "all 0.2s ease"
-          }}
+          className={`tab-bar-btn${activeTab === "hired" ? " active" : ""}`}
         >
           Hired Talent Roster ({hiredList.length})
         </button>
@@ -323,7 +301,7 @@ export default function HRDashboard() {
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: "0.65rem", alignItems: "center", flexWrap: "wrap" }}>
+                  <div className="dash-header-actions">
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
@@ -424,7 +402,7 @@ export default function HRDashboard() {
                       GitHub <ExternalLink size={12} />
                     </a>
                   )}
-                  <span style={{ marginLeft: "auto", fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                  <span style={{ fontSize: "0.82rem", color: "var(--text-muted)", width: "100%" }}>
                     Decision Date: {timeAgo(h.hired_at)}
                   </span>
                 </div>

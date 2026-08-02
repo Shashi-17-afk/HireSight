@@ -1,5 +1,6 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 import AuthPage from "./pages/AuthPage";
 
 const PostJob = lazy(() => import("./pages/PostJob"));
@@ -49,6 +50,7 @@ function Navbar() {
 	const { pathname } = useLocation();
 	const navigate = useNavigate();
 	const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+	const [menuOpen, setMenuOpen] = useState(false);
 
 	useEffect(() => {
 		function syncAuth() {
@@ -60,15 +62,22 @@ function Navbar() {
 		return () => window.removeEventListener("storage", syncAuth);
 	}, []);
 
+	useEffect(() => {
+		setMenuOpen(false);
+	}, [pathname]);
+
 	const isApply = pathname.startsWith("/apply");
+	const dashboardPath = user?.role === "candidate" ? "/candidate/dashboard" : "/hr/dashboard";
+	const profilePath = user?.role === "candidate" ? "/candidate/profile" : "/hr/dashboard";
 
 	function handleSignOut() {
 		signOut();
+		setMenuOpen(false);
 		navigate("/");
 	}
 
 	return (
-		<nav className="nav">
+		<nav className={`nav${menuOpen ? " nav--open" : ""}`}>
 			<Link to="/" className="nav-logo">
 				HireSight<span className="nav-logo-dot" />
 			</Link>
@@ -83,25 +92,18 @@ function Navbar() {
 			<span className="nav-spacer" />
 
 			{user ? (
-				<div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
-					<Link
-						to={user.role === "candidate" ? "/candidate/dashboard" : "/hr/dashboard"}
-						className="nav-link"
-						style={{ fontWeight: 600, fontSize: "0.9rem" }}
-					>
+				<div className="nav-actions nav-actions--auth">
+					<Link to={dashboardPath} className="nav-link nav-link--bold">
 						Dashboard
 					</Link>
 					{user.role === "candidate" ? (
 						<Link to="/jobs" className="btn btn-secondary btn-sm">Browse Openings</Link>
 					) : (
-						<Link to="/register/hr" className="btn btn-secondary btn-sm">Post Job</Link>
+						<Link to="/hr/dashboard" className="btn btn-secondary btn-sm">Post Job</Link>
 					)}
-					<Link
-						to={user.role === "candidate" ? "/candidate/profile" : "/hr/dashboard"}
-						className="nav-user-badge"
-					>
+					<Link to={profilePath} className="nav-user-badge">
 						<span>{user.name}</span>
-						<span style={{ fontSize: "0.75rem", opacity: 0.6 }}>
+						<span className="nav-user-role">
 							{user.role === "HR" ? "Recruiter" : "Candidate"}
 						</span>
 					</Link>
@@ -110,13 +112,67 @@ function Navbar() {
 					</button>
 				</div>
 			) : (
-				<div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+				<div className="nav-actions">
 					{isApply ? (
 						<Link to="/login/candidate" className="btn btn-dark-pill btn-sm">Sign in</Link>
 					) : (
 						<>
-							<Link to="/login/hr" className="btn btn-outline btn-sm">Recruiter</Link>
+							<Link to="/login/hr" className="btn btn-outline btn-sm nav-btn-recruiter">Recruiter</Link>
 							<Link to="/login/candidate" className="btn btn-dark-pill btn-sm">Candidate</Link>
+						</>
+					)}
+				</div>
+			)}
+
+			<button
+				type="button"
+				className="nav-menu-toggle"
+				onClick={() => setMenuOpen((open) => !open)}
+				aria-expanded={menuOpen}
+				aria-label={menuOpen ? "Close menu" : "Open menu"}
+			>
+				{menuOpen ? <X size={22} /> : <Menu size={22} />}
+			</button>
+
+			{menuOpen && (
+				<div className="nav-mobile-menu">
+					{user ? (
+						<>
+							<div className="nav-mobile-user">
+								<span className="nav-mobile-name">{user.name}</span>
+								<span className="nav-mobile-role">
+									{user.role === "HR" ? "Recruiter" : "Candidate"}
+								</span>
+							</div>
+							<Link to={dashboardPath} className="nav-mobile-link">Dashboard</Link>
+							{user.role === "candidate" ? (
+								<>
+									<Link to="/jobs" className="nav-mobile-link">Browse Openings</Link>
+									<Link to="/candidate/profile" className="nav-mobile-link">Edit Profile</Link>
+								</>
+							) : (
+								<Link to="/hr/dashboard" className="nav-mobile-link">Post a Job</Link>
+							)}
+							<button type="button" onClick={handleSignOut} className="nav-mobile-signout">
+								Sign out
+							</button>
+						</>
+					) : (
+						<>
+							<a href="/#features" className="nav-mobile-link">Features</a>
+							<a href="/#how-it-works" className="nav-mobile-link">How it works</a>
+							<a href="/#pricing" className="nav-mobile-link">Pricing</a>
+							<a href="/#faq" className="nav-mobile-link">FAQ</a>
+							<div className="nav-mobile-auth">
+								{isApply ? (
+									<Link to="/login/candidate" className="btn btn-dark-pill btn-sm">Sign in</Link>
+								) : (
+									<>
+										<Link to="/login/hr" className="btn btn-outline btn-sm">Recruiter</Link>
+										<Link to="/login/candidate" className="btn btn-dark-pill btn-sm">Candidate</Link>
+									</>
+								)}
+							</div>
 						</>
 					)}
 				</div>

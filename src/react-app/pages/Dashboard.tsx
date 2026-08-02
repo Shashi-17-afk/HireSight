@@ -189,9 +189,9 @@ export default function Dashboard() {
       <Seo title="Live Candidate Leaderboard" description="AI-ranked candidate leaderboard for this role." noIndex />
 
       {/* Header Banner */}
-      <div className="card" style={{ marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1.5rem" }}>
+      <div className="card dash-card-header">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
             <span className="section-tag" style={{ margin: 0 }}>Live Leaderboard</span>
             {status === "connected" && (
               <span className="badge badge-green">
@@ -201,12 +201,12 @@ export default function Dashboard() {
             {status === "connecting" && <span className="badge badge-yellow">Connecting...</span>}
             {status === "disconnected" && <span className="badge badge-red">Reconnecting...</span>}
           </div>
-          <h1 style={{ fontSize: "2.4rem" }}>
+          <h1 className="dash-title">
             Real-Time <span className="pill-highlight pill-pink">Candidate Rankings</span>
           </h1>
         </div>
 
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+        <div className="dash-header-actions">
           <Link to="/hr/dashboard" className="btn btn-secondary btn-lg">
             <ArrowLeft size={16} /> Back to Dashboard
           </Link>
@@ -218,17 +218,17 @@ export default function Dashboard() {
         <div className="grid-3" style={{ marginBottom: "2rem" }}>
           <div className="card-flat">
             <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>Total Applicants</div>
-            <div style={{ fontSize: "2.5rem", fontWeight: 700, fontFamily: "var(--font-heading)", marginTop: "0.25rem" }}>{entries.length}</div>
+            <div className="metric-value">{entries.length}</div>
           </div>
           <div className="card-flat">
             <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>Top Match Score</div>
-            <div style={{ fontSize: "2.5rem", fontWeight: 700, fontFamily: "var(--font-heading)", marginTop: "0.25rem", color: topScore >= 80 ? "var(--status-green)" : "var(--status-yellow)" }}>
+            <div className="metric-value" style={{ color: topScore >= 80 ? "var(--status-green)" : "var(--status-yellow)" }}>
               {topScore}
             </div>
           </div>
           <div className="card-flat">
             <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>Average Fit Score</div>
-            <div style={{ fontSize: "2.5rem", fontWeight: 700, fontFamily: "var(--font-heading)", marginTop: "0.25rem" }}>{avgScore}</div>
+            <div className="metric-value">{avgScore}</div>
           </div>
         </div>
       )}
@@ -239,11 +239,11 @@ export default function Dashboard() {
           <span style={{ fontSize: "0.85rem", fontWeight: 700, fontFamily: "var(--font-heading)" }}>Apply Link: </span>
           <code style={{ fontSize: "0.85rem", color: "var(--text-secondary)", wordBreak: "break-all" }}>{applyLink}</code>
         </div>
-        <div style={{ display: "flex", gap: "0.6rem" }}>
-          <button className="btn btn-secondary btn-sm" onClick={copyLink} type="button">
+        <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", width: "100%" }}>
+          <button className="btn btn-secondary btn-sm" onClick={copyLink} type="button" style={{ flex: 1, minWidth: "140px" }}>
             {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy Apply Link</>}
           </button>
-          <Link to={`/apply/${job_id ?? ""}`} target="_blank" className="btn btn-dark-pill btn-sm">
+          <Link to={`/apply/${job_id ?? ""}`} target="_blank" className="btn btn-dark-pill btn-sm" style={{ flex: 1, minWidth: "140px" }}>
             Open Apply Page <ExternalLink size={14} />
           </Link>
         </div>
@@ -266,7 +266,7 @@ export default function Dashboard() {
 
           <select
             className="form-input"
-            style={{ width: "auto" }}
+            style={{ width: "100%", maxWidth: "100%" }}
             value={fitFilter}
             onChange={(e) => setFitFilter(e.target.value)}
           >
@@ -304,37 +304,74 @@ export default function Dashboard() {
             <p style={{ color: "var(--text-secondary)" }}>Try adjusting your search query or filter settings.</p>
           </div>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ width: "90px" }}>Rank</th>
-                <th>Candidate Name</th>
-                <th style={{ width: "140px" }}>AI Fit Score</th>
-                <th>Workers AI Reasoning</th>
-                <th style={{ width: "160px" }}>Action</th>
-              </tr>
-            </thead>
-            <LayoutGroup id="leaderboard">
-              <tbody>
-                {filteredEntries.map((entry) => {
-                  const entryIndex = entries.findIndex((e) => e.id === entry.id);
-                  const tied =
-                    (entryIndex > 0 && entries[entryIndex - 1].score === entry.score) ||
-                    (entryIndex < entries.length - 1 && entries[entryIndex + 1].score === entry.score);
-                  return (
-                    <LeaderboardRow
-                      key={entry.id}
-                      entry={entry}
-                      rank={entryIndex + 1}
-                      tied={tied}
-                      isNew={newIds.has(entry.id)}
-                      jobId={job_id ?? ""}
-                    />
-                  );
-                })}
-              </tbody>
-            </LayoutGroup>
-          </table>
+          <>
+            <div className="leaderboard-cards">
+              {filteredEntries.map((entry) => {
+                const entryIndex = entries.findIndex((e) => e.id === entry.id);
+                const rank = entryIndex + 1;
+                const rankLabel = rank === 1 ? "🥇 #1" : rank === 2 ? "🥈 #2" : rank === 3 ? "🥉 #3" : `#${rank}`;
+                return (
+                  <div key={entry.id} className="leaderboard-card">
+                    <div className="leaderboard-card-header">
+                      <div>
+                        <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-muted)", marginBottom: "0.25rem" }}>
+                          {rankLabel}
+                        </div>
+                        <div style={{ fontWeight: 700, fontFamily: "var(--font-heading)", fontSize: "1.05rem" }}>
+                          {entry.name}
+                        </div>
+                      </div>
+                      {scoreBadge(entry.score)}
+                    </div>
+                    <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.5, marginBottom: "0.85rem" }}>
+                      {entry.reasoning}
+                    </p>
+                    <Link
+                      to={`/hr/candidate/${entry.id}?job_id=${job_id ?? ""}`}
+                      className="btn btn-dark-pill btn-sm"
+                      style={{ width: "100%" }}
+                    >
+                      View Candidate →
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="table-scroll table-desktop-only">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: "90px" }}>Rank</th>
+                    <th>Candidate Name</th>
+                    <th style={{ width: "140px" }}>AI Fit Score</th>
+                    <th>Workers AI Reasoning</th>
+                    <th style={{ width: "160px" }}>Action</th>
+                  </tr>
+                </thead>
+                <LayoutGroup id="leaderboard">
+                  <tbody>
+                    {filteredEntries.map((entry) => {
+                      const entryIndex = entries.findIndex((e) => e.id === entry.id);
+                      const tied =
+                        (entryIndex > 0 && entries[entryIndex - 1].score === entry.score) ||
+                        (entryIndex < entries.length - 1 && entries[entryIndex + 1].score === entry.score);
+                      return (
+                        <LeaderboardRow
+                          key={entry.id}
+                          entry={entry}
+                          rank={entryIndex + 1}
+                          tied={tied}
+                          isNew={newIds.has(entry.id)}
+                          jobId={job_id ?? ""}
+                        />
+                      );
+                    })}
+                  </tbody>
+                </LayoutGroup>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

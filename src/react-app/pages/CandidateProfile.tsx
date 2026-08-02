@@ -188,10 +188,10 @@ export default function CandidateProfile() {
 				</div>
 			)}
 
-			<div className="card" style={{ marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+			<div className="card dash-card-header">
 				<div>
 					<span className="section-tag">Candidate Settings</span>
-					<h1 style={{ fontSize: "2rem", margin: "0.4rem 0 0.5rem" }}>
+					<h1 className="dash-title">
 						Your <span className="pill-highlight pill-pink">Candidate Profile</span>
 					</h1>
 					<p style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>
@@ -436,12 +436,12 @@ export default function CandidateProfile() {
 					</p>
 				)}
 
-				<div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", marginTop: "1rem" }}>
+				<div className="dash-header-actions" style={{ marginTop: "1rem" }}>
 					<button
 						type="submit"
 						className="btn btn-dark-pill btn-lg"
 						disabled={saving}
-						style={{ minWidth: 180 }}
+						style={{ flex: 1, minWidth: "180px" }}
 					>
 						{saving
 							? "Saving profile..."
