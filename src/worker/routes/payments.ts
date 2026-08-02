@@ -152,4 +152,30 @@ payments.post("/verify", authenticate(), requireHR(), async (c) => {
 	});
 });
 
+// ── GET /api/payments/status ─────────────────────────────────────────────────
+
+payments.get("/status", authenticate(), requireHR(), async (c) => {
+	const user = c.get("user");
+
+	try {
+		const row = await c.env.DB.prepare(
+			`SELECT id, plan, status, signature_verified, created_at
+			   FROM payments
+			  WHERE user_id = ? AND status = 'paid' AND signature_verified = 1
+			  ORDER BY created_at DESC
+			  LIMIT 1`
+		)
+			.bind(user.id)
+			.first<{ id: string; plan: string; status: string; signature_verified: number; created_at: string }>();
+
+		if (row) {
+			return c.json({ subscribed: true, plan: row.plan, since: row.created_at });
+		}
+		return c.json({ subscribed: false });
+	} catch (err) {
+		console.error("[payments] status check failed:", String(err));
+		return c.json({ subscribed: false });
+	}
+});
+
 export default payments;

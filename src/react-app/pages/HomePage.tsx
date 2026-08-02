@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
@@ -179,6 +179,23 @@ export default function HomePage() {
 	const [subscribed, setSubscribed] = useState(false);
 	const [paymentLoading, setPaymentLoading] = useState(false);
 	const [paymentMsg, setPaymentMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+	const [isSubscribed, setIsSubscribed] = useState(false);
+
+	// Check if current HR user already has an active subscription
+	useEffect(() => {
+		const token = localStorage.getItem("token");
+		const role = localStorage.getItem("role");
+		if (!token || role !== "HR") return;
+
+		fetch("/api/payments/status", {
+			headers: { Authorization: `Bearer ${token}` },
+		})
+			.then((res) => (res.ok ? res.json() : null))
+			.then((data: { subscribed?: boolean } | null) => {
+				if (data?.subscribed) setIsSubscribed(true);
+			})
+			.catch(() => { /* ignore — non-critical */ });
+	}, []);
 
 	function handleSubscribe(e: React.FormEvent) {
 		e.preventDefault();
@@ -258,6 +275,7 @@ export default function HomePage() {
 						}
 
 						setPaymentMsg({ type: "success", text: "Payment successful! Your Growth plan is now active. 🎉" });
+						setIsSubscribed(true);
 					} catch (verifyErr) {
 						setPaymentMsg({
 							type: "error",
@@ -438,16 +456,27 @@ export default function HomePage() {
 							</ul>
 							<div style={{ marginTop: "auto" }}>
 								{p.razorpay ? (
-									<button
-										type="button"
-										id="razorpay-checkout-btn"
-										className="btn btn-primary"
-										style={{ width: "100%" }}
-										disabled={paymentLoading}
-										onClick={() => void handleRazorpayCheckout(p.amountPaise!, p.name.toLowerCase())}
-									>
-										{paymentLoading ? "Processing…" : p.cta}
-									</button>
+									isSubscribed ? (
+										<button
+											type="button"
+											className="btn btn-subscribed"
+											style={{ width: "100%" }}
+											disabled
+										>
+											<Check size={16} /> Subscribed
+										</button>
+									) : (
+										<button
+											type="button"
+											id="razorpay-checkout-btn"
+											className="btn btn-primary"
+											style={{ width: "100%" }}
+											disabled={paymentLoading}
+											onClick={() => void handleRazorpayCheckout(p.amountPaise!, p.name.toLowerCase())}
+										>
+											{paymentLoading ? "Processing…" : p.cta}
+										</button>
+									)
 								) : (
 									<Link
 										to={p.ctaTo}
