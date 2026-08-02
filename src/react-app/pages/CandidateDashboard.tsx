@@ -123,7 +123,7 @@ export default function CandidateDashboard() {
             Welcome back, <strong style={{ color: "var(--text-primary)" }}>{name}</strong>.
           </p>
         </div>
-        <div style={{ display: "flex", gap: ".75rem", flexWrap: "wrap" }}>
+        <div className="dash-header-actions">
           <Link to="/candidate/profile" className="btn btn-outline" style={{ fontSize: ".82rem" }}>
             Edit Profile
           </Link>
