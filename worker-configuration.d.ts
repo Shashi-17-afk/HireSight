@@ -6,6 +6,8 @@ interface __BaseEnv_Env {
 	VECTORIZE: VectorizeIndex;
 	AI: Ai;
 	JWT_SECRET: string;
+	RAZORPAY_KEY_ID: string;
+	RAZORPAY_KEY_SECRET: string;
 	LEADERBOARD: DurableObjectNamespace<import("./src/worker/index").LeaderboardDO>;
 	CANDIDATE_STATUS: DurableObjectNamespace<import("./src/worker/index").CandidateStatusDO>;
 	RATE_LIMIT: KVNamespace;
