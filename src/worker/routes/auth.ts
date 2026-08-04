@@ -45,7 +45,7 @@ auth.post("/register/hr", async (c) => {
     {
       userId,
       role: "HR",
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24, // 24h
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // 30 days
     },
     jwtSecret
   );
@@ -92,7 +92,7 @@ auth.post("/register/candidate", async (c) => {
     {
       userId,
       role: "candidate",
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24, // 24h
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // 30 days
     },
     jwtSecret
   );
@@ -129,7 +129,7 @@ auth.post("/login/hr", async (c) => {
     {
       userId: user.id,
       role: user.role,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24, // 24h
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // 30 days
     },
     jwtSecret
   );
@@ -166,7 +166,7 @@ auth.post("/login/candidate", async (c) => {
     {
       userId: user.id,
       role: user.role,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24, // 24h
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // 30 days
     },
     jwtSecret
   );

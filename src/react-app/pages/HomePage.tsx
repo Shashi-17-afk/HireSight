@@ -190,7 +190,14 @@ export default function HomePage() {
 		fetch("/api/payments/status", {
 			headers: { Authorization: `Bearer ${token}` },
 		})
-			.then((res) => (res.ok ? res.json() : null))
+			.then((res) => {
+				if (res.status === 401) {
+					localStorage.clear();
+					window.dispatchEvent(new Event("storage"));
+					return null;
+				}
+				return res.ok ? res.json() : null;
+			})
 			.then((data: { subscribed?: boolean } | null) => {
 				if (data?.subscribed) setIsSubscribed(true);
 			})
@@ -222,6 +229,12 @@ export default function HomePage() {
 				},
 				body: JSON.stringify({ amount: amountPaise, currency: "INR", plan: planName }),
 			});
+
+			if (orderRes.status === 401) {
+				localStorage.clear();
+				window.dispatchEvent(new Event("storage"));
+				throw new Error("Your session has expired. Please sign in again.");
+			}
 
 			if (!orderRes.ok) {
 				const errData = (await orderRes.json()) as { error?: string };
