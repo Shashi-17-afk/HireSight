@@ -67,7 +67,7 @@ jobs.get("/", async (c) => {
       `SELECT id, title, description, created_at, status,
         (SELECT COUNT(*) FROM candidates WHERE candidates.job_id = jobs.id) AS applicant_count
        FROM jobs
-       WHERE user_id = ? OR user_id IS NULL
+       WHERE user_id = ?
        ORDER BY created_at DESC`
     ).bind(hrUserId).all<{ id: string; title: string; description: string; created_at: string; status: string; applicant_count: number }>();
 
