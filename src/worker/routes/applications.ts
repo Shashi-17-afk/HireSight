@@ -31,7 +31,7 @@ applications.get('/hired', authenticate(), requireHR(), async (c) => {
 		JOIN candidates cand ON cand.id = a.candidate_submission_id
 		JOIN jobs j          ON j.id    = a.job_id
 		LEFT JOIN candidate_profiles cp ON cp.user_id = a.user_id
-		WHERE (j.user_id = ? OR j.user_id IS NULL) AND a.status IN ('hired', 'offered')
+		WHERE j.user_id = ? AND a.status IN ('hired', 'offered')
 		ORDER BY a.updated_at DESC
 	`).bind(hrUser.id).all();
 
