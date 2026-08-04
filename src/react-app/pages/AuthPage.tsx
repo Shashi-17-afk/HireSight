@@ -8,6 +8,23 @@ interface AuthPageProps {
   role: "hr" | "candidate";
 }
 
+function isTokenValid(token: string | null): boolean {
+  if (!token) return false;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    if (payload.exp && typeof payload.exp === "number") {
+      if (Date.now() / 1000 >= payload.exp) {
+        return false;
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function AuthPage({ mode, role }: AuthPageProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -16,7 +33,7 @@ export default function AuthPage({ mode, role }: AuthPageProps) {
   const existingToken = localStorage.getItem("token");
   const existingRole = localStorage.getItem("role");
 
-  if (existingToken && existingRole) {
+  if (existingToken && existingRole && isTokenValid(existingToken)) {
     const destination =
       redirectTo && existingRole === "candidate"
         ? redirectTo
@@ -24,6 +41,9 @@ export default function AuthPage({ mode, role }: AuthPageProps) {
         ? "/hr/dashboard"
         : "/candidate/dashboard";
     return <Navigate to={destination} replace />;
+  } else if (existingToken && !isTokenValid(existingToken)) {
+    localStorage.clear();
+    window.dispatchEvent(new Event("storage"));
   }
 
   const [name, setName] = useState("");

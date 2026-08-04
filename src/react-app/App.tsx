@@ -17,13 +17,35 @@ const HomePage = lazy(() => import("./pages/HomePage"));
 
 const PageFallback = <div className="page" style={{ color: "var(--text-muted)", textAlign: "center", paddingTop: "4rem" }}>Loading…</div>;
 
-// ── Auth helpers ──────────────────────────────────────────────────────────────
+function isTokenValid(token: string | null): boolean {
+	if (!token) return false;
+	try {
+		const parts = token.split(".");
+		if (parts.length !== 3) return false;
+		const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+		if (payload.exp && typeof payload.exp === "number") {
+			if (Date.now() / 1000 >= payload.exp) {
+				return false;
+			}
+		}
+		return true;
+	} catch {
+		return false;
+	}
+}
 
 function getAuth() {
 	const token = localStorage.getItem("token");
 	const role = localStorage.getItem("role");
 	const name = localStorage.getItem("name");
-	return token && role && name ? { token, role, name } : null;
+	if (token && role && name && isTokenValid(token)) {
+		return { token, role, name };
+	}
+	if (token && !isTokenValid(token)) {
+		localStorage.clear();
+		window.dispatchEvent(new Event("storage"));
+	}
+	return null;
 }
 
 function ProtectedRoute({ children, allowedRole }: { children: React.ReactNode; allowedRole: "HR" | "candidate" }) {
