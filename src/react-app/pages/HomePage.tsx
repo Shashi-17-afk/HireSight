@@ -318,9 +318,15 @@ export default function HomePage() {
 				</p>
 
 				<div className="hero-cta-group">
-					<Link to="/register/hr" className="btn btn-dark-pill btn-lg">
-						Start hiring free <ArrowRight size={18} />
-					</Link>
+					{Boolean(localStorage.getItem("token") && localStorage.getItem("role")) ? (
+						<Link to={localStorage.getItem("role") === "HR" ? "/hr/dashboard" : "/candidate/dashboard"} className="btn btn-dark-pill btn-lg">
+							Go to Dashboard <ArrowRight size={18} />
+						</Link>
+					) : (
+						<Link to="/register/hr" className="btn btn-dark-pill btn-lg">
+							Start hiring free <ArrowRight size={18} />
+						</Link>
+					)}
 					<Link to="/jobs" className="btn btn-secondary btn-lg">
 						Explore openings
 					</Link>
@@ -479,11 +485,15 @@ export default function HomePage() {
 									)
 								) : (
 									<Link
-										to={p.ctaTo}
+										to={
+											Boolean(localStorage.getItem("token") && localStorage.getItem("role")) && p.ctaTo.startsWith("/register")
+												? (localStorage.getItem("role") === "HR" ? "/hr/dashboard" : "/candidate/dashboard")
+												: p.ctaTo
+										}
 										className={`btn ${p.featured ? "btn-secondary" : "btn-primary"}`}
 										style={{ width: "100%" }}
 									>
-										{p.cta}
+										{Boolean(localStorage.getItem("token") && localStorage.getItem("role")) && p.ctaTo.startsWith("/register") ? "Go to Dashboard" : p.cta}
 									</Link>
 								)}
 							</div>

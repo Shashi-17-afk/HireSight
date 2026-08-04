@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import Seo from "../components/Seo";
 
 
@@ -12,6 +12,20 @@ export default function AuthPage({ mode, role }: AuthPageProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get("redirect");
+
+  const existingToken = localStorage.getItem("token");
+  const existingRole = localStorage.getItem("role");
+
+  if (existingToken && existingRole) {
+    const destination =
+      redirectTo && existingRole === "candidate"
+        ? redirectTo
+        : existingRole === "HR"
+        ? "/hr/dashboard"
+        : "/candidate/dashboard";
+    return <Navigate to={destination} replace />;
+  }
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
