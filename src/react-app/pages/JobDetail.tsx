@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { Trash2 } from "lucide-react";
 import Seo from "../components/Seo";
 
 interface JobFull {
@@ -8,6 +9,7 @@ interface JobFull {
 	description: string;
 	created_at: string;
 	status: string;
+	user_id?: string | null;
 	applicant_count: number;
 }
 
@@ -69,11 +71,33 @@ export default function JobDetail() {
 	const [job, setJob] = useState<JobFull | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
+	const [showDeleteModal, setShowDeleteModal] = useState(false);
+	const [confirmTitle, setConfirmTitle] = useState("");
+	const [deleting, setDeleting] = useState(false);
 
 	// Auth state for gate logic
 	const token = localStorage.getItem("token");
 	const role  = localStorage.getItem("role");
 	const isCandidate = !!token && role === "candidate";
+	const isHR = !!token && role === "hr";
+
+	async function handleDeleteJob() {
+		if (!job || !token) return;
+		setDeleting(true);
+		try {
+			const res = await fetch(`/api/jobs/${job.id}`, {
+				method: "DELETE",
+				headers: { Authorization: `Bearer ${token}` },
+			});
+			const data = (await res.json()) as { error?: string; message?: string };
+			if (!res.ok) throw new Error(data.error ?? "Failed to delete job");
+
+			navigate("/hr/dashboard");
+		} catch (err) {
+			alert(err instanceof Error ? err.message : "Failed to delete job");
+			setDeleting(false);
+		}
+	}
 
 	useEffect(() => {
 		if (!job_id) return;
@@ -188,6 +212,16 @@ export default function JobDetail() {
 					<span className="job-meta-badge" style={{ color: "var(--green)", borderColor: "var(--green-border)", background: "var(--green-bg)" }}>
 						● Actively hiring
 					</span>
+					{isHR && (
+						<button
+							type="button"
+							className="btn btn-secondary btn-sm"
+							style={{ color: "#ef4444", borderColor: "rgba(239,68,68,0.3)", marginLeft: "auto" }}
+							onClick={() => { setShowDeleteModal(true); setConfirmTitle(""); }}
+						>
+							<Trash2 size={14} /> Delete Position
+						</button>
+					)}
 				</div>
 			</div>
 
@@ -233,6 +267,59 @@ export default function JobDetail() {
 			<p style={{ marginTop: "1.25rem", fontSize: ".78rem", color: "var(--text-muted)", textAlign: "center" }}>
 				Your resume is scored instantly by AI · Results are private to you
 			</p>
+
+			{/* Permanent Delete Confirmation Modal */}
+			{showDeleteModal && (
+				<div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: "1rem" }}>
+					<div className="card" style={{ maxWidth: 480, width: "100%", padding: "2rem", boxShadow: "0 20px 40px rgba(0,0,0,0.3)" }}>
+						<h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#ef4444", marginTop: 0, marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+							<Trash2 size={22} /> Permanently Delete Job Role?
+						</h2>
+						<p style={{ fontSize: "0.92rem", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: "1rem" }}>
+							You are about to delete <strong>{job.title}</strong>. This action is <strong>permanent and irreversible</strong>. All candidate submissions, resume match scores, applications, status logs, and vector embeddings tied to this job will be permanently removed.
+						</p>
+						<p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
+							Type <strong>{job.title}</strong> to confirm:
+						</p>
+						<input
+							type="text"
+							className="form-input"
+							style={{ marginBottom: "1.5rem" }}
+							placeholder={job.title}
+							value={confirmTitle}
+							onChange={(e) => setConfirmTitle(e.target.value)}
+							autoFocus
+						/>
+						<div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+							<button
+								type="button"
+								className="btn btn-secondary btn-sm"
+								disabled={deleting}
+								onClick={() => { setShowDeleteModal(false); setConfirmTitle(""); }}
+							>
+								Cancel
+							</button>
+							<button
+								type="button"
+								className="btn btn-sm"
+								style={{
+									background: confirmTitle.trim().toLowerCase() === job.title.trim().toLowerCase() ? "#ef4444" : "#fca5a5",
+									color: "#ffffff",
+									cursor: confirmTitle.trim().toLowerCase() === job.title.trim().toLowerCase() && !deleting ? "pointer" : "not-allowed",
+									border: "none",
+									padding: "0.5rem 1.25rem",
+									borderRadius: "9999px",
+									fontWeight: 600,
+								}}
+								disabled={confirmTitle.trim().toLowerCase() !== job.title.trim().toLowerCase() || deleting}
+								onClick={handleDeleteJob}
+							>
+								{deleting ? "Deleting..." : "Permanently Delete Job"}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }
