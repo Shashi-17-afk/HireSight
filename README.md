@@ -1,8 +1,8 @@
-# HireSight — AI Resume Screener
+# HireSight — AI Resume Screener & Recruitment Platform
 
 > Post a job, share a link. AI scores every resume instantly and ranks candidates on a live leaderboard.
 
-Built for HR teams and candidates who want signal instead of noise in the first-pass screening round.
+HireSight is an edge-native, AI-powered recruitment platform built for modern HR teams and candidates. It replaces manual first-pass resume screening with semantic vector search, LLM-based fit scoring, real-time WebSocket leaderboards, and transactional email notifications.
 
 ---
 
@@ -12,40 +12,42 @@ Built for HR teams and candidates who want signal instead of noise in the first-
 
 ---
 
-## Features
+## Key Features
 
-- **Post a job in 30 seconds** — fill in title and description, get a shareable apply link instantly
-- **Parse resumes in the browser** — candidates upload a PDF; text is extracted client-side via PDF.js (the file never leaves their device)
-- **Score resumes with a two-stage AI pipeline** — semantic similarity via Vectorize embeddings + LLM scoring (0–100) with a 2-line reasoning
-- **Watch the leaderboard update live** — WebSocket-powered dashboard (`LeaderboardDO`); new candidates appear and re-rank in real time without page refresh
-- **IP-based rate limiting** — Cloudflare KV (`RATE_LIMIT`) restricts resume submissions (5 per IP / 60s) to prevent spam
-- **Role-based portals & authentication** — separate authenticated dashboards for HR recruiters and candidates with JWT session handling
-- **Candidate profiles & ATS application tracking** — candidates manage their profile details and track past application statuses in real time via WebSocket (`CandidateStatusDO`)
-- **HR candidate management pipeline** — recruiters inspect submission details, full extracted resume text, and update candidate ATS statuses (Reviewed, Interviewing, Offer Extended, Hired, Rejected)
-- **Filter and search candidates** — filter candidates by title, name, or fit category (Strong ≥ 80 / Potential 50–79 / No Match < 50)
+- ⚡ **Instant Job Postings** — Post a job opening in seconds; receive a unique, shareable candidate application link instantly.
+- 🔒 **Zero-Server Browser PDF Parsing** — Candidates upload PDF resumes; text extraction occurs entirely client-side via PDF.js without raw file bytes leaving their device.
+- 🧠 **Two-Stage AI Scoring Pipeline** — 768-dimensional semantic embeddings via `bge-base-en-v1.5` on Cloudflare Vectorize paired with LLM scoring (`llama-3.1-8b-instruct-fast`) generating a 0–100 score and concise reasoning.
+- 📊 **Real-Time WebSocket Leaderboards** — Stateful `LeaderboardDO` Durable Objects stream live applicant scores and re-rankings to recruiter dashboards without page refreshes.
+- 🔑 **Secure 4-Digit Email OTP Password Reset** — Dedicated forgot/reset password system with 4-digit numeric verification codes dispatched via transactional email, 60s cooldowns, and 5-attempt brute-force protection.
+- 📩 **Transactional Email Engine** — Automated welcome emails, application submission receipts, status updates, applicant alerts, and subscription receipts powered by Brevo & Resend APIs.
+- 💳 **Recruiter Workspace & Razorpay Payments** — Subscription plan upgrades for HR teams with Razorpay order creation, Web Crypto HMAC-SHA256 signature verification, and automated payment receipts.
+- 👤 **Dual Role Portals & Application Tracking** — Separate authenticated workflows for HR Recruiters (pipeline management, status updates) and Candidates (profile management, real-time status updates via `CandidateStatusDO`).
+- 🛡️ **KV Rate-Limiting & Security** — Cloudflare KV (`RATE_LIMIT`) enforces IP-based candidate submission caps (5 per IP / 60s) and anti-enumeration OTP rate limits.
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| Runtime | [Cloudflare Workers](https://workers.cloudflare.com/) | Serverless, globally distributed, zero cold start |
-| API framework | [Hono](https://hono.dev/) | Built for edge runtimes; typed middleware; tiny bundle |
-| Database | [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite) | Relational, co-located with Workers, no round-trip latency |
-| AI inference | [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/) | `bge-base-en-v1.5` embeddings + `llama-3.1-8b-instruct-fast` scoring, no external API keys |
-| Vector search | [Cloudflare Vectorize](https://developers.cloudflare.com/vectorize/) | 768-dim cosine similarity between resume and JD embeddings |
-| Real-time state | [Cloudflare Durable Objects](https://developers.cloudflare.com/durable-objects/) | Stateful WebSocket hubs: `LeaderboardDO` (per-job leaderboard) & `CandidateStatusDO` (candidate status stream) |
-| Rate limiting | [Cloudflare KV](https://developers.cloudflare.com/kv/) | High-speed IP-based rate limiting (`RATE_LIMIT` namespace) |
-| Frontend | React 19 + TypeScript + Vite + Motion | Component-based UI, Motion micro-animations, lazy-loaded routes |
-| PDF parsing | [pdfjs-dist](https://mozilla.github.io/pdf.js/) | Client-side text extraction — no server upload of file bytes |
-| Auth | PBKDF2 password hashing + HS256 JWT | Standards-compliant, runs natively in the Workers crypto API |
+| Layer | Technology | Purpose & Advantages |
+|-------|-----------|----------------------|
+| **Runtime** | [Cloudflare Workers](https://workers.cloudflare.com/) | Serverless edge execution, zero cold starts, global distribution |
+| **API Framework** | [Hono](https://hono.dev/) | Lightweight, ultra-fast routing with typed middleware |
+| **Database** | [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite) | Co-located relational database with zero round-trip latency |
+| **AI Inference** | [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/) | Native `bge-base-en-v1.5` embeddings & `llama-3.1-8b-instruct-fast` LLM scoring |
+| **Vector Search** | [Cloudflare Vectorize](https://developers.cloudflare.com/vectorize/) | 768-dim cosine similarity index between job descriptions & candidate resumes |
+| **Real-Time State** | [Cloudflare Durable Objects](https://developers.cloudflare.com/durable-objects/) | `LeaderboardDO` (live per-job rankings) & `CandidateStatusDO` (candidate status stream) |
+| **Rate Limiting & OTP** | [Cloudflare KV](https://developers.cloudflare.com/kv/) | `RATE_LIMIT` namespace for IP throttling, 4-digit OTP state & attempt counters |
+| **Frontend** | React 19 + TypeScript + Vite | Component-driven SPA, Motion micro-animations, lazy-loaded routes |
+| **PDF Extraction** | [pdfjs-dist](https://mozilla.github.io/pdf.js/) | Client-side resume text parsing (privacy-preserving) |
+| **Email Service** | [Brevo REST API](https://www.brevo.com/) / Resend | High-deliverability transactional emails (welcome, status, OTP, receipts) |
+| **Payment Gateway** | [Razorpay API](https://razorpay.com/) | Order creation & Web Crypto HMAC-SHA256 signature verification |
+| **Authentication** | PBKDF2 + HS256 JWT | Standards-compliant password hashing and session tokens |
 
 ---
 
 ## Quick Start
 
-### 1. Clone and install
+### 1. Clone & Install Dependencies
 
 ```bash
 git clone https://github.com/Shashi-17-afk/Cloudflare_Hackathon.git hiresight
@@ -53,40 +55,39 @@ cd hiresight
 npm install
 ```
 
-### 2. Authenticate Wrangler
+### 2. Authenticate Wrangler CLI
 
 ```bash
 npx wrangler login
 ```
 
-### 3. Set environment variables
+### 3. Environment Setup
 
 ```bash
 cp .env.example .dev.vars
-# Edit .dev.vars — set JWT_SECRET to a strong random value
-# Generate one: openssl rand -hex 32
+# Edit .dev.vars and set required secrets:
+# JWT_SECRET (generate using: openssl rand -hex 32)
+# BREVO_API_KEY / RESEND_API_KEY (for transactional email dispatch)
+# RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET (for recruiter subscriptions)
 ```
 
-### 4. Run database migrations
+### 4. Run D1 Database Migrations
 
 ```bash
-# Local D1 (for development)
+# Local D1 SQLite (for development)
 npm run db:migrate:local
 
-# Production D1 (when ready to deploy)
+# Production Cloudflare D1 (for deployment)
 npm run db:migrate:remote
 ```
 
-### 5. Start the dev server
+### 5. Start Development Server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173).  
-The React app and the Cloudflare Worker both run locally — no remote calls needed for the core flow.
-
-> **Note:** Workers AI and Vectorize require a Cloudflare account even in local development. If they are unavailable, resume scoring falls back to a semantic-only score.
+Open [http://localhost:5173](http://localhost:5173). Both the Vite React frontend and the Cloudflare Worker API run locally with hot module replacement.
 
 ---
 
@@ -94,114 +95,119 @@ The React app and the Cloudflare Worker both run locally — no remote calls nee
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `JWT_SECRET` | **Yes** | Secret used to sign and verify HS256 JWTs. Set via `wrangler secret put JWT_SECRET` in production. Must be at least 32 characters. |
+| `JWT_SECRET` | **Yes** | Secret key for signing HS256 JWTs. Set via `wrangler secret put JWT_SECRET` in production (min 32 chars). |
+| `BREVO_API_KEY` | Optional | Brevo API key for transactional emails (OTP, status updates, welcome, payment receipts). |
+| `RESEND_API_KEY` | Optional | Fallback email provider API key. |
+| `RAZORPAY_KEY_ID` | Optional | Razorpay Key ID for Recruiter Pro workspace subscriptions. |
+| `RAZORPAY_KEY_SECRET` | Optional | Razorpay Key Secret used to verify payment Web Crypto HMAC signatures. |
 
-The following are Cloudflare binding names declared in `wrangler.toml`:
+### Cloudflare Worker Bindings (`wrangler.toml`)
 
 | Binding | Type | Purpose |
 |---------|------|---------|
-| `DB` | D1 Database | Jobs, candidates, users, candidate profiles, and ATS applications tables |
-| `VECTORIZE` | Vectorize Index | Resume and JD embeddings (768-dim) |
-| `AI` | Workers AI | Embedding model + LLM scoring |
-| `LEADERBOARD` | Durable Object | Per-job WebSocket leaderboard hub |
-| `CANDIDATE_STATUS` | Durable Object | Per-candidate WebSocket real-time status notification hub |
-| `RATE_LIMIT` | KV Namespace | High-speed IP-based rate limiting on candidate submissions |
-
----
-
-## Architecture & Documentation
-
-HireSight runs entirely on Cloudflare's developer platform. The React SPA is served as static assets from the CDN. All API calls and WebSocket connections route to a single Cloudflare Worker (Hono), which orchestrates D1, Workers AI, Vectorize, KV, and Durable Objects.
-
-See [docs/architecture.md](docs/architecture.md) for the entity-relationship diagram, auth flows, and core technical decisions that shaped the implementation.
-
+| `DB` | D1 Database | Storage for users, jobs, candidates, profiles, applications, and payments |
+| `VECTORIZE` | Vectorize Index | 768-dim vector embeddings (`resumes_index`) |
+| `AI` | Workers AI | `bge-base-en-v1.5` & `llama-3.1-8b-instruct-fast` inference |
+| `LEADERBOARD` | Durable Object | Per-job WebSocket real-time leaderboard hub |
+| `CANDIDATE_STATUS` | Durable Object | Per-candidate WebSocket real-time application status hub |
+| `RATE_LIMIT` | KV Namespace | High-speed IP rate limiting & 4-digit OTP state management |
 
 ---
 
 ## API Reference
 
+### Authentication & Password Management
+
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/health` | Public | Liveness check |
-| `POST` | `/api/auth/register/hr` | Public | Register an HR account |
-| `POST` | `/api/auth/register/candidate` | Public | Register a candidate account |
-| `POST` | `/api/auth/login/hr` | Public | HR login → JWT |
-| `POST` | `/api/auth/login/candidate` | Public | Candidate login → JWT |
-| `POST` | `/api/jobs` | HR JWT | Create job + embed JD |
-| `GET` | `/api/jobs` | Public | List all open jobs (with applicant count) |
-| `GET` | `/api/jobs/:id` | Public | Get single job details |
-| `POST` | `/api/candidates` | Public | Submit resume → rate-limit check + AI score |
-| `GET` | `/api/candidates/my-applications` | Candidate JWT | View candidate application history |
-| `GET` | `/api/profile` | Candidate JWT | Fetch candidate profile |
-| `PUT` | `/api/profile` | Candidate JWT | Update candidate profile |
-| `GET` | `/api/applications` | HR JWT | List candidate applications (ATS pipeline) |
-| `GET` | `/api/applications/:id` | HR JWT | Get single candidate application details |
-| `PATCH` | `/api/applications/:id/status` | HR JWT | Update candidate application status |
-| `GET` | `/api/leaderboard/:job_id` | HR JWT | REST snapshot of leaderboard |
-| `WS` | `/api/leaderboard/:job_id/ws` | HR JWT (`?token=`) | Live leaderboard WebSocket stream |
-| `WS` | `/api/status/ws` | Candidate JWT (`?token=`) | Live candidate status WebSocket stream |
+| `POST` | `/api/auth/register/hr` | Public | Register HR Recruiter account & send welcome email |
+| `POST` | `/api/auth/register/candidate` | Public | Register Candidate account & send welcome email |
+| `POST` | `/api/auth/login/hr` | Public | Recruiter login → Returns JWT |
+| `POST` | `/api/auth/login/candidate` | Public | Candidate login → Returns JWT |
+| `POST` | `/api/auth/forgot-password` | Public | Generate & email 4-digit OTP code (IP & email rate limited) |
+| `POST` | `/api/auth/verify-otp` | Public | Verify 4-digit OTP code (tracked max 5 failed attempts) |
+| `POST` | `/api/auth/reset-password` | Public | Update password using 4-digit OTP code |
+
+### Jobs & Candidates API
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/jobs` | HR JWT | Create job opening & store JD vector embedding |
+| `GET` | `/api/jobs` | Public | List open job postings with candidate counts |
+| `GET` | `/api/jobs/:id` | Public | Get details for a specific job posting |
+| `POST` | `/api/candidates` | Public | Submit parsed resume → Vectorize + Workers AI scoring |
+| `GET` | `/api/candidates/my-applications` | Candidate JWT | List candidate's submitted applications |
+| `GET` | `/api/profile` | Candidate JWT | Fetch logged-in candidate profile |
+| `PUT` | `/api/profile` | Candidate JWT | Update candidate profile details |
+
+### ATS Pipeline & Leaderboards
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/applications` | HR JWT | List candidate applications with search/fit filters |
+| `GET` | `/api/applications/:id` | HR JWT | Inspect candidate application & full resume text |
+| `PATCH` | `/api/applications/:id/status` | HR JWT | Update ATS candidate status (Shortlisted, Interview, Hired, etc.) |
+| `GET` | `/api/leaderboard/:job_id` | HR JWT | REST snapshot of job candidate leaderboard |
+| `WS` | `/api/leaderboard/:job_id/ws` | HR JWT (`?token=`) | WebSocket stream for live leaderboard updates |
+| `WS` | `/api/status/ws` | Candidate JWT (`?token=`) | WebSocket stream for real-time candidate status alerts |
+
+### Recruiter Subscriptions & Payments
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/payments/create-order` | HR JWT | Create Razorpay order for Recruiter workspace upgrade |
+| `POST` | `/api/payments/verify-signature` | HR JWT | Verify Razorpay HMAC-SHA256 signature & trigger receipt |
+| `POST` | `/api/payments/webhook` | Webhook | Handle asynchronous Razorpay payment events |
 
 ---
 
-## Demo
+## Live Demo & Reviewer Credentials
 
-**Live app:** [https://hiresight.shashishanthan2706.workers.dev](https://hiresight.shashishanthan2706.workers.dev)
+**Live Application:** [https://hiresight.shashishanthan2706.workers.dev](https://hiresight.shashishanthan2706.workers.dev)
 
-Use the pre-seeded demo accounts below to explore both portals immediately — no registration required.
+Explore the application immediately using the pre-seeded demo accounts:
 
-| Role | Email | Password |
-|------|-------|----------|
-| **HR / Recruiter** | `demo-hr@hiresight.dev` | `DemoHR2026!` |
-| **Candidate** | `demo@hiresight.dev` | `DemoCandidate2026!` |
+| Portal | Role | Email | Password |
+|--------|------|-------|----------|
+| Recruiter Workspace | **HR / Recruiter** | `demo-hr@hiresight.dev` | `DemoHR2026!` |
+| Candidate Portal | **Candidate** | `demo@hiresight.dev` | `DemoCandidate2026!` |
 
-**Suggested reviewer flow:**
-1. Log in as HR → post a job → copy the apply link
-2. Open the apply link in a private window → upload a PDF resume → submit
-3. Switch back to HR → watch the candidate appear on the live leaderboard in real time
-4. Update candidate status in HR portal → see status change pushed via WebSocket to candidate dashboard
+### Suggested Verification Flow
 
-> **Note:** These demo accounts have standard write access (not read-only). See [docs/architecture.md](docs/architecture.md) Known Limitations for context.
-
----
-
-## Testing
-
-Automated tests are on the roadmap. The recommended approach for this stack:
-
-- **Worker routes:** [Vitest](https://vitest.dev/) + Hono's `app.request()` test helper
-- **React components:** [Vitest](https://vitest.dev/) + [Testing Library](https://testing-library.com/)
-- **End-to-end:** [Playwright](https://playwright.dev/)
-
-PRs that add test coverage are very welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup.
+1. **Test 4-Digit Password Reset**:
+   - Navigate to `/forgot-password` (or click "Forgot password?" on any login form).
+   - Enter your email address to receive a 4-digit OTP email.
+   - Enter the 4-digit code in the auto-advancing OTP boxes, set a new password, and log in.
+2. **Test HR Job Creation & Candidate AI Scoring**:
+   - Log in as Recruiter → Create a new job posting → Copy the candidate apply link.
+   - Open the apply link in an Incognito window → Upload a PDF resume → Submit application.
+   - Watch the candidate appear on the HR Live Leaderboard in real time via Durable Objects!
+3. **Test Real-Time Status Notifications**:
+   - Change candidate status in HR dashboard → Watch candidate dashboard update instantly via WebSocket & receive status update email.
 
 ---
 
-## Roadmap
-
-- [x] Rate limiting on `POST /api/candidates` (prevent spam submissions)
-- [x] Candidate profile management & ATS candidate status pipeline
-- [ ] Email notification when a new top candidate is scored
-- [ ] HR filter: show only candidates above a custom score threshold
-- [ ] Multi-page resume support (currently merges all pages into one string)
-- [ ] R2 storage for raw PDFs (currently only extracted text is stored)
-- [ ] Lock CORS origin to production domain
-- [ ] Vitest unit tests for Worker routes and React components
-- [ ] GitHub Actions CI pipeline
-
----
-
-## Deployment
+## Deployment & Maintenance
 
 ```bash
-# Build and deploy to Cloudflare Workers
+# Build production bundle and deploy to Cloudflare Workers
 npm run deploy
 
-# Set production secrets (run once per environment)
+# Set production secrets
 wrangler secret put JWT_SECRET
+wrangler secret put BREVO_API_KEY
+wrangler secret put RAZORPAY_KEY_ID
+wrangler secret put RAZORPAY_KEY_SECRET
 
-# Regenerate TypeScript types after changing wrangler.toml
+# Regenerate Cloudflare Worker TypeScript bindings
 npm run cf-typegen
 ```
+
+---
+
+## Architecture Documentation
+
+For complete architectural diagrams, database schemas, WebSocket event formats, and design decisions, see [docs/architecture.md](docs/architecture.md).
 
 ---
 
