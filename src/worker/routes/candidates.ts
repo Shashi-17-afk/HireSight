@@ -3,6 +3,9 @@ import { verify } from "hono/jwt";
 import { authenticate, requireCandidate } from "../lib/auth";
 import type { AuthVariables } from "../lib/auth";
 
+import { sendEmail } from "../lib/email";
+import { getApplicantConfirmationEmail, getRecruiterNewApplicantAlertEmail } from "../lib/email-templates";
+
 const candidates = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
 // Authenticated candidate: view their own past applications.
@@ -143,10 +146,15 @@ candidates.post("/", async (c) => {
     }
   }
 
-  // Fetch the job from D1
-  const job = await c.env.DB.prepare("SELECT * FROM jobs WHERE id = ?")
+  // Fetch the job + recruiter info from D1
+  const job = await c.env.DB.prepare(
+    `SELECT j.id, j.title, j.description, j.user_id, u.name AS recruiter_name, u.email AS recruiter_email
+     FROM jobs j
+     LEFT JOIN users u ON u.id = j.user_id
+     WHERE j.id = ?`
+  )
     .bind(body.job_id)
-    .first<{ id: string; title: string; description: string }>();
+    .first<{ id: string; title: string; description: string; user_id: string | null; recruiter_name: string | null; recruiter_email: string | null }>();
 
   if (!job) {
     return c.json({ error: "Job not found" }, 404);
@@ -301,6 +309,41 @@ Resume: ${body.resume_text}`;
     );
   } catch {
     // Non-fatal — leaderboard will sync on next WebSocket connect
+  }
+
+  // Step 4g: Trigger transactional email notifications (non-blocking)
+  try {
+    // 1. Candidate confirmation email
+    const candidateTpl = getApplicantConfirmationEmail({
+      candidateName: body.name.trim(),
+      jobTitle: job.title,
+      dashboardUrl: "https://hiresight.shashishanthan2706.workers.dev/candidate/dashboard",
+    });
+    void sendEmail(c.env, {
+      to: body.email.trim(),
+      subject: candidateTpl.subject,
+      html: candidateTpl.html,
+    });
+
+    // 2. Recruiter instant applicant alert (if job has a registered recruiter)
+    if (job.recruiter_email) {
+      const alertTpl = getRecruiterNewApplicantAlertEmail({
+        recruiterName: job.recruiter_name ?? "Recruiter",
+        candidateName: body.name.trim(),
+        candidateEmail: body.email.trim(),
+        jobTitle: job.title,
+        matchScore: score,
+        reasoning,
+        hrDashboardUrl: `https://hiresight.shashishanthan2706.workers.dev/dashboard/${body.job_id}`,
+      });
+      void sendEmail(c.env, {
+        to: job.recruiter_email,
+        subject: alertTpl.subject,
+        html: alertTpl.html,
+      });
+    }
+  } catch (emailErr) {
+    console.error("[candidates] email dispatch error:", String(emailErr));
   }
 
   return c.json({ candidate_id: candidateId, score, reasoning }, 201);

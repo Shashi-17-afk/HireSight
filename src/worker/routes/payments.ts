@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { authenticate, requireHR } from "../lib/auth";
 import type { AuthVariables } from "../lib/auth";
+import { sendEmail } from "../lib/email";
+import { getRecruiterSubscriptionEmail } from "../lib/email-templates";
 
 const payments = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
@@ -140,8 +142,30 @@ payments.post("/verify", authenticate(), requireHR(), async (c) => {
 		)
 			.bind(razorpay_payment_id, razorpay_order_id)
 			.run();
+
+		// Trigger Subscription Receipt Email to HR Recruiter
+		const user = c.get("user");
+		const userDetails = await c.env.DB.prepare("SELECT name, email FROM users WHERE id = ?")
+			.bind(user.id)
+			.first<{ name: string; email: string }>();
+
+		if (userDetails?.email) {
+			const receiptTpl = getRecruiterSubscriptionEmail({
+				recruiterName: userDetails.name || "Recruiter",
+				planName: "Growth",
+				amountPaid: "₹4,099",
+				paymentId: razorpay_payment_id,
+				orderId: razorpay_order_id,
+				date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+			});
+			void sendEmail(c.env, {
+				to: userDetails.email,
+				subject: receiptTpl.subject,
+				html: receiptTpl.html,
+			});
+		}
 	} catch (err) {
-		console.error("[payments] D1 update failed:", String(err));
+		console.error("[payments] D1 update or email dispatch failed:", String(err));
 		// Still return success since the payment itself is verified
 	}
 
