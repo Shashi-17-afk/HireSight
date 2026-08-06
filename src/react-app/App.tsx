@@ -14,6 +14,7 @@ const CandidateProfile = lazy(() => import("./pages/CandidateProfile"));
 const CandidateDetail  = lazy(() => import("./pages/CandidateDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const HomePage = lazy(() => import("./pages/HomePage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 
 const PageFallback = <div className="page" style={{ color: "var(--text-muted)", textAlign: "center", paddingTop: "4rem" }}>Loading…</div>;
 
@@ -260,6 +261,8 @@ export default function App() {
 				<Route path="/login/candidate" element={<AuthPage mode="login" role="candidate" />} />
 				<Route path="/register/hr" element={<AuthPage mode="register" role="hr" />} />
 				<Route path="/register/candidate" element={<AuthPage mode="register" role="candidate" />} />
+				<Route path="/forgot-password" element={<Suspense fallback={PageFallback}><ForgotPasswordPage /></Suspense>} />
+				<Route path="/reset-password" element={<Suspense fallback={PageFallback}><ForgotPasswordPage /></Suspense>} />
 
 				{/* HR-protected routes */}
 				<Route

@@ -229,9 +229,19 @@ export default function AuthPage({ mode, role }: AuthPageProps) {
           </div>
 
           <div style={{ marginBottom: "1.75rem" }}>
-            <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.88rem", marginBottom: "0.4rem" }}>
-              Password
-            </label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+              <label style={{ fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.88rem" }}>
+                Password
+              </label>
+              {!isRegister && (
+                <Link
+                  to="/forgot-password"
+                  style={{ fontSize: "0.82rem", color: "var(--brand)", fontWeight: 600, textDecoration: "none" }}
+                >
+                  Forgot password?
+                </Link>
+              )}
+            </div>
             <input
               type="password"
               className="form-input"

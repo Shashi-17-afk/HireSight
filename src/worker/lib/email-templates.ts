@@ -193,6 +193,12 @@ export function getRecruiterNewApplicantAlertEmail(params: RecruiterNewApplicant
 	return { subject, html };
 }
 
+export interface OtpResetParams {
+	userName?: string;
+	otp: string;
+	expiresInMinutes?: number;
+}
+
 export interface PasswordResetParams {
 	userName?: string;
 	resetUrl: string;
@@ -207,7 +213,31 @@ export interface PaymentFailedParams {
 	retryPaymentUrl: string;
 }
 
-/** 5. Password Reset Email */
+/** 5. Password Reset OTP Email */
+export function getOtpResetEmail(params: OtpResetParams): { subject: string; html: string } {
+	const subject = `${params.otp} is your HireSight verification code`;
+	const html = baseWrapper(`
+		<h2 style="font-size: 20px; margin-top: 0; color: #0d0d0d;">Password Reset Code 🔑</h2>
+		<p>Hi <strong>${params.userName || "there"}</strong>,</p>
+		<p>Use the following 4-digit verification code to reset your HireSight account password:</p>
+
+		<div style="text-align: center; margin: 28px 0;">
+			<div style="display: inline-block; background: #f4f4f0; border: 2px dashed #0d0d0d; border-radius: 16px; padding: 16px 36px; letter-spacing: 12px; font-size: 36px; font-weight: 800; font-family: monospace; color: #0d0d0d;">
+				${params.otp}
+			</div>
+			<div style="font-size: 13px; color: #666666; margin-top: 10px;">
+				This code is valid for <strong>${params.expiresInMinutes ?? 10} minutes</strong>. Do not share this code with anyone.
+			</div>
+		</div>
+
+		<div style="font-size: 12px; color: #777777; margin-top: 20px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.06);">
+			If you did not request a password reset, please ignore this email or contact support if you suspect unauthorized activity on your account.
+		</div>
+	`);
+	return { subject, html };
+}
+
+/** 5b. Legacy Password Reset Email */
 export function getPasswordResetEmail(params: PasswordResetParams): { subject: string; html: string } {
 	const subject = "Reset your HireSight password";
 	const html = baseWrapper(`
