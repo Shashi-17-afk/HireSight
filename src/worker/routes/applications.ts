@@ -226,7 +226,7 @@ applications.patch('/:id/status', authenticate(), requireHR(), async (c) => {
 				note: body.note,
 				dashboardUrl: 'https://hiresight.shashishanthan2706.workers.dev/candidate/dashboard',
 			});
-			void sendEmail(c.env, {
+			await sendEmail(c.env, {
 				to: app.candidate_email,
 				subject: statusTpl.subject,
 				html: statusTpl.html,

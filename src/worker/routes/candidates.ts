@@ -319,7 +319,7 @@ Resume: ${body.resume_text}`;
       jobTitle: job.title,
       dashboardUrl: "https://hiresight.shashishanthan2706.workers.dev/candidate/dashboard",
     });
-    void sendEmail(c.env, {
+    await sendEmail(c.env, {
       to: body.email.trim(),
       subject: candidateTpl.subject,
       html: candidateTpl.html,
@@ -336,7 +336,7 @@ Resume: ${body.resume_text}`;
         reasoning,
         hrDashboardUrl: `https://hiresight.shashishanthan2706.workers.dev/dashboard/${body.job_id}`,
       });
-      void sendEmail(c.env, {
+      await sendEmail(c.env, {
         to: job.recruiter_email,
         subject: alertTpl.subject,
         html: alertTpl.html,
