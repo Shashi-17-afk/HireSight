@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Copy, Check, ArrowRight, LogOut, Inbox, UserCheck, ExternalLink, Mail, Phone } from "lucide-react";
+import { Plus, Copy, Check, ArrowRight, LogOut, Inbox, UserCheck, ExternalLink, Mail, Phone, Trash2 } from "lucide-react";
 import Seo from "../components/Seo";
 
 interface Job {
@@ -55,8 +55,41 @@ export default function HRDashboard() {
   const [postError, setPostError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Job deletion modal & toast state
+  const [deleteTargetJob, setDeleteTargetJob] = useState<Job | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const token = localStorage.getItem("token");
   const userName = localStorage.getItem("name") || "Recruiter";
+
+  async function handleDeleteJob() {
+    if (!deleteTargetJob || !token) return;
+    setDeleting(true);
+
+    try {
+      const res = await fetch(`/api/jobs/${deleteTargetJob.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) {
+        throw new Error(data.error ?? "Failed to delete job");
+      }
+
+      setJobs((prev) => prev.filter((j) => j.id !== deleteTargetJob.id));
+      setDeleteTargetJob(null);
+      setConfirmTitle("");
+      setToastMessage(`Job role "${deleteTargetJob.title}" permanently deleted.`);
+      setTimeout(() => setToastMessage(null), 4500);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Deletion failed");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   function handleSignOut() {
     localStorage.clear();
@@ -242,6 +275,14 @@ export default function HRDashboard() {
         </div>
       )}
 
+      {/* Toast Notification Banner */}
+      {toastMessage && (
+        <div className="card" style={{ background: "#ecfdf5", border: "1px solid #10b981", color: "#065f46", padding: "0.85rem 1.25rem", borderRadius: "10px", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <Check size={18} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Section Tabs */}
       <div className="tab-bar">
         <button
@@ -256,9 +297,18 @@ export default function HRDashboard() {
           onClick={() => setActiveTab("hired")}
           className={`tab-bar-btn${activeTab === "hired" ? " active" : ""}`}
         >
-          Hired Talent Roster ({hiredList.length})
+          Hired Talent Roster ({hiredCount + offeredCount})
         </button>
       </div>
+
+      {error && (
+        <div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem", marginBottom: "2rem" }}>
+          <p style={{ color: "var(--status-red)", marginBottom: "1.25rem", fontWeight: 600 }}>{error}</p>
+          <button onClick={fetchJobsAndHired} className="btn btn-secondary btn-sm">
+            Try Again
+          </button>
+        </div>
+      )}
 
       {/* Tab 1: Active Job Roles */}
       {activeTab === "jobs" && (
@@ -266,13 +316,6 @@ export default function HRDashboard() {
           {loading && (
             <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
               <p style={{ fontSize: "1.05rem" }}>Loading active job postings...</p>
-            </div>
-          )}
-
-          {error && (
-            <div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
-              <p style={{ color: "var(--status-red)", fontWeight: 600, marginBottom: "1rem" }}>{error}</p>
-              <button onClick={fetchJobsAndHired} className="btn btn-secondary btn-sm">Try Again</button>
             </div>
           )}
 
@@ -312,6 +355,17 @@ export default function HRDashboard() {
                     <Link to={`/dashboard/${j.id}`} className="btn btn-dark-pill btn-sm">
                       View Live Leaderboard <ArrowRight size={14} />
                     </Link>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      style={{ color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.3)" }}
+                      onClick={() => {
+                        setDeleteTargetJob(j);
+                        setConfirmTitle("");
+                      }}
+                    >
+                      <Trash2 size={14} /> Delete Job
+                    </button>
                   </div>
                 </div>
 
@@ -408,6 +462,59 @@ export default function HRDashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Permanent Delete Confirmation Modal */}
+      {deleteTargetJob && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: "1rem" }}>
+          <div className="card" style={{ maxWidth: 480, width: "100%", padding: "2rem", boxShadow: "0 20px 40px rgba(0,0,0,0.3)" }}>
+            <h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#ef4444", marginTop: 0, marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Trash2 size={22} /> Permanently Delete Job Role?
+            </h2>
+            <p style={{ fontSize: "0.92rem", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: "1rem" }}>
+              You are about to delete <strong>{deleteTargetJob.title}</strong>. This action is <strong>permanent and irreversible</strong>. All candidate submissions, resume match scores, applications, status logs, and vector embeddings tied to this job will be permanently removed.
+            </p>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.5rem" }}>
+              Type <strong>{deleteTargetJob.title}</strong> to confirm:
+            </p>
+            <input
+              type="text"
+              className="form-input"
+              style={{ marginBottom: "1.5rem" }}
+              placeholder={deleteTargetJob.title}
+              value={confirmTitle}
+              onChange={(e) => setConfirmTitle(e.target.value)}
+              autoFocus
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={deleting}
+                onClick={() => { setDeleteTargetJob(null); setConfirmTitle(""); }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                style={{
+                  background: confirmTitle.trim().toLowerCase() === deleteTargetJob.title.trim().toLowerCase() ? "#ef4444" : "#fca5a5",
+                  color: "#ffffff",
+                  cursor: confirmTitle.trim().toLowerCase() === deleteTargetJob.title.trim().toLowerCase() && !deleting ? "pointer" : "not-allowed",
+                  border: "none",
+                  padding: "0.5rem 1.25rem",
+                  borderRadius: "9999px",
+                  fontWeight: 600,
+                }}
+                disabled={confirmTitle.trim().toLowerCase() !== deleteTargetJob.title.trim().toLowerCase() || deleting}
+                onClick={handleDeleteJob}
+              >
+                {deleting ? "Deleting..." : "Permanently Delete Job"}
+              </button>
+            </div>
           </div>
         </div>
       )}
