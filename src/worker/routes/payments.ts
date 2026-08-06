@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { authenticate, requireHR } from "../lib/auth";
 import type { AuthVariables } from "../lib/auth";
 import { sendEmail } from "../lib/email";
-import { getRecruiterSubscriptionEmail } from "../lib/email-templates";
+import { getRecruiterSubscriptionEmail, getSubscriptionPaymentFailedEmail } from "../lib/email-templates";
 
 const payments = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
@@ -127,6 +127,32 @@ payments.post("/verify", authenticate(), requireHR(), async (c) => {
 
 	if (expectedSignature !== razorpay_signature) {
 		console.error("[payments] Signature mismatch for order", razorpay_order_id);
+
+		// Trigger Subscription Payment Failed Email to HR Recruiter
+		try {
+			const user = c.get("user");
+			const userDetails = await c.env.DB.prepare("SELECT name, email FROM users WHERE id = ?")
+				.bind(user.id)
+				.first<{ name: string; email: string }>();
+
+			if (userDetails?.email) {
+				const failedTpl = getSubscriptionPaymentFailedEmail({
+					recruiterName: userDetails.name || "Recruiter",
+					planName: "Growth",
+					amount: "₹4,099",
+					failureReason: "Payment verification failed due to invalid signature or declined authorization.",
+					retryPaymentUrl: "https://hiresight.shashishanthan2706.workers.dev/hr/dashboard",
+				});
+				await sendEmail(c.env, {
+					to: userDetails.email,
+					subject: failedTpl.subject,
+					html: failedTpl.html,
+				});
+			}
+		} catch (emailErr) {
+			console.error("[payments] Payment failed email dispatch error:", String(emailErr));
+		}
+
 		return c.json({ error: "Payment verification failed: signature mismatch" }, 400);
 	}
 

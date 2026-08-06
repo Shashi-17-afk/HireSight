@@ -192,3 +192,63 @@ export function getRecruiterNewApplicantAlertEmail(params: RecruiterNewApplicant
 	`);
 	return { subject, html };
 }
+
+export interface PasswordResetParams {
+	userName?: string;
+	resetUrl: string;
+	expiresInMinutes?: number;
+}
+
+export interface PaymentFailedParams {
+	recruiterName: string;
+	planName: string;
+	amount: string;
+	failureReason?: string;
+	retryPaymentUrl: string;
+}
+
+/** 5. Password Reset Email */
+export function getPasswordResetEmail(params: PasswordResetParams): { subject: string; html: string } {
+	const subject = "Reset your HireSight password";
+	const html = baseWrapper(`
+		<h2 style="font-size: 20px; margin-top: 0;">Password Reset Request 🔑</h2>
+		<p>Hi <strong>${params.userName || "there"}</strong>,</p>
+		<p>We received a request to reset the password for your HireSight account.</p>
+		
+		<p>Click the button below to set a new password. This link is valid for <strong>${params.expiresInMinutes ?? 60} minutes</strong> and can only be used once:</p>
+		
+		<div style="text-align: center; margin: 24px 0;">
+			<a href="${params.resetUrl}" class="btn">Reset Password →</a>
+		</div>
+
+		<div style="font-size: 12px; color: #777777; margin-top: 20px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.06);">
+			If you did not request a password reset, you can safely ignore this email — your password will remain unchanged.
+		</div>
+	`);
+	return { subject, html };
+}
+
+/** 6. Subscription Payment Failed Alert */
+export function getSubscriptionPaymentFailedEmail(params: PaymentFailedParams): { subject: string; html: string } {
+	const subject = "Payment Failed — Action Required for Your HireSight Subscription";
+	const html = baseWrapper(`
+		<h2 style="font-size: 20px; margin-top: 0; color: #ef4444;">Payment Failure Notice ⚠️</h2>
+		<p>Hi <strong>${params.recruiterName}</strong>,</p>
+		<p>We were unable to process your payment for the <strong>HireSight ${params.planName} Plan</strong> (${params.amount}).</p>
+
+		<div class="card-info" style="border-left: 4px solid #ef4444;">
+			<div style="font-size: 14px; font-weight: 700; color: #ef4444; margin-bottom: 8px;">Transaction Status</div>
+			<p style="font-size: 13px; margin: 0; color: #555555;">
+				${params.failureReason ?? "The payment attempt was declined or cancelled during verification."}
+			</p>
+		</div>
+
+		<p>To keep your HR recruitment dashboard active and avoid service disruption, please retry or update your payment method:</p>
+
+		<div style="text-align: center; margin: 24px 0;">
+			<a href="${params.retryPaymentUrl}" class="btn" style="background: #ef4444 !important;">Retry Payment Now →</a>
+		</div>
+	`);
+	return { subject, html };
+}
+
