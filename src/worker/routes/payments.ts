@@ -158,7 +158,7 @@ payments.post("/verify", authenticate(), requireHR(), async (c) => {
 				orderId: razorpay_order_id,
 				date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
 			});
-			void sendEmail(c.env, {
+			await sendEmail(c.env, {
 				to: userDetails.email,
 				subject: receiptTpl.subject,
 				html: receiptTpl.html,
