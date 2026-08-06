@@ -252,3 +252,42 @@ export function getSubscriptionPaymentFailedEmail(params: PaymentFailedParams): 
 	return { subject, html };
 }
 
+export interface WelcomeEmailParams {
+	userName: string;
+	role: "candidate" | "recruiter";
+	dashboardUrl: string;
+}
+
+/** 7. Welcome Email on Account Registration */
+export function getWelcomeEmail(params: WelcomeEmailParams): { subject: string; html: string } {
+	const subject = `Welcome to HireSight, ${params.userName}!`;
+	const isRecruiter = params.role === "recruiter";
+
+	const html = baseWrapper(`
+		<h2 style="font-size: 20px; margin-top: 0;">Welcome to HireSight! 🎉</h2>
+		<p>Hi <strong>${params.userName}</strong>,</p>
+		<p>Thank you for creating your HireSight account as a <strong>${isRecruiter ? "Recruiter" : "Candidate"}</strong>.</p>
+
+		<div class="card-info">
+			<div style="font-size: 14px; font-weight: 700; margin-bottom: 8px; color: #0d0d0d;">What's Next?</div>
+			${
+				isRecruiter
+					? `<p style="font-size: 13px; color: #555555; margin: 0;">
+							Create job postings, set custom AI screening criteria, and receive real-time match scores and candidate insights on your HR dashboard.
+					   </p>`
+					: `<p style="font-size: 13px; color: #555555; margin: 0;">
+							Browse open positions, upload your resume for instant AI scoring, and track all your application statuses live from your candidate dashboard.
+					   </p>`
+			}
+		</div>
+
+		<div style="text-align: center; margin: 24px 0;">
+			<a href="${params.dashboardUrl}" class="btn">
+				${isRecruiter ? "Open Recruiter Workspace →" : "Go to Candidate Dashboard →"}
+			</a>
+		</div>
+	`);
+	return { subject, html };
+}
+
+

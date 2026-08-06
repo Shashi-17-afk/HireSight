@@ -3,7 +3,7 @@ import { sign, verify } from "hono/jwt";
 import { hashPassword, verifyPassword } from "../lib/auth";
 import type { AuthVariables } from "../lib/auth";
 import { sendEmail } from "../lib/email";
-import { getPasswordResetEmail } from "../lib/email-templates";
+import { getPasswordResetEmail, getWelcomeEmail } from "../lib/email-templates";
 
 const auth = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
@@ -18,6 +18,8 @@ auth.post("/register/hr", async (c) => {
     return c.json({ error: "Password must be at least 8 characters" }, 400);
   }
 
+  const userName = body.name.trim();
+  const userEmail = body.email.trim().toLowerCase();
   const passwordHash = await hashPassword(body.password);
   const userId = crypto.randomUUID();
 
@@ -27,9 +29,9 @@ auth.post("/register/hr", async (c) => {
     )
       .bind(
         userId,
-        body.name.trim(),
+        userName,
         body.company_name?.trim() || null,
-        body.email.trim().toLowerCase(),
+        userEmail,
         passwordHash
       )
       .run();
@@ -40,6 +42,26 @@ auth.post("/register/hr", async (c) => {
     }
     return c.json({ error: "Failed to create user: " + msg }, 500);
   }
+
+  // Trigger non-blocking Welcome Email for Recruiter
+  c.executionCtx.waitUntil(
+    (async () => {
+      try {
+        const welcomeTpl = getWelcomeEmail({
+          userName,
+          role: "recruiter",
+          dashboardUrl: "https://hiresight.shashishanthan2706.workers.dev/hr/dashboard",
+        });
+        await sendEmail(c.env, {
+          to: userEmail,
+          subject: welcomeTpl.subject,
+          html: welcomeTpl.html,
+        });
+      } catch (welcomeErr) {
+        console.error("[auth] welcome email dispatch error for HR:", String(welcomeErr));
+      }
+    })()
+  );
 
   const jwtSecret = c.env.JWT_SECRET;
   if (!jwtSecret) return c.json({ error: "Server error: JWT_SECRET not configured" }, 500);
@@ -52,7 +74,7 @@ auth.post("/register/hr", async (c) => {
     jwtSecret
   );
 
-  return c.json({ token, role: "HR", name: body.name.trim(), userId }, 201);
+  return c.json({ token, role: "HR", name: userName, userId }, 201);
 });
 
 // POST /register/candidate
@@ -66,6 +88,8 @@ auth.post("/register/candidate", async (c) => {
     return c.json({ error: "Password must be at least 8 characters" }, 400);
   }
 
+  const userName = body.name.trim();
+  const userEmail = body.email.trim().toLowerCase();
   const passwordHash = await hashPassword(body.password);
   const userId = crypto.randomUUID();
 
@@ -75,8 +99,8 @@ auth.post("/register/candidate", async (c) => {
     )
       .bind(
         userId,
-        body.name.trim(),
-        body.email.trim().toLowerCase(),
+        userName,
+        userEmail,
         passwordHash
       )
       .run();
@@ -87,6 +111,26 @@ auth.post("/register/candidate", async (c) => {
     }
     return c.json({ error: "Failed to create user: " + msg }, 500);
   }
+
+  // Trigger non-blocking Welcome Email for Candidate
+  c.executionCtx.waitUntil(
+    (async () => {
+      try {
+        const welcomeTpl = getWelcomeEmail({
+          userName,
+          role: "candidate",
+          dashboardUrl: "https://hiresight.shashishanthan2706.workers.dev/candidate/dashboard",
+        });
+        await sendEmail(c.env, {
+          to: userEmail,
+          subject: welcomeTpl.subject,
+          html: welcomeTpl.html,
+        });
+      } catch (welcomeErr) {
+        console.error("[auth] welcome email dispatch error for Candidate:", String(welcomeErr));
+      }
+    })()
+  );
 
   const jwtSecret = c.env.JWT_SECRET;
   if (!jwtSecret) return c.json({ error: "Server error: JWT_SECRET not configured" }, 500);
@@ -99,7 +143,7 @@ auth.post("/register/candidate", async (c) => {
     jwtSecret
   );
 
-  return c.json({ token, role: "candidate", name: body.name.trim(), userId }, 201);
+  return c.json({ token, role: "candidate", name: userName, userId }, 201);
 });
 
 // POST /login/hr
