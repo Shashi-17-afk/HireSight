@@ -9,6 +9,7 @@ interface __BaseEnv_Env {
 	RAZORPAY_KEY_ID: string;
 	RAZORPAY_KEY_SECRET: string;
 	RESEND_API_KEY: string;
+	BREVO_API_KEY: string;
 	LEADERBOARD: DurableObjectNamespace<import("./src/worker/index").LeaderboardDO>;
 	CANDIDATE_STATUS: DurableObjectNamespace<import("./src/worker/index").CandidateStatusDO>;
 	RATE_LIMIT: KVNamespace;
