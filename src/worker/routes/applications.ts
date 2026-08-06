@@ -3,6 +3,8 @@ import { authenticate, requireHR } from '../lib/auth';
 import type { AuthVariables } from '../lib/auth';
 import { APPLICATION_STATUSES } from '../types/ats';
 import type { ApplicationStatus } from '../types/ats';
+import { sendEmail } from '../lib/email';
+import { getStatusUpdateEmail } from '../lib/email-templates';
 
 const applications = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
@@ -153,12 +155,16 @@ applications.patch('/:id/status', authenticate(), requireHR(), async (c) => {
 	const newStatus = body.status as ApplicationStatus;
 
 	const app = await c.env.DB.prepare(`
-		SELECT a.status, a.user_id, a.job_id, j.title AS job_title
+		SELECT a.status, a.user_id, a.job_id, j.title AS job_title,
+		       COALESCE(u.name, cand.name) AS candidate_name,
+		       COALESCE(u.email, cand.email) AS candidate_email
 		FROM applications a
 		JOIN jobs j ON j.id = a.job_id
+		LEFT JOIN candidates cand ON cand.id = a.candidate_submission_id
+		LEFT JOIN users u ON u.id = a.user_id
 		WHERE a.id = ?
 	`).bind(applicationId)
-	 .first<{ status: string; user_id: string | null; job_id: string; job_title: string }>();
+	 .first<{ status: string; user_id: string | null; job_id: string; job_title: string; candidate_name: string | null; candidate_email: string | null }>();
 
 	if (!app) return c.json({ error: 'Application not found' }, 404);
 
@@ -207,6 +213,26 @@ applications.patch('/:id/status', authenticate(), requireHR(), async (c) => {
 			}));
 		} catch {
 			// Non-fatal
+		}
+	}
+
+	// Trigger Status Change Email to candidate
+	if (app.candidate_email) {
+		try {
+			const statusTpl = getStatusUpdateEmail({
+				candidateName: app.candidate_name ?? 'Applicant',
+				jobTitle: app.job_title,
+				newStatus,
+				note: body.note,
+				dashboardUrl: 'https://hiresight.shashishanthan2706.workers.dev/candidate/dashboard',
+			});
+			void sendEmail(c.env, {
+				to: app.candidate_email,
+				subject: statusTpl.subject,
+				html: statusTpl.html,
+			});
+		} catch (emailErr) {
+			console.error('[applications] status email dispatch error:', String(emailErr));
 		}
 	}
 
