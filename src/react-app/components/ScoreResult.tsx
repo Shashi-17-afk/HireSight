@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { animate, motion, useReducedMotion } from "motion/react";
 
 interface ScoreResultData {
@@ -11,7 +12,7 @@ interface ScoreResultProps {
 }
 
 function scoreLabel(score: number): string {
-  if (score >= 80) return "Strong Fit ✓";
+  if (score >= 80) return "Strong fit";
   if (score >= 50) return "Potential Match";
   return "Not a Match";
 }
@@ -29,7 +30,7 @@ export default function ScoreResult({ result }: ScoreResultProps) {
     : "score-circle-fill-red";
 
   const scoreColor =
-    score >= 80 ? "var(--green)" : score >= 50 ? "var(--yellow)" : "var(--red)";
+    score >= 80 ? "var(--status-green)" : score >= 50 ? "var(--status-yellow)" : "var(--status-red)";
 
   const [displayScore, setDisplayScore] = useState(reduceMotion ? score : 0);
   const [showReasoning, setShowReasoning] = useState(!!reduceMotion);
@@ -59,14 +60,9 @@ export default function ScoreResult({ result }: ScoreResultProps) {
   }, [score, reduceMotion]);
 
   return (
-    <div className="page">
-      <div className="card score-result-card">
-        <div style={{ fontSize: "2rem", marginBottom: ".75rem" }}>
-          {score >= 80 ? "🎉" : score >= 50 ? "🤔" : "😔"}
-        </div>
-        <h2 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "1.5rem", letterSpacing: "-.02em" }}>
-          Your AI Match Score
-        </h2>
+    <div className="page hr-page apply-page">
+      <div className="hr-panel score-result-card">
+        <h2>Your AI match score</h2>
 
         <div className="score-circle-wrap">
           <svg width="180" height="180" viewBox="0 0 180 180">
@@ -118,9 +114,17 @@ export default function ScoreResult({ result }: ScoreResultProps) {
             {result.reasoning}
           </p>
         )}
-        <p style={{ fontSize: ".78rem", color: "var(--text-muted)" }}>
+        <p style={{ fontSize: ".78rem", color: "var(--text-muted)", marginBottom: "1.25rem" }}>
           Application submitted. The hiring team will review your profile.
         </p>
+        <div className="apply-gate-actions">
+          <Link to="/candidate/dashboard" className="btn btn-dark-pill">
+            View my applications
+          </Link>
+          <Link to="/jobs" className="btn btn-secondary">
+            Browse openings
+          </Link>
+        </div>
       </div>
     </div>
   );

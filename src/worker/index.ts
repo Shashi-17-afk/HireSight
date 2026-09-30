@@ -9,6 +9,7 @@ import auth from "./routes/auth";
 import profile from "./routes/profile";
 import applications from "./routes/applications";
 import payments from "./routes/payments";
+import help from "./routes/help";
 import { authenticate, requireHR } from "./lib/auth";
 import type { AuthVariables } from "./lib/auth";
 
@@ -22,7 +23,7 @@ app.use(
 	"/api/*",
 	cors({
 		origin: "*",
-		allowMethods: ["GET", "POST", "PUT", "PATCH", "OPTIONS"],
+		allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 		allowHeaders: ["Content-Type", "Authorization"],
 	})
 );
@@ -47,6 +48,9 @@ app.route("/api/applications", applications);
 
 // Payments — Razorpay checkout (create-order + verify)
 app.route("/api/payments", payments);
+
+// In-app help chatbot (HR + candidate)
+app.route("/api/help", help);
 
 // Candidate real-time status WebSocket.
 // Browsers can't send custom headers on WS upgrades, so JWT is passed as ?token=

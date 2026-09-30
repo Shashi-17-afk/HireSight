@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import * as pdfjsLib from "pdfjs-dist";
 import Seo from "../components/Seo";
 import AuthGate from "../components/AuthGate";
 import AlreadyApplied from "../components/AlreadyApplied";
 import ScoreResult from "../components/ScoreResult";
-import { Upload, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle, ArrowLeft, ArrowRight } from "lucide-react";
 
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
@@ -174,43 +174,40 @@ export default function ApplyJob() {
   }
 
   return (
-    <div className="page" style={{ maxWidth: "700px" }}>
+    <div className="page hr-page apply-page">
       <Seo
         title={job ? `Apply — ${job.title}` : "Apply"}
         description="Submit your resume for this role. AI scores and ranks every application in real time."
         noIndex
       />
+      <Link to={job_id ? `/jobs/${job_id}` : "/jobs"} className="hr-back">
+        <ArrowLeft size={14} /> Back to role
+      </Link>
       {jobLoading ? (
-        <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
-          <p style={{ fontSize: "1.05rem" }}>Loading job details...</p>
-        </div>
+        <div className="hr-empty-block">Loading application…</div>
       ) : jobError ? (
-        <div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
-          <AlertCircle size={36} style={{ color: "var(--status-red)", marginBottom: "0.5rem" }} />
+        <div className="hr-panel" style={{ textAlign: "center" }}>
+          <AlertCircle size={28} style={{ color: "var(--status-red)", marginBottom: "0.5rem" }} />
           <p style={{ color: "var(--status-red)", marginBottom: "1.25rem", fontWeight: 600 }}>{jobError}</p>
-          <button onClick={loadJob} className="btn btn-secondary btn-sm">
-            Try Again
+          <button type="button" onClick={loadJob} className="btn btn-secondary btn-sm">
+            Try again
           </button>
         </div>
       ) : (
         <>
-          <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-            <span className="section-tag">Instant AI Screener</span>
-            <h1 style={{ fontSize: "2.5rem", margin: "0.5rem 0" }}>
-              Apply for <span className="pill-highlight pill-yellow">{job?.title}</span>
-            </h1>
-            <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>
-              Upload your PDF resume to receive instant AI scoring & live leaderboard rank.
-            </p>
+          <div className="hr-profile-hero">
+            <div>
+              <h1>Apply for {job?.title}</h1>
+              <p>Upload a text-based PDF. Workers AI scores your fit against this role in seconds.</p>
+            </div>
           </div>
 
-          <div className="card">
+          <div className="hr-panel apply-form-panel">
             <form onSubmit={(e) => void handleSubmit(e)}>
-              <div style={{ marginBottom: "1.5rem" }}>
-                <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.4rem" }}>
-                  Full Name
-                </label>
+              <div className="apply-field">
+                <label htmlFor="apply-name">Full name</label>
                 <input
+                  id="apply-name"
                   type="text"
                   className="form-input"
                   placeholder="Jane Smith"
@@ -222,11 +219,10 @@ export default function ApplyJob() {
                 />
               </div>
 
-              <div style={{ marginBottom: "1.5rem" }}>
-                <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.4rem" }}>
-                  Email Address
-                </label>
+              <div className="apply-field">
+                <label htmlFor="apply-email">Email address</label>
                 <input
+                  id="apply-email"
                   type="email"
                   className="form-input"
                   placeholder="jane@example.com"
@@ -236,20 +232,10 @@ export default function ApplyJob() {
                 />
               </div>
 
-              <div style={{ marginBottom: "2rem" }}>
-                <label style={{ display: "block", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.4rem" }}>
-                  Resume (PDF format)
-                </label>
+              <div className="apply-field">
+                <label>Resume (PDF)</label>
                 <div
-                  style={{
-                    border: dragover ? "2px dashed var(--brand)" : "2px dashed var(--card-border)",
-                    borderRadius: "var(--radius-md)",
-                    padding: "2.5rem 1.5rem",
-                    textAlign: "center",
-                    background: dragover ? "var(--pill-yellow-bg)" : "var(--card-bg-alt)",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease"
-                  }}
+                  className={`apply-dropzone${dragover ? " is-over" : ""}${file && extractedText ? " is-ready" : ""}`}
                   onDragOver={(e) => { e.preventDefault(); setDragover(true); }}
                   onDragLeave={() => setDragover(false)}
                   onDrop={(e) => {
@@ -262,6 +248,14 @@ export default function ApplyJob() {
                     }
                   }}
                   onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                 >
                   <input
                     ref={fileInputRef}
@@ -273,41 +267,32 @@ export default function ApplyJob() {
                   />
                   {extracting ? (
                     <div>
-                      <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⏳</div>
-                      <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>Reading PDF resume...</div>
-                      <div style={{ color: "var(--text-muted)", fontSize: "0.88rem" }}>Extracting text for Workers AI</div>
+                      <div className="apply-drop-title">Reading PDF resume…</div>
+                      <div className="hr-muted sm">Extracting text for Workers AI</div>
                     </div>
                   ) : file && extractedText ? (
                     <div>
-                      <CheckCircle2 size={36} style={{ color: "var(--status-green)", margin: "0 auto 0.5rem" }} />
-                      <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{file.name}</div>
-                      <div style={{ color: "var(--status-green)", fontSize: "0.88rem", fontWeight: 600, marginTop: "0.25rem" }}>
-                        {extractedText.length.toLocaleString()} characters extracted — ready for scoring
+                      <CheckCircle2 size={28} style={{ color: "var(--status-green)", margin: "0 auto 0.45rem" }} />
+                      <div className="apply-drop-title">{file.name}</div>
+                      <div className="apply-drop-ok">
+                        {extractedText.length.toLocaleString()} characters extracted — ready to score
                       </div>
                     </div>
                   ) : (
                     <div>
-                      <Upload size={36} style={{ color: "var(--text-muted)", margin: "0 auto 0.5rem" }} />
-                      <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>Drop your PDF here or click to browse</div>
-                      <div style={{ color: "var(--text-muted)", fontSize: "0.88rem", marginTop: "0.25rem" }}>PDF files only · Text-based format</div>
+                      <Upload size={28} style={{ color: "var(--text-muted)", margin: "0 auto 0.45rem" }} />
+                      <div className="apply-drop-title">Drop your PDF here or click to browse</div>
+                      <div className="hr-muted sm">PDF files only · text-based format, not a scanned image</div>
                     </div>
                   )}
                 </div>
-                {extractError && (
-                  <p style={{ color: "var(--status-red)", fontSize: "0.85rem", marginTop: "0.5rem", fontWeight: 600 }}>
-                    ⚠ {extractError}
-                  </p>
-                )}
+                {extractError && <p className="apply-error">{extractError}</p>}
               </div>
 
               {submitError && (
-                <p style={{ color: "var(--status-red)", fontSize: "0.9rem", marginBottom: "1rem", fontWeight: 600 }}>
-                  ⚠ {submitError}
-                  {rateLimitCountdown > 0 && (
-                    <span style={{ marginLeft: "0.5rem" }}>
-                      Try again in {rateLimitCountdown}s
-                    </span>
-                  )}
+                <p className="apply-error">
+                  {submitError}
+                  {rateLimitCountdown > 0 && ` Try again in ${rateLimitCountdown}s.`}
                 </p>
               )}
 
@@ -318,11 +303,11 @@ export default function ApplyJob() {
                 disabled={submitting || extracting || !extractedText || !name.trim() || !email.trim() || rateLimitCountdown > 0}
               >
                 {submitting ? (
-                  "Scoring with Workers AI..."
+                  "Scoring with Workers AI…"
                 ) : rateLimitCountdown > 0 ? (
                   `Please wait ${rateLimitCountdown}s`
                 ) : (
-                  <>Submit Application <ArrowRight size={18} /></>
+                  <>Submit application <ArrowRight size={18} /></>
                 )}
               </button>
             </form>
