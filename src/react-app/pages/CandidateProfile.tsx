@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ClipboardList, ArrowRight, Save, LogOut } from "lucide-react";
+import { ClipboardList, ArrowRight, Save } from "lucide-react";
 import Seo from "../components/Seo";
-
-function handleSignOut(navigate: ReturnType<typeof useNavigate>) {
-	localStorage.clear();
-	window.dispatchEvent(new Event("storage"));
-	navigate("/");
-}
 
 type Availability = "immediate" | "2_weeks" | "1_month" | "not_looking" | "";
 type RoleType     = "full_time" | "part_time" | "contract" | "remote" | "";
@@ -153,24 +147,20 @@ export default function CandidateProfile() {
 
 	if (loading) {
 		return (
-			<div className="page" style={{ textAlign: "center", paddingTop: "4rem" }}>
-				<p style={{ marginTop: "1rem", color: "var(--text-muted)", fontSize: "1.05rem" }}>Loading candidate profile...</p>
-			</div>
+			<div className="hr-empty-block">Loading candidate profile...</div>
 		);
 	}
 
 	if (loadError) {
 		return (
-			<div className="page">
-				<div className="card" style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
-					<p style={{ color: "var(--status-red)", fontWeight: 600 }}>{loadError}</p>
-				</div>
+			<div className="hr-page">
+				<div className="hr-banner-error">{loadError}</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="page" style={{ maxWidth: 740 }}>
+		<div className="hr-page">
 			<Seo title="My Candidate Profile" description="Manage your HireSight candidate profile." noIndex />
 
 			{/* Gate banner */}
@@ -460,28 +450,6 @@ export default function CandidateProfile() {
 						</button>
 					)}
 				</div>
-
-				{!redirect && (
-					<div style={{ marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid var(--card-border)", textAlign: "right" }}>
-						<button
-							type="button"
-							onClick={() => handleSignOut(navigate)}
-							style={{
-								background: "none",
-								border: "none",
-								color: "var(--text-muted)",
-								fontSize: "0.85rem",
-								fontWeight: 600,
-								cursor: "pointer",
-								display: "inline-flex",
-								alignItems: "center",
-								gap: "0.4rem"
-							}}
-						>
-							<LogOut size={14} /> Sign out of HireSight
-						</button>
-					</div>
-				)}
 
 			</form>
 		</div>

@@ -1,6 +1,17 @@
 import { Hono } from "hono";
 import { authenticate, requireHR } from "../lib/auth";
 import type { AuthVariables } from "../lib/auth";
+import { evaluateRateLimit } from "../lib/rate-limit";
+import {
+  JD_MODEL,
+  buildJdMessages,
+  buildRoleFacts,
+  extractJsonRecord,
+  normalizeJdInput,
+  toJdDraft,
+  type JdDraft,
+  type JdInput,
+} from "../lib/prompts/job-description";
 
 const jobs = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
@@ -42,6 +53,65 @@ jobs.post("/", authenticate(), requireHR(), async (c) => {
   }
 
   return c.json({ job_id: jobId, title: body.title.trim() }, 201);
+});
+
+jobs.post("/generate-description", authenticate(), requireHR(), async (c) => {
+  const user = c.get("user");
+  const now = Math.floor(Date.now() / 1000);
+  const rlKey = `jdgen:${user.id}`;
+
+  try {
+    const rawRl = await c.env.RATE_LIMIT.get(rlKey);
+    const decision = evaluateRateLimit({ raw: rawRl, now, limit: 5, windowSecs: 60 });
+    if (!decision.allowed) {
+      return c.json(
+        { error: "Too many generations. Please wait before trying again.", retryAfter: decision.retryAfter },
+        429,
+        { "Retry-After": String(decision.retryAfter) }
+      );
+    }
+    if (decision.nextValue) {
+      await c.env.RATE_LIMIT.put(rlKey, JSON.stringify(decision.nextValue), {
+        expirationTtl: decision.ttlSeconds,
+      });
+    }
+  } catch (rlErr) {
+    console.error("[jobs] generate-description rate-limit KV error", String(rlErr));
+  }
+
+  let body: JdInput;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const input = normalizeJdInput(body);
+  if (!input.title) {
+    return c.json({ error: "Job title is required" }, 400);
+  }
+
+  const messages = buildJdMessages(buildRoleFacts(input));
+
+  async function runOnce(): Promise<JdDraft | null> {
+    try {
+      const llmResponse = await c.env.AI.run(
+        JD_MODEL as Parameters<typeof c.env.AI.run>[0],
+        { messages, max_tokens: 1024 }
+      );
+      return toJdDraft(extractJsonRecord(llmResponse), input.title);
+    } catch (err) {
+      console.error("[jobs] generate-description model call failed", String(err));
+      return null;
+    }
+  }
+
+  const draft = (await runOnce()) ?? (await runOnce());
+  if (!draft) {
+    return c.json({ error: "AI did not return a usable job description. Try again." }, 502);
+  }
+
+  return c.json(draft);
 });
 
 // Fetch jobs — returns HR recruiter's own jobs if authenticated as HR, otherwise all open jobs for candidates

@@ -1,14 +1,19 @@
 import { useEffect, useState, lazy, Suspense } from "react";
-import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import AuthPage from "./pages/AuthPage";
+import HRLayout from "./components/HRLayout";
+import CandidateLayout from "./components/CandidateLayout";
+import HelpChat from "./components/HelpChat";
 
-const PostJob = lazy(() => import("./pages/PostJob"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const ApplyJob = lazy(() => import("./pages/ApplyJob"));
 const JobsBoard = lazy(() => import("./pages/JobsBoard"));
 const JobDetail = lazy(() => import("./pages/JobDetail"));
 const HRDashboard = lazy(() => import("./pages/HRDashboard"));
+const JobRequisitions = lazy(() => import("./pages/JobRequisitions"));
+const JobDescriptionCreator = lazy(() => import("./pages/JobDescriptionCreator"));
+const CandidatesList = lazy(() => import("./pages/CandidatesList"));
 const CandidateDashboard = lazy(() => import("./pages/CandidateDashboard"));
 const CandidateProfile = lazy(() => import("./pages/CandidateProfile"));
 const CandidateDetail  = lazy(() => import("./pages/CandidateDetail"));
@@ -122,7 +127,7 @@ function Navbar() {
 					{user.role === "candidate" ? (
 						<Link to="/jobs" className="btn btn-secondary btn-sm">Browse Openings</Link>
 					) : (
-						<Link to="/hr/dashboard" className="btn btn-secondary btn-sm">Post Job</Link>
+						<Link to="/hr/jobs/new" className="btn btn-secondary btn-sm">Post Job</Link>
 					)}
 					<Link to={profilePath} className="nav-user-badge">
 						<span>{user.name}</span>
@@ -174,7 +179,7 @@ function Navbar() {
 									<Link to="/candidate/profile" className="nav-mobile-link">Edit Profile</Link>
 								</>
 							) : (
-								<Link to="/hr/dashboard" className="nav-mobile-link">Post a Job</Link>
+								<Link to="/hr/jobs/new" className="nav-mobile-link">Post a Job</Link>
 							)}
 							<button type="button" onClick={handleSignOut} className="nav-mobile-signout">
 								Sign out
@@ -247,16 +252,72 @@ function Footer() {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
+function isHrWorkspace(pathname: string) {
+	return pathname.startsWith("/hr") || pathname.startsWith("/dashboard/") || pathname === "/post-job";
+}
+
+function isJobsBrowsePath(pathname: string) {
+	return pathname.startsWith("/jobs") || pathname.startsWith("/apply");
+}
+
+function isCandidateWorkspace(pathname: string) {
+	if (pathname.startsWith("/candidate")) return true;
+	const auth = getAuth();
+	return !!auth && auth.role === "candidate" && isJobsBrowsePath(pathname);
+}
+
+function OptionalCandidateShell() {
+	const auth = getAuth();
+	if (auth?.role === "candidate") {
+		return (
+			<ProtectedRoute allowedRole="candidate">
+				<CandidateLayout />
+			</ProtectedRoute>
+		);
+	}
+	return <Outlet />;
+}
+
+function HrWorkspace() {
+	return (
+		<ProtectedRoute allowedRole="HR">
+			<HRLayout />
+		</ProtectedRoute>
+	);
+}
+
+function CandidateWorkspace() {
+	return (
+		<ProtectedRoute allowedRole="candidate">
+			<CandidateLayout />
+		</ProtectedRoute>
+	);
+}
+
+function HrPage({ children }: { children: React.ReactNode }) {
+	return <Suspense fallback={PageFallback}>{children}</Suspense>;
+}
+
 export default function App() {
+	const { pathname } = useLocation();
+	const [, setAuthTick] = useState(0);
+
+	useEffect(() => {
+		function syncAuth() {
+			setAuthTick((n) => n + 1);
+		}
+		window.addEventListener("storage", syncAuth);
+		return () => window.removeEventListener("storage", syncAuth);
+	}, []);
+
+	const hideChrome = isHrWorkspace(pathname) || isCandidateWorkspace(pathname);
+
 	return (
 		<>
-			<Navbar />
+			{!hideChrome && <Navbar />}
 			<Routes>
-
-				{/* Landing home page */}
 				<Route path="/" element={<Suspense fallback={PageFallback}><HomePage /></Suspense>} />
 
-				{/* Auth pages (public) */}
 				<Route path="/login/hr" element={<AuthPage mode="login" role="hr" />} />
 				<Route path="/login/candidate" element={<AuthPage mode="login" role="candidate" />} />
 				<Route path="/register/hr" element={<AuthPage mode="register" role="hr" />} />
@@ -264,82 +325,31 @@ export default function App() {
 				<Route path="/forgot-password" element={<Suspense fallback={PageFallback}><ForgotPasswordPage /></Suspense>} />
 				<Route path="/reset-password" element={<Suspense fallback={PageFallback}><ForgotPasswordPage /></Suspense>} />
 
-				{/* HR-protected routes */}
-				<Route
-					path="/hr/dashboard"
-					element={
-						<ProtectedRoute allowedRole="HR">
-							<Suspense fallback={PageFallback}><HRDashboard /></Suspense>
-						</ProtectedRoute>
-					}
-				/>
-				<Route
-					path="/dashboard/:job_id"
-					element={
-						<ProtectedRoute allowedRole="HR">
-							<Suspense fallback={PageFallback}><Dashboard /></Suspense>
-						</ProtectedRoute>
-					}
-				/>
-				{/* Legacy route kept for backwards-compat with shared dashboard links */}
-				<Route
-					path="/post-job"
-					element={
-						<ProtectedRoute allowedRole="HR">
-							<Suspense fallback={PageFallback}><PostJob /></Suspense>
-						</ProtectedRoute>
-					}
-				/>
+				<Route element={<HrWorkspace />}>
+					<Route path="/hr/dashboard" element={<HrPage><HRDashboard /></HrPage>} />
+					<Route path="/hr/jobs" element={<HrPage><JobRequisitions /></HrPage>} />
+					<Route path="/hr/jobs/new" element={<HrPage><JobDescriptionCreator /></HrPage>} />
+					<Route path="/hr/candidates" element={<HrPage><CandidatesList /></HrPage>} />
+					<Route path="/hr/candidate/:submission_id" element={<HrPage><CandidateDetail /></HrPage>} />
+					<Route path="/dashboard/:job_id" element={<HrPage><Dashboard /></HrPage>} />
+					<Route path="/post-job" element={<Navigate to="/hr/jobs/new" replace />} />
+				</Route>
 
-			{/* HR candidate detail — keyed by candidates.id (leaderboard entry) */}
-			<Route
-				path="/hr/candidate/:submission_id"
-				element={
-					<ProtectedRoute allowedRole="HR">
-						<Suspense fallback={PageFallback}><CandidateDetail /></Suspense>
-					</ProtectedRoute>
-				}
-			/>
+				<Route element={<CandidateWorkspace />}>
+					<Route path="/candidate/dashboard" element={<HrPage><CandidateDashboard /></HrPage>} />
+					<Route path="/candidate/profile" element={<HrPage><CandidateProfile /></HrPage>} />
+				</Route>
 
-			{/* Candidate-protected routes */}
-			<Route
-				path="/candidate/dashboard"
-				element={
-					<ProtectedRoute allowedRole="candidate">
-						<Suspense fallback={PageFallback}><CandidateDashboard /></Suspense>
-					</ProtectedRoute>
-				}
-			/>
-			<Route
-				path="/candidate/profile"
-				element={
-					<ProtectedRoute allowedRole="candidate">
-						<Suspense fallback={PageFallback}><CandidateProfile /></Suspense>
-					</ProtectedRoute>
-				}
-			/>
+				<Route element={<OptionalCandidateShell />}>
+					<Route path="/jobs" element={<Suspense fallback={PageFallback}><JobsBoard /></Suspense>} />
+					<Route path="/jobs/:job_id" element={<Suspense fallback={PageFallback}><JobDetail /></Suspense>} />
+					<Route path="/apply/:job_id" element={<Suspense fallback={PageFallback}><ApplyJob /></Suspense>} />
+				</Route>
 
-				{/* Public routes */}
-				<Route
-					path="/jobs"
-					element={<Suspense fallback={PageFallback}><JobsBoard /></Suspense>}
-				/>
-				<Route
-					path="/jobs/:job_id"
-					element={<Suspense fallback={PageFallback}><JobDetail /></Suspense>}
-				/>
-				<Route
-					path="/apply/:job_id"
-					element={<Suspense fallback={PageFallback}><ApplyJob /></Suspense>}
-				/>
-
-				{/* 404 */}
-				<Route
-					path="*"
-					element={<Suspense fallback={PageFallback}><NotFound /></Suspense>}
-				/>
+				<Route path="*" element={<Suspense fallback={PageFallback}><NotFound /></Suspense>} />
 			</Routes>
-			<Footer />
+			{!hideChrome && <Footer />}
+			<HelpChat />
 		</>
 	);
 }
