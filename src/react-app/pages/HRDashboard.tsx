@@ -270,14 +270,18 @@ export default function HRDashboard() {
           <h3>Recruitment pipeline</h3>
         </div>
         <div className="hr-pipeline">
-          {PIPELINE.map((step, i) => (
-            <div key={step.key} className="hr-pipe-step">
-              {i > 0 && <div className="hr-pipe-line" />}
-              <span className={`hr-pipe-dot${stats.pipeline[step.key] > 0 ? " is-filled" : ""}`} />
-              <small>{step.label}</small>
-              <b>{loading ? "—" : stats.pipeline[step.key]}</b>
-            </div>
-          ))}
+          {PIPELINE.map((step, i) => {
+            const count = stats.pipeline[step.key] ?? 0;
+            const isFilled = count > 0;
+            return (
+              <div key={step.key} className={`hr-pipe-step${isFilled ? " is-filled" : ""}`}>
+                {i > 0 && <div className="hr-pipe-line" />}
+                <span className={`hr-pipe-dot${isFilled ? " is-filled" : ""}`} />
+                <small>{step.label}</small>
+                <b>{loading ? "—" : count}</b>
+              </div>
+            );
+          })}
         </div>
       </div>
 

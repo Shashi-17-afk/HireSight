@@ -15,7 +15,7 @@ export default function HRLayout() {
 
   return (
     <WorkspaceLayout
-      homeTo="/hr/dashboard"
+      homeTo="/"
       subtitle="Recruiter workspace"
       navLabel="Recruitment"
       nav={NAV}

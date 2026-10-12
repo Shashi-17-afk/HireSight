@@ -18,7 +18,7 @@ export default function CandidateLayout() {
 
   return (
     <WorkspaceLayout
-      homeTo="/candidate/dashboard"
+      homeTo="/"
       subtitle="Candidate workspace"
       navLabel="My hiring"
       nav={NAV}

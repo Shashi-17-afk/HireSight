@@ -50,6 +50,14 @@ export const requireCandidate = () =>
     await next();
   });
 
+export async function hrOwnsJob(db: D1Database, jobId: string, hrId: string): Promise<boolean> {
+  const job = await db
+    .prepare("SELECT 1 FROM jobs WHERE id = ? AND user_id = ?")
+    .bind(jobId, hrId)
+    .first();
+  return job !== null;
+}
+
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const passwordBuffer = new TextEncoder().encode(password);

@@ -3,6 +3,7 @@ import { verify } from "hono/jwt";
 import { authenticate, requireCandidate } from "../lib/auth";
 import type { AuthVariables } from "../lib/auth";
 
+import { scoreResumeWithLlm } from "../lib/scoring";
 import { sendEmail } from "../lib/email";
 import { getApplicantConfirmationEmail, getRecruiterNewApplicantAlertEmail } from "../lib/email-templates";
 
@@ -210,51 +211,10 @@ candidates.post("/", async (c) => {
   let reasoning = `Semantic similarity score: ${semanticScore}/100`;
 
   try {
-    const prompt = `You are a hiring assistant. Given this Job Description and Resume, score the candidate from 0-100 and give 2 line reasoning.
-Return ONLY valid JSON with no extra text: { "score": number, "reasoning": string }
-
-JD: ${job.description}
-Resume: ${body.resume_text}`;
-
-    const llmResponse = await c.env.AI.run(
-      "@cf/meta/llama-3.1-8b-instruct-fast" as Parameters<typeof c.env.AI.run>[0],
-      {
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 256,
-      }
-    );
-
-    const resp = llmResponse as Record<string, unknown>;
-
-    // The -fast model returns OpenAI-style: { response: { score, reasoning }, choices: [...] }
-    // Older models return: { response: "string" }
-    // Try the pre-parsed object first, then fall back to text extraction
-    let parsed: { score?: unknown; reasoning?: unknown } | null = null;
-
-    if (resp.response && typeof resp.response === "object") {
-      // Already parsed by the model runtime
-      parsed = resp.response as { score?: unknown; reasoning?: unknown };
-    } else {
-      // Text response — extract JSON manually
-      let rawText = "";
-      if (typeof resp.response === "string") rawText = resp.response;
-      else if (typeof resp.content === "string") rawText = resp.content as string;
-      else rawText = JSON.stringify(resp);
-
-      const cleaned = rawText.replace(/```(?:json)?/gi, "").trim();
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]) as { score?: unknown; reasoning?: unknown };
-      }
-    }
-
-    if (parsed) {
-      if (typeof parsed.score === "number" && parsed.score >= 0 && parsed.score <= 100) {
-        score = Math.round(parsed.score);
-      }
-      if (typeof parsed.reasoning === "string" && parsed.reasoning.trim()) {
-        reasoning = parsed.reasoning.trim();
-      }
+    const llm = await scoreResumeWithLlm(c.env.AI, job.description, body.resume_text);
+    if (llm) {
+      score = llm.score;
+      reasoning = llm.reasoning;
     }
   } catch (llmErr) {
     reasoning = `LLM error: ${String(llmErr)}`;

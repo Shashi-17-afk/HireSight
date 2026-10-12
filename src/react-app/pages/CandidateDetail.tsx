@@ -40,9 +40,9 @@ export default function CandidateDetail() {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [updating, setUpdating] = useState(false);
   const [updateMsg, setUpdateMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [rescreening, setRescreening] = useState(false);
-  const [rescreenMsg, setRescreenMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [tab, setTab] = useState<(typeof TABS)[number]>("Profile");
+  const [rescoring, setRescoring] = useState(false);
+  const [rescoreMsg, setRescoreMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const token = localStorage.getItem("token") ?? "";
 
@@ -94,32 +94,36 @@ export default function CandidateDetail() {
     }
   }
 
-  async function handleRescreen() {
-    if (!submission_id || !job_id) return;
-    setRescreening(true);
-    setRescreenMsg(null);
+  async function handleRescore() {
+    if (!submission_id) return;
+    setRescoring(true);
+    setRescoreMsg(null);
     try {
-      const res = await fetch(`/api/applications/${submission_id}/rescreen?job_id=${job_id}`, {
+      const res = await fetch(`/api/applications/${submission_id}/rescore`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
+        headers: authHeaders(),
       });
-      const json = (await res.json()) as { success?: boolean; score?: number; reasoning?: string; error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Rescreen failed");
-
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              ai_score: json.score ?? prev.ai_score,
-              ai_reasoning: json.reasoning ?? prev.ai_reasoning,
-            }
-          : prev
-      );
-      setRescreenMsg({ ok: true, text: "AI screening updated successfully." });
+      const json = (await res.json()) as {
+        score?: number;
+        reasoning?: string;
+        previous_score?: number | null;
+        error?: string;
+      };
+      if (!res.ok || typeof json.score !== "number") throw new Error(json.error ?? "Re-run failed");
+      const newScore = json.score;
+      setData((prev) => (prev ? { ...prev, ai_score: newScore, ai_reasoning: json.reasoning ?? prev.ai_reasoning } : prev));
+      const prevScore = json.previous_score;
+      setRescoreMsg({
+        ok: true,
+        text:
+          typeof prevScore === "number" && prevScore !== newScore
+            ? `Re-scored: ${prevScore}% → ${newScore}%`
+            : `Re-scored: ${newScore}% (unchanged)`,
+      });
     } catch (err) {
-      setRescreenMsg({ ok: false, text: err instanceof Error ? err.message : "Rescreen failed." });
+      setRescoreMsg({ ok: false, text: err instanceof Error ? err.message : "Re-run failed." });
     } finally {
-      setRescreening(false);
+      setRescoring(false);
     }
   }
 
@@ -357,14 +361,14 @@ export default function CandidateDetail() {
             <button
               type="button"
               className="btn btn-secondary"
-              disabled={rescreening}
-              onClick={() => void handleRescreen()}
+              disabled={rescoring}
+              onClick={() => void handleRescore()}
             >
-              {rescreening ? "Re-running AI…" : "Re-run AI Screening"}
+              {rescoring ? "Re-scoring…" : "Re-run AI Screening"}
             </button>
-            {rescreenMsg && (
-              <p className={rescreenMsg.ok ? "delta-up" : "delta-down"} style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
-                {rescreenMsg.text}
+            {rescoreMsg && (
+              <p className={rescoreMsg.ok ? "delta-up" : "delta-down"} style={{ marginTop: "0.6rem", fontSize: "0.82rem" }}>
+                {rescoreMsg.text}
               </p>
             )}
           </div>

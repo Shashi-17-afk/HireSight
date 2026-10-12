@@ -1,10 +1,12 @@
 import { Hono } from 'hono';
-import { authenticate, requireHR } from '../lib/auth';
+import { authenticate, hrOwnsJob, requireHR } from '../lib/auth';
 import type { AuthVariables } from '../lib/auth';
 import { APPLICATION_STATUSES } from '../types/ats';
 import type { ApplicationStatus } from '../types/ats';
 import { sendEmail } from '../lib/email';
 import { getStatusUpdateEmail } from '../lib/email-templates';
+import { evaluateRateLimit } from '../lib/rate-limit';
+import { scoreResumeWithLlm } from '../lib/scoring';
 
 const applications = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
@@ -85,6 +87,9 @@ applications.get('/all', authenticate(), requireHR(), async (c) => {
 applications.get('/', authenticate(), requireHR(), async (c) => {
 	const job_id = c.req.query('job_id');
 	if (!job_id) return c.json({ error: 'job_id query param required' }, 400);
+	if (!(await hrOwnsJob(c.env.DB, job_id, c.get('user').id))) {
+		return c.json({ error: 'Job not found' }, 404);
+	}
 
 	const { results } = await c.env.DB.prepare(`
 		SELECT
@@ -120,6 +125,9 @@ applications.get('/:submission_id', authenticate(), requireHR(), async (c) => {
 	const submission_id = c.req.param('submission_id');
 	const job_id = c.req.query('job_id');
 	if (!job_id) return c.json({ error: 'job_id query param required' }, 400);
+	if (!(await hrOwnsJob(c.env.DB, job_id, c.get('user').id))) {
+		return c.json({ error: 'Candidate not found' }, 404);
+	}
 
 	const row = await c.env.DB.prepare(`
 		SELECT
@@ -170,6 +178,96 @@ applications.get('/:submission_id', authenticate(), requireHR(), async (c) => {
 	});
 });
 
+// ── POST /api/applications/:submission_id/rescore  ───────────────────────────
+// Re-scores the stored resume text against the job's current description.
+// The previous score is kept if the model fails or returns no valid score.
+applications.post('/:submission_id/rescore', authenticate(), requireHR(), async (c) => {
+	const submissionId = c.req.param('submission_id');
+	const hr = c.get('user');
+
+	const now = Math.floor(Date.now() / 1000);
+	const rlKey = `rescore:${hr.id}`;
+	try {
+		const rawRl = await c.env.RATE_LIMIT.get(rlKey);
+		const decision = evaluateRateLimit({ raw: rawRl, now, limit: 10, windowSecs: 60 });
+		if (!decision.allowed) {
+			return c.json(
+				{ error: 'Too many re-runs. Please wait a moment.', retryAfter: decision.retryAfter },
+				429,
+				{ 'Retry-After': String(decision.retryAfter) }
+			);
+		}
+		if (decision.nextValue) {
+			await c.env.RATE_LIMIT.put(rlKey, JSON.stringify(decision.nextValue), {
+				expirationTtl: decision.ttlSeconds,
+			});
+		}
+	} catch (rlErr) {
+		console.error('[applications] rescore rate-limit KV error', String(rlErr));
+	}
+
+	const row = await c.env.DB.prepare(`
+		SELECT cand.id, cand.job_id, cand.name, cand.resume_text, cand.score AS previous_score,
+		       j.description, j.user_id AS job_owner_id
+		FROM candidates cand
+		JOIN jobs j ON j.id = cand.job_id
+		WHERE cand.id = ?
+	`).bind(submissionId).first<{
+		id: string;
+		job_id: string;
+		name: string;
+		resume_text: string | null;
+		previous_score: number | null;
+		description: string;
+		job_owner_id: string | null;
+	}>();
+
+	if (!row || row.job_owner_id !== hr.id) {
+		return c.json({ error: 'Candidate not found' }, 404);
+	}
+	if (!row.resume_text?.trim()) {
+		return c.json({ error: 'No resume text is stored for this candidate, so it cannot be re-scored.' }, 422);
+	}
+
+	let result;
+	try {
+		result = await scoreResumeWithLlm(c.env.AI, row.description, row.resume_text);
+	} catch (err) {
+		console.error('[applications] rescore model failed', String(err));
+		return c.json({ error: 'Workers AI is unavailable right now. The previous score was kept.' }, 502);
+	}
+	if (!result) {
+		return c.json({ error: 'The model did not return a valid score. The previous score was kept.' }, 502);
+	}
+
+	await c.env.DB.prepare('UPDATE candidates SET score = ?, reasoning = ? WHERE id = ?')
+		.bind(result.score, result.reasoning, row.id)
+		.run();
+
+	try {
+		const stub = c.env.LEADERBOARD.get(c.env.LEADERBOARD.idFromName(row.job_id));
+		await stub.fetch(new Request('https://do-internal/update', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				id: row.id,
+				name: row.name,
+				score: result.score,
+				reasoning: result.reasoning,
+				submittedAt: Date.now(),
+			}),
+		}));
+	} catch {
+		// Non-fatal — D1 already holds the new score
+	}
+
+	return c.json({
+		score: result.score,
+		reasoning: result.reasoning,
+		previous_score: row.previous_score,
+	});
+});
+
 // ── PATCH /api/applications/:id/status  ──────────────────────────────────────
 // HR moves a candidate through the pipeline.
 // Writes to applications + application_status_log, then pushes a real-time
@@ -194,7 +292,7 @@ applications.patch('/:id/status', authenticate(), requireHR(), async (c) => {
 	const newStatus = body.status as ApplicationStatus;
 
 	const app = await c.env.DB.prepare(`
-		SELECT a.status, a.user_id, a.job_id, j.title AS job_title,
+		SELECT a.status, a.user_id, a.job_id, j.title AS job_title, j.user_id AS job_owner_id,
 		       COALESCE(u.name, cand.name) AS candidate_name,
 		       COALESCE(u.email, cand.email) AS candidate_email
 		FROM applications a
@@ -203,9 +301,9 @@ applications.patch('/:id/status', authenticate(), requireHR(), async (c) => {
 		LEFT JOIN users u ON u.id = a.user_id
 		WHERE a.id = ?
 	`).bind(applicationId)
-	 .first<{ status: string; user_id: string | null; job_id: string; job_title: string; candidate_name: string | null; candidate_email: string | null }>();
+	 .first<{ status: string; user_id: string | null; job_id: string; job_title: string; job_owner_id: string | null; candidate_name: string | null; candidate_email: string | null }>();
 
-	if (!app) return c.json({ error: 'Application not found' }, 404);
+	if (!app || app.job_owner_id !== hr.id) return c.json({ error: 'Application not found' }, 404);
 
 	// No-op if status unchanged
 	if (app.status === newStatus) return c.json({ status: newStatus, changed: false });
@@ -276,148 +374,6 @@ applications.patch('/:id/status', authenticate(), requireHR(), async (c) => {
 	}
 
 	return c.json({ status: newStatus, changed: true });
-});
-
-// ── POST /api/applications/:submission_id/rescreen?job_id=  ────────────────────
-// HR re-evaluates candidate resume text against the current job description.
-applications.post('/:submission_id/rescreen', authenticate(), requireHR(), async (c) => {
-	const submission_id = c.req.param('submission_id');
-	const job_id = c.req.query('job_id');
-	if (!job_id) return c.json({ error: 'job_id query param required' }, 400);
-
-	const candidate = await c.env.DB.prepare(`
-		SELECT c.id, c.name, c.email, c.resume_text, c.job_id
-		FROM candidates c
-		WHERE c.id = ? AND c.job_id = ?
-	`).bind(submission_id, job_id).first<{ id: string; name: string; email: string; resume_text: string; job_id: string }>();
-
-	if (!candidate) return c.json({ error: 'Candidate submission not found' }, 404);
-
-	const job = await c.env.DB.prepare(`
-		SELECT id, title, description FROM jobs WHERE id = ?
-	`).bind(job_id).first<{ id: string; title: string; description: string }>();
-
-	if (!job) return c.json({ error: 'Job not found' }, 404);
-
-	// Step 1: Embed resume — non-fatal if AI is unavailable
-	let resumeEmbedding: number[] | null = null;
-	try {
-		const resumeEmbedResponse = (await c.env.AI.run(
-			'@cf/baai/bge-base-en-v1.5' as Parameters<typeof c.env.AI.run>[0],
-			{ text: [candidate.resume_text] }
-		)) as { data: number[][] };
-		resumeEmbedding = resumeEmbedResponse.data?.[0] ?? null;
-	} catch (err) {
-		console.error('[applications] rescreen resume embedding failed', String(err));
-	}
-
-	// Step 2: Semantic similarity via Vectorize
-	let semanticScore = 0;
-	if (resumeEmbedding) {
-		try {
-			const vectorQuery = await c.env.VECTORIZE.query(resumeEmbedding, {
-				topK: 1,
-				filter: { job_id },
-				returnMetadata: 'all',
-			});
-			if (vectorQuery.matches.length > 0) {
-				semanticScore = Math.round(vectorQuery.matches[0].score * 100);
-			}
-		} catch {
-			// Skip vector similarity if unavailable
-		}
-
-		try {
-			await c.env.VECTORIZE.upsert([
-				{
-					id: `candidate_${candidate.id}`,
-					values: resumeEmbedding,
-					metadata: { job_id, type: 'resume', candidate_id: candidate.id },
-				},
-			]);
-		} catch {
-			// Non-fatal
-		}
-	}
-
-	// Step 3: LLM scoring
-	let score = semanticScore;
-	let reasoning = `Semantic similarity score: ${semanticScore}/100`;
-
-	try {
-		const prompt = `You are a hiring assistant. Given this Job Description and Resume, score the candidate from 0-100 and give 2 line reasoning.
-Return ONLY valid JSON with no extra text: { "score": number, "reasoning": string }
-
-JD: ${job.description}
-Resume: ${candidate.resume_text}`;
-
-		const llmResponse = await c.env.AI.run(
-			'@cf/meta/llama-3.1-8b-instruct-fast' as Parameters<typeof c.env.AI.run>[0],
-			{
-				messages: [{ role: 'user', content: prompt }],
-				max_tokens: 256,
-			}
-		);
-
-		const resp = llmResponse as Record<string, unknown>;
-		let parsed: { score?: unknown; reasoning?: unknown } | null = null;
-
-		if (resp.response && typeof resp.response === 'object') {
-			parsed = resp.response as { score?: unknown; reasoning?: unknown };
-		} else {
-			let rawText = '';
-			if (typeof resp.response === 'string') rawText = resp.response;
-			else if (typeof resp.content === 'string') rawText = resp.content as string;
-			else rawText = JSON.stringify(resp);
-
-			const cleaned = rawText.replace(/```(?:json)?/gi, '').trim();
-			const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-			if (jsonMatch) {
-				parsed = JSON.parse(jsonMatch[0]) as { score?: unknown; reasoning?: unknown };
-			}
-		}
-
-		if (parsed) {
-			if (typeof parsed.score === 'number' && parsed.score >= 0 && parsed.score <= 100) {
-				score = Math.round(parsed.score);
-			}
-			if (typeof parsed.reasoning === 'string' && parsed.reasoning.trim()) {
-				reasoning = parsed.reasoning.trim();
-			}
-		}
-	} catch (llmErr) {
-		reasoning = `LLM error: ${String(llmErr)}`;
-	}
-
-	// Step 4: Update candidates table in D1
-	await c.env.DB.prepare(`
-		UPDATE candidates
-		SET score = ?, reasoning = ?
-		WHERE id = ?
-	`).bind(score, reasoning, candidate.id).run();
-
-	// Step 5: Notify Durable Object Leaderboard
-	try {
-		const doId = c.env.LEADERBOARD.idFromName(job_id);
-		const stub = c.env.LEADERBOARD.get(doId);
-		await stub.fetch(
-			new Request('https://do-internal/update', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					id: candidate.id,
-					name: candidate.name,
-					score,
-					reasoning,
-					submittedAt: Date.now(),
-				}),
-			})
-		);
-	} catch {
-		// Non-fatal
-	}
-
-	return c.json({ success: true, score, reasoning });
 });
 
 export default applications;

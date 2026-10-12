@@ -10,7 +10,7 @@ import profile from "./routes/profile";
 import applications from "./routes/applications";
 import payments from "./routes/payments";
 import help from "./routes/help";
-import { authenticate, requireHR } from "./lib/auth";
+import { authenticate, hrOwnsJob, requireHR } from "./lib/auth";
 import type { AuthVariables } from "./lib/auth";
 
 export { LeaderboardDO, CandidateStatusDO };
@@ -87,13 +87,19 @@ app.get("/api/leaderboard/:job_id/ws", async (c) => {
 	const jwtSecret = c.env.JWT_SECRET;
 	if (!jwtSecret) return c.text("Server error: JWT_SECRET not configured", 500);
 
+	let hrId: string;
 	try {
 		const payload = await verify(token, jwtSecret, "HS256");
 		if (!payload.userId || payload.role !== "HR") {
 			return c.text("Forbidden: HR access required", 403);
 		}
+		hrId = String(payload.userId);
 	} catch {
 		return c.text("Unauthorized: Invalid or expired token", 401);
+	}
+
+	if (!(await hrOwnsJob(c.env.DB, jobId, hrId))) {
+		return c.text("Not Found", 404);
 	}
 
 	const doId = c.env.LEADERBOARD.idFromName(jobId);
@@ -104,6 +110,9 @@ app.get("/api/leaderboard/:job_id/ws", async (c) => {
 // REST snapshot — HR only via Bearer token
 app.get("/api/leaderboard/:job_id", authenticate(), requireHR(), async (c) => {
 	const jobId = c.req.param("job_id");
+	if (!(await hrOwnsJob(c.env.DB, jobId, c.get("user").id))) {
+		return c.json({ error: "Job not found" }, 404);
+	}
 	const doId = c.env.LEADERBOARD.idFromName(jobId);
 	const stub = c.env.LEADERBOARD.get(doId);
 	const url = new URL(c.req.url);

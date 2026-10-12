@@ -12,7 +12,7 @@ export type WorkspaceNavItem = {
 };
 
 interface WorkspaceLayoutProps {
-  homeTo: string;
+  homeTo?: string;
   subtitle: string;
   navLabel: string;
   nav: WorkspaceNavItem[];
@@ -22,7 +22,7 @@ interface WorkspaceLayoutProps {
 }
 
 export default function WorkspaceLayout({
-  homeTo,
+  homeTo = "/",
   subtitle,
   navLabel,
   nav,
@@ -71,7 +71,7 @@ export default function WorkspaceLayout({
 
       <aside className={`hr-sidebar${sidebarOpen ? " is-open" : ""}`}>
         <div className="hr-sidebar-brand">
-          <Link to={homeTo} className="hr-brand-mark">
+          <Link to={homeTo} className="hr-brand-mark" title="HireSight Home">
             <span className="hr-brand-letter">H</span>
             <span>
               <strong>HireSight</strong>
@@ -138,6 +138,11 @@ export default function WorkspaceLayout({
           >
             <Menu size={18} />
           </button>
+
+          <Link to={homeTo} className="hr-topbar-brand" title="HireSight Home">
+            <span className="hr-brand-letter sm">H</span>
+            <strong>HireSight</strong>
+          </Link>
 
           <form className="hr-search" onSubmit={handleSearch}>
             <Search size={16} />
