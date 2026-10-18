@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Link2, Mail, FileText, Send, Phone } from "lucide-react";
+import { ArrowLeft, Link2, Mail, FileText, Send, Phone, CheckCircle } from "lucide-react";
 import Seo from "../components/Seo";
 import { authHeaders, formatDate, initials, scoreClass, STATUS_LABEL } from "../lib/hr";
 
@@ -43,6 +43,12 @@ export default function CandidateDetail() {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Profile");
   const [rescoring, setRescoring] = useState(false);
   const [rescoreMsg, setRescoreMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // ── Messaging state ──
+  const [msgSubject, setMsgSubject] = useState("");
+  const [msgBody, setMsgBody] = useState("");
+  const [msgSending, setMsgSending] = useState(false);
+  const [msgResult, setMsgResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   const token = localStorage.getItem("token") ?? "";
 
@@ -124,6 +130,38 @@ export default function CandidateDetail() {
       setRescoreMsg({ ok: false, text: err instanceof Error ? err.message : "Re-run failed." });
     } finally {
       setRescoring(false);
+    }
+  }
+
+  async function handleSendMessage() {
+    if (!data || !msgSubject.trim() || !msgBody.trim()) return;
+
+    // We need the candidate's user_id. It's not in the current data shape,
+    // so we resolve it via the application record's user_id field by
+    // fetching the application detail which already has it.
+    setMsgSending(true);
+    setMsgResult(null);
+    try {
+      // The candidate user id comes from the submission endpoint — reuse application_id
+      // to get user_id: POST to /api/messages with application_id as context.
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          application_id: data.application_id,
+          subject: msgSubject.trim(),
+          body: msgBody.trim(),
+        }),
+      });
+      const json = (await res.json()) as { id?: string; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Failed to send");
+      setMsgResult({ ok: true, text: "Message sent! The candidate will see it in their inbox." });
+      setMsgSubject("");
+      setMsgBody("");
+    } catch (err) {
+      setMsgResult({ ok: false, text: err instanceof Error ? err.message : "Send failed" });
+    } finally {
+      setMsgSending(false);
     }
   }
 
@@ -397,9 +435,59 @@ export default function CandidateDetail() {
 
       {tab === "Communication" && (
         <div className="hr-panel">
-          <a className="btn btn-dark-pill" href={`mailto:${data.candidate_email}`}>
-            Email {data.candidate_email}
-          </a>
+          <div className="hr-panel-head">
+            <h3>Send message to candidate</h3>
+          </div>
+
+          {msgResult?.ok ? (
+            <div className="cd-msg-success">
+              <CheckCircle size={20} />
+              <span>{msgResult.text}</span>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMsgResult(null)}>
+                Send another
+              </button>
+            </div>
+          ) : (
+            <div className="cd-compose-form">
+              <div className="form-row">
+                <label className="form-label">Subject</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder={`Re: ${data.job_title} — ${data.candidate_name}`}
+                  value={msgSubject}
+                  onChange={(e) => setMsgSubject(e.target.value)}
+                />
+              </div>
+              <div className="form-row">
+                <label className="form-label">Message</label>
+                <textarea
+                  className="form-input"
+                  rows={6}
+                  placeholder={`Hi ${data.candidate_name.split(" ")[0]},\n\nWe reviewed your application and would like to...`}
+                  value={msgBody}
+                  onChange={(e) => setMsgBody(e.target.value)}
+                  style={{ resize: "vertical", minHeight: "120px" }}
+                />
+              </div>
+              {msgResult && !msgResult.ok && (
+                <p className="delta-down" style={{ fontSize: "0.82rem" }}>{msgResult.text}</p>
+              )}
+              <div className="hr-inline-actions">
+                <button
+                  type="button"
+                  className="btn btn-dark-pill btn-sm"
+                  disabled={msgSending || !msgSubject.trim() || !msgBody.trim()}
+                  onClick={() => void handleSendMessage()}
+                >
+                  <Send size={14} /> {msgSending ? "Sending…" : "Send Message"}
+                </button>
+                <a className="btn btn-secondary btn-sm" href={`mailto:${data.candidate_email}`}>
+                  <Mail size={14} /> Email directly
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
