@@ -3233,85 +3233,169 @@ a:hover {
   flex-shrink: 0;
 }
 
-/* ── Jobs Grid ──────────────────────────────── */
+/* -- Clean Job Cards Grid & Open Roles ----------------------------- */
 .cd-jobs-area {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cd-jobs-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 0.15rem;
+}
+
+.cd-jobs-heading-group {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+}
+
+.cd-jobs-title {
+  font-family: var(--font-heading);
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.cd-jobs-count-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--card-bg-alt);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+}
+
+.cd-jobs-view-tabs {
+  display: flex;
+  background: var(--bg-subtle);
+  padding: 0.22rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  gap: 0.2rem;
+}
+
+.cd-view-tab {
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: var(--font-body);
+}
+
+.cd-view-tab:hover {
+  color: var(--text-primary);
+}
+
+.cd-view-tab.active {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .cd-jobs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.15rem;
 }
 
-/* ── Job Card ───────────────────────────────── */
+/* -- Single Job Card ---------------------------------------------- */
 .cd-job-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 20px;
-  padding: 1.1rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  box-shadow: var(--card-shadow);
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  justify-content: space-between;
+  min-height: 235px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.03);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   overflow: hidden;
 }
 
 .cd-job-card:hover {
   border-color: var(--card-border-hover);
-  box-shadow: var(--card-shadow-hover);
-  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.07);
+  transform: translateY(-3px);
 }
 
+/* Featured Dark Card */
 .cd-job-card--featured {
-  background: var(--text-primary);
-  color: var(--text-inverse);
-  border-color: transparent;
+  background: #0f1015;
+  color: #ffffff;
+  border-color: #262730;
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.22);
 }
 
-.cd-job-card--featured .cd-company-name,
-.cd-job-card--featured .cd-job-date,
-.cd-job-card--featured .cd-job-salary,
-.cd-job-card--featured .cd-job-tags .cd-tag,
-.cd-job-card--featured .cd-job-stats span {
-  color: rgba(255, 255, 255, 0.7);
+.cd-job-card--featured:hover {
+  border-color: #3f4150;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.3);
 }
 
-.cd-job-card--featured .cd-job-title {
-  color: #fff;
-}
-
-.cd-job-card-top {
+/* Top Row: Tags + Bookmark */
+.cd-card-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  width: 100%;
+  margin-bottom: 0.85rem;
 }
 
-.cd-job-logo {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-
-.cd-job-meta-right {
+.cd-tag-list {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 1;
 }
 
-.cd-job-date {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  font-weight: 500;
+.cd-tag-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  background: var(--card-bg-alt);
+  color: var(--text-secondary);
+  border: 1px solid var(--card-border);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.cd-job-card--featured .cd-tag-pill {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.cd-tag-pill--match {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.cd-job-card--featured .cd-tag-pill--match {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.4);
 }
 
 .cd-bookmark-btn {
@@ -3319,160 +3403,230 @@ a:hover {
   border: none;
   cursor: pointer;
   color: var(--text-muted);
-  padding: 0.2rem;
-  border-radius: 6px;
-  transition: color 0.15s ease;
+  padding: 0.3rem;
+  border-radius: 8px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
-.cd-bookmark-btn:hover,
-.cd-bookmark-btn.saved {
+.cd-bookmark-btn:hover {
   color: var(--text-primary);
+  background: var(--card-bg-alt);
+}
+
+.cd-bookmark-btn.active {
+  color: #f59e0b;
 }
 
 .cd-job-card--featured .cd-bookmark-btn {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.4);
 }
 
-.cd-job-card--featured .cd-bookmark-btn.saved {
-  color: #fff;
+.cd-job-card--featured .cd-bookmark-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.cd-job-company {
+.cd-job-card--featured .cd-bookmark-btn.active {
+  color: #fbbf24;
+}
+
+/* Middle: Company Logo + Title */
+.cd-card-company-row {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+  width: 100%;
+}
+
+.cd-company-logo {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.cd-card-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .cd-company-name {
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.cd-company-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.cd-job-card--featured .cd-company-name {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .cd-job-title {
   font-family: var(--font-heading);
-  font-size: 1rem;
+  font-size: 1.02rem;
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.25;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.cd-job-tags {
+.cd-job-card--featured .cd-job-title {
+  color: #ffffff;
+}
+
+/* Meta Row: Salary + Applicants */
+.cd-card-meta-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  width: 100%;
+  padding-top: 0.2rem;
 }
 
-.cd-tag {
-  font-size: 0.68rem;
-  font-weight: 600;
-  padding: 0.2rem 0.55rem;
-  border-radius: 99px;
-  background: var(--card-bg-alt);
-  color: var(--text-secondary);
-  border: 1px solid var(--card-border);
-}
-
-.cd-job-card--featured .cd-tag {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.cd-job-salary {
+.cd-salary {
   font-family: var(--font-heading);
-  font-size: 0.83rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
 
-.cd-job-footer {
+.cd-job-card--featured .cd-salary {
+  color: #ffffff;
+}
+
+.cd-applicants {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.cd-job-card--featured .cd-applicants {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Footer: Status / Action + Date */
+.cd-card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
-  padding-top: 0.4rem;
+  padding-top: 0.75rem;
   border-top: 1px solid var(--card-border);
+  width: 100%;
 }
 
-.cd-job-card--featured .cd-job-footer {
+.cd-job-card--featured .cd-card-footer {
   border-top-color: rgba(255, 255, 255, 0.12);
 }
 
-.cd-job-stats {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.cd-job-stats span {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-weight: 600;
-}
-
-.cd-details-btn {
+.cd-apply-btn {
   display: inline-flex;
   align-items: center;
-  padding: 0.4rem 0.9rem;
-  border-radius: 99px;
-  font-family: var(--font-heading);
-  font-size: 0.75rem;
-  font-weight: 700;
-  background: var(--text-primary);
-  color: var(--text-inverse);
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-decoration: none;
-}
-
-.cd-details-btn:hover {
-  opacity: 0.85;
-  transform: none;
-}
-
-.cd-job-card--featured .cd-details-btn {
-  background: #fff;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
   color: var(--text-primary);
+  text-decoration: none;
+  padding: 0.32rem 0.75rem;
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--card-border);
+  transition: all 0.18s ease;
 }
 
-.cd-stage-bar {
-  display: flex;
+.cd-apply-btn:hover {
+  background: var(--text-primary);
+  color: #ffffff;
+  border-color: var(--text-primary);
+}
+
+.cd-job-card--featured .cd-apply-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.cd-job-card--featured .cd-apply-btn:hover {
+  background: #ffffff;
+  color: #0f1015;
+  border-color: #ffffff;
+}
+
+.cd-applied-badge {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 0.35rem;
+  gap: 0.3rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  background: var(--status-green-bg);
+  color: var(--status-green);
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-.cd-score-pill {
+.cd-job-card--featured .cd-applied-badge {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.cd-stage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid;
+  text-transform: capitalize;
+}
+
+.cd-time-ago {
+  font-size: 0.72rem;
   color: var(--text-muted);
-  font-family: var(--font-heading);
+  font-weight: 500;
 }
 
-.cd-job-card--featured .cd-score-pill {
-  color: rgba(255, 255, 255, 0.6);
+.cd-job-card--featured .cd-time-ago {
+  color: rgba(255, 255, 255, 0.5);
 }
 
-/* ── Skeleton Loading ───────────────────────── */
+/* -- Skeleton Loading --------------------------------------------- */
 .cd-loading-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.15rem;
 }
 
 .cd-job-card--skeleton {
@@ -3486,11 +3640,11 @@ a:hover {
 }
 
 .cd-skeleton-logo {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   background: var(--card-bg-alt);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .cd-skeleton-line {
@@ -3503,7 +3657,6 @@ a:hover {
 .cd-skeleton-line.w80 { width: 80%; }
 .cd-skeleton-line.w60 { width: 60%; }
 .cd-skeleton-line.w40 { width: 40%; }
-
 /* ── Empty State ────────────────────────────── */
 .cd-empty-state {
   display: flex;
