@@ -236,18 +236,39 @@ candidates.post("/", async (c) => {
     )
     .run();
 
-  // Record application in the ATS pipeline (authenticated browse applies only).
+  // Record application in the ATS pipeline.
   // Non-fatal — a failure here must not block the score response.
-  if (authenticatedUserId) {
-    try {
+  try {
+    let targetUserId = authenticatedUserId;
+    if (!targetUserId && body.email) {
+      const u = await c.env.DB.prepare(
+        "SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND role = 'candidate'"
+      ).bind(body.email.trim()).first<{ id: string }>();
+      if (u) targetUserId = u.id;
+    }
+
+    const existingApp = targetUserId ? await c.env.DB.prepare(
+      "SELECT id FROM applications WHERE user_id = ? AND job_id = ?"
+    ).bind(targetUserId, body.job_id).first<{ id: string }>() : null;
+
+    if (existingApp) {
+      await c.env.DB.prepare(
+        "UPDATE applications SET candidate_submission_id = ? WHERE id = ?"
+      ).bind(candidateId, existingApp.id).run();
+    } else {
       await c.env.DB.prepare(
         `INSERT INTO applications (id, user_id, job_id, candidate_submission_id, status, source)
-         VALUES (?, ?, ?, ?, 'applied', 'browse')`
-      ).bind(crypto.randomUUID(), authenticatedUserId, body.job_id, candidateId).run();
-    } catch (atsErr) {
-      // Non-fatal but should be visible in Worker logs for debugging.
-      console.error("[candidates] ATS applications insert failed for user", authenticatedUserId, String(atsErr));
+         VALUES (?, ?, ?, ?, 'applied', ?)`
+      ).bind(
+        crypto.randomUUID(),
+        targetUserId,
+        body.job_id,
+        candidateId,
+        authenticatedUserId ? 'browse' : 'link'
+      ).run();
     }
+  } catch (atsErr) {
+    console.error("[candidates] ATS applications insert/update failed:", String(atsErr));
   }
 
   // Step 4f: Notify Durable Object leaderboard

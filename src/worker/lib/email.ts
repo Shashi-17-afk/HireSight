@@ -42,26 +42,18 @@ export async function sendEmail(
 
 			const data = (await res.json()) as { messageId?: string; message?: string; code?: string };
 
-			if (!res.ok) {
-				console.error("[email] Brevo API error:", res.status, data);
+			if (res.ok) {
+				console.log("[email] Brevo email sent successfully to", options.to, "ID:", data.messageId);
 				return {
-					success: false,
-					error: data.message ?? `Brevo API returned status ${res.status}`,
+					success: true,
+					id: data.messageId,
 				};
+			} else {
+				console.warn("[email] Brevo API error:", res.status, data, "— falling back to Resend");
 			}
-
-			console.log("[email] Brevo email sent successfully to", options.to, "ID:", data.messageId);
-			return {
-				success: true,
-				id: data.messageId,
-			};
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			console.error("[email] Failed to send Brevo email to", options.to, msg);
-			return {
-				success: false,
-				error: msg,
-			};
+			console.warn("[email] Failed to send Brevo email to", options.to, msg, "— falling back to Resend");
 		}
 	}
 

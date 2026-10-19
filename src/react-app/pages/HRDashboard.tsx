@@ -41,9 +41,31 @@ const PIPELINE = [
   { key: "hired", label: "Hired" },
 ] as const;
 
+interface ScheduledInterview {
+  id: string;
+  candidate_name: string;
+  job_title: string;
+  round_type: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  meeting_link: string | null;
+  candidate_submission_id?: string;
+  application_id: string;
+}
+
 function CalendarCard({ interviewCount }: { interviewCount: number }) {
+  const navigate = useNavigate();
   const now = new Date();
   const [cursor, setCursor] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
+  const [interviews, setInterviews] = useState<ScheduledInterview[]>([]);
+
+  useEffect(() => {
+    fetch("/api/interviews?status=scheduled", { headers: authHeaders() })
+      .then((res) => (res.ok ? (res.json() as Promise<ScheduledInterview[]>) : []))
+      .then((data) => setInterviews(data || []))
+      .catch(() => {});
+  }, []);
+
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
   const firstDow = new Date(year, month, 1).getDay();
@@ -55,25 +77,51 @@ function CalendarCard({ interviewCount }: { interviewCount: number }) {
   ];
   while (cells.length % 7 !== 0) cells.push(null);
 
+  const interviewDays = useMemo(() => {
+    const days = new Set<number>();
+    interviews.forEach((iv) => {
+      const d = new Date(iv.scheduled_at);
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        days.add(d.getDate());
+      }
+    });
+    return days;
+  }, [interviews, year, month]);
+
   return (
     <div className="hr-panel">
       <div className="hr-panel-head">
         <h3>Upcoming Interviews</h3>
+        {interviews.length > 0 && (
+          <span className="badge badge-green">{interviews.length} Scheduled</span>
+        )}
       </div>
       <div className="hr-cal-nav">
         <strong>{label}</strong>
         <span>
-          <button type="button" className="hr-icon-btn" onClick={() => setCursor(new Date(year, month - 1, 1))} aria-label="Previous month">
+          <button
+            type="button"
+            className="hr-icon-btn"
+            onClick={() => setCursor(new Date(year, month - 1, 1))}
+            aria-label="Previous month"
+          >
             <ChevronLeft size={14} />
           </button>
-          <button type="button" className="hr-icon-btn" onClick={() => setCursor(new Date(year, month + 1, 1))} aria-label="Next month">
+          <button
+            type="button"
+            className="hr-icon-btn"
+            onClick={() => setCursor(new Date(year, month + 1, 1))}
+            aria-label="Next month"
+          >
             <ChevronRight size={14} />
           </button>
         </span>
       </div>
       <div className="hr-cal-grid">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <span key={d} className="hr-cal-dow">{d}</span>
+          <span key={d} className="hr-cal-dow">
+            {d}
+          </span>
         ))}
         {cells.map((day, i) => {
           const isToday =
@@ -81,20 +129,107 @@ function CalendarCard({ interviewCount }: { interviewCount: number }) {
             day === now.getDate() &&
             month === now.getMonth() &&
             year === now.getFullYear();
+          const hasInterview = day !== null && interviewDays.has(day);
           return (
-            <span key={i} className={`hr-cal-day${isToday ? " is-today" : ""}`}>
+            <span
+              key={i}
+              className={`hr-cal-day${isToday ? " is-today" : ""}`}
+              style={
+                hasInterview
+                  ? { fontWeight: 700, color: "var(--accent, #4f46e5)", position: "relative" }
+                  : undefined
+              }
+            >
               {day ?? ""}
+              {hasInterview && (
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: 2,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: 4,
+                    height: 4,
+                    borderRadius: "50%",
+                    background: "var(--accent, #4f46e5)",
+                  }}
+                />
+              )}
             </span>
           );
         })}
       </div>
-      <div className="hr-cal-empty">
-        <p>Upcoming schedule</p>
-        <span>
-          {interviewCount === 0
-            ? "No interviews scheduled. Move a shortlisted candidate to Interview to track them here."
-            : `${interviewCount} candidate${interviewCount === 1 ? "" : "s"} currently in the interview stage.`}
-        </span>
+
+      <div style={{ marginTop: "1rem" }}>
+        {interviews.length === 0 ? (
+          <div className="hr-cal-empty">
+            <p>Upcoming schedule</p>
+            <span>
+              {interviewCount === 0
+                ? "No interviews scheduled. Go to Candidates to schedule rounds."
+                : `${interviewCount} candidate${interviewCount === 1 ? "" : "s"} currently in the interview stage.`}
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            {interviews.slice(0, 3).map((iv) => {
+              const timeFormatted = new Date(iv.scheduled_at).toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              });
+              return (
+                <div
+                  key={iv.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "0.6rem 0.8rem",
+                    borderRadius: "8px",
+                    background: "var(--bg-subtle, #f9fafb)",
+                    border: "1px solid var(--border-color, rgba(0,0,0,0.06))",
+                    fontSize: "0.82rem",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                      {iv.candidate_name}
+                    </div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                      {iv.round_type} · {timeFormatted}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    {iv.meeting_link && (
+                      <a
+                        href={iv.meeting_link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
+                      >
+                        Join
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-dark-pill btn-sm"
+                      style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
+                      onClick={() => {
+                        const targetId = iv.candidate_submission_id || iv.application_id;
+                        navigate(`/hr/candidates/${targetId}`);
+                      }}
+                    >
+                      View
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

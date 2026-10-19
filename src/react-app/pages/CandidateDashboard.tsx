@@ -11,6 +11,10 @@ import {
   Check,
   ArrowUpRight,
   Briefcase,
+  Calendar,
+  Clock,
+  Video,
+  ExternalLink,
 } from "lucide-react";
 import Seo from "../components/Seo";
 import CustomSelect, { CustomSelectOption } from "../components/CustomSelect";
@@ -34,6 +38,22 @@ interface Application {
   reasoning: string;
   created_at: string;
   status: string | null;
+}
+
+interface CandidateInterview {
+  id: string;
+  application_id: string;
+  job_id: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  round_type: string;
+  meeting_link: string | null;
+  notes: string | null;
+  status: string;
+  created_at: string;
+  job_title: string;
+  recruiter_name: string;
+  company_name: string | null;
 }
 
 function stageOf(app: Application): string {
@@ -124,13 +144,11 @@ const POPULAR_LOCATIONS = [
 // Clean Card for an Open Role
 function OpenJobCard({
   job,
-  featured,
   saved,
   onToggleSave,
   hasApplied,
 }: {
   job: OpenJob;
-  featured?: boolean;
   saved: boolean;
   onToggleSave: () => void;
   hasApplied: boolean;
@@ -138,7 +156,7 @@ function OpenJobCard({
   const meta = useMemo(() => getCompanyMeta(job.title, job.id), [job.title, job.id]);
 
   return (
-    <div className={`cd-job-card${featured ? " cd-job-card--featured" : ""}`}>
+    <div className="cd-job-card">
       {/* Top: Tags + Bookmark */}
       <div className="cd-card-top">
         <div className="cd-tag-list">
@@ -160,7 +178,7 @@ function OpenJobCard({
       <div className="cd-card-company-row">
         <div
           className="cd-company-logo"
-          style={{ background: featured ? "#262738" : meta.company.color }}
+          style={{ background: meta.company.color }}
         >
           {meta.company.initial}
         </div>
@@ -205,13 +223,11 @@ function OpenJobCard({
 // Clean Card for an Applied Application
 function ApplicationCard({
   app,
-  featured,
   saved,
   onToggleSave,
   flash,
 }: {
   app: Application;
-  featured?: boolean;
   saved: boolean;
   onToggleSave: () => void;
   flash: boolean;
@@ -221,7 +237,7 @@ function ApplicationCard({
   const stageLabel = STATUS_LABEL[stage] || stage.replace(/_/g, " ");
 
   return (
-    <div className={`cd-job-card${featured ? " cd-job-card--featured" : ""}${flash ? " cd-flash" : ""}`}>
+    <div className={`cd-job-card${flash ? " cd-flash" : ""}`}>
       {/* Top: Tags + Bookmark */}
       <div className="cd-card-top">
         <div className="cd-tag-list">
@@ -248,7 +264,7 @@ function ApplicationCard({
       <div className="cd-card-company-row">
         <div
           className="cd-company-logo"
-          style={{ background: featured ? "#262738" : meta.company.color }}
+          style={{ background: meta.company.color }}
         >
           {meta.company.initial}
         </div>
@@ -290,10 +306,121 @@ function ApplicationCard({
   );
 }
 
+// Clean Card for Scheduled Candidate Interview
+function InterviewCard({ interview }: { interview: CandidateInterview }) {
+  const isCompleted = interview.status === "completed";
+  const isCancelled = interview.status === "cancelled";
+
+  const dateFormatted = new Date(interview.scheduled_at).toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  return (
+    <div className="cd-job-card" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      <div className="cd-card-top">
+        <div className="cd-tag-list">
+          <span className="cd-tag-pill" style={{ fontWeight: 600 }}>{interview.round_type}</span>
+          <span
+            className="cd-tag-pill"
+            style={{
+              background: isCompleted ? "#ecfdf5" : isCancelled ? "#fef2f2" : "#eff6ff",
+              color: isCompleted ? "#10b981" : isCancelled ? "#ef4444" : "#2563eb",
+            }}
+          >
+            {interview.status.toUpperCase()}
+          </span>
+        </div>
+        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+          {interview.duration_minutes} mins
+        </span>
+      </div>
+
+      <div className="cd-card-company-row">
+        <div className="cd-company-logo" style={{ background: "#4f46e5" }}>
+          <Calendar size={18} color="#fff" />
+        </div>
+        <div className="cd-company-text">
+          <h3 className="cd-job-card-title">{interview.job_title}</h3>
+          <span className="cd-company-sub">
+            {interview.company_name || interview.recruiter_name
+              ? `${interview.company_name || "HireSight"} · with ${interview.recruiter_name}`
+              : "Recruiting Team"}
+          </span>
+        </div>
+      </div>
+
+      <div
+        style={{
+          fontSize: "0.82rem",
+          color: "var(--text-secondary)",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.4rem",
+          background: "var(--bg-subtle, #f8fafc)",
+          padding: "0.5rem 0.75rem",
+          borderRadius: "8px",
+        }}
+      >
+        <Clock size={13} style={{ color: "#2563eb" }} />
+        <strong style={{ color: "var(--text-primary)" }}>{dateFormatted}</strong>
+      </div>
+
+      {interview.notes && (
+        <div
+          style={{
+            fontSize: "0.78rem",
+            color: "var(--text-secondary)",
+            background: "rgba(0,0,0,0.02)",
+            padding: "0.5rem 0.75rem",
+            borderRadius: "8px",
+            borderLeft: "3px solid #10b981",
+          }}
+        >
+          <strong>Note from Recruiter:</strong> {interview.notes}
+        </div>
+      )}
+
+      <div className="cd-card-footer" style={{ marginTop: "auto", paddingTop: "0.75rem" }}>
+        {interview.meeting_link && !isCancelled ? (
+          <a
+            href={interview.meeting_link}
+            target="_blank"
+            rel="noreferrer"
+            className="cd-apply-btn"
+            style={{
+              background: "#0d0d0d",
+              color: "#ffffff",
+              padding: "0.4rem 0.8rem",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.3rem",
+            }}
+          >
+            <Video size={13} /> Join Call <ExternalLink size={11} />
+          </a>
+        ) : (
+          <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+            {isCancelled ? "Interview cancelled" : "Meeting link will be shared"}
+          </span>
+        )}
+        <span className="cd-time-ago">{timeAgo(interview.created_at)}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function CandidateDashboard() {
   const [openJobs, setOpenJobs] = useState<OpenJob[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [activeTab, setActiveTab] = useState<"open" | "applied">("open");
+  const [interviews, setInterviews] = useState<CandidateInterview[]>([]);
+  const [activeTab, setActiveTab] = useState<"open" | "applied" | "interviews">("open");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
@@ -351,9 +478,17 @@ export default function CandidateDashboard() {
             .catch(() => [] as Application[])
         : Promise.resolve([] as Application[]);
 
-      const [jobsData, appsData] = await Promise.all([jobsPromise, appsPromise]);
+      // 3. Fetch candidate interviews (if authenticated)
+      const interviewsPromise = token
+        ? fetch("/api/interviews/my", { headers: authHeaders() })
+            .then((res) => (res.ok ? (res.json() as Promise<CandidateInterview[]>) : []))
+            .catch(() => [] as CandidateInterview[])
+        : Promise.resolve([] as CandidateInterview[]);
+
+      const [jobsData, appsData, interviewsData] = await Promise.all([jobsPromise, appsPromise, interviewsPromise]);
       setOpenJobs(jobsData);
       setApplications(appsData);
+      setInterviews(interviewsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error fetching dashboard data");
     } finally {
@@ -658,10 +793,18 @@ export default function CandidateDashboard() {
           <div className="cd-jobs-header-row">
             <div className="cd-jobs-heading-group">
               <h2 className="cd-jobs-title">
-                {activeTab === "open" ? "Top Open Roles" : "My Applications"}
+                {activeTab === "open"
+                  ? "Top Open Roles"
+                  : activeTab === "applied"
+                  ? "My Applications"
+                  : "Scheduled Interviews"}
               </h2>
               <span className="cd-jobs-count-badge">
-                {activeTab === "open" ? `${filteredOpenJobs.length} available` : `${filteredApplications.length} applied`}
+                {activeTab === "open"
+                  ? `${filteredOpenJobs.length} available`
+                  : activeTab === "applied"
+                  ? `${filteredApplications.length} applied`
+                  : `${interviews.length} scheduled`}
               </span>
             </div>
 
@@ -679,6 +822,13 @@ export default function CandidateDashboard() {
                 onClick={() => setActiveTab("applied")}
               >
                 My Applications ({applications.length})
+              </button>
+              <button
+                type="button"
+                className={`cd-view-tab ${activeTab === "interviews" ? "active" : ""}`}
+                onClick={() => setActiveTab("interviews")}
+              >
+                Interviews ({interviews.length})
               </button>
             </div>
           </div>
@@ -706,11 +856,10 @@ export default function CandidateDashboard() {
               </div>
             ) : (
               <div className="cd-jobs-grid">
-                {filteredOpenJobs.map((job, idx) => (
+                {filteredOpenJobs.map((job) => (
                   <OpenJobCard
                     key={job.id}
                     job={job}
-                    featured={idx === 1} /* second card is featured dark style */
                     saved={savedIds.has(job.id)}
                     onToggleSave={() => toggleSave(job.id)}
                     hasApplied={appliedJobIds.has(job.id)}
@@ -718,7 +867,7 @@ export default function CandidateDashboard() {
                 ))}
               </div>
             )
-          ) : (
+          ) : activeTab === "applied" ? (
             filteredApplications.length === 0 ? (
               <div className="cd-empty-state">
                 <FileText size={44} strokeWidth={1.3} />
@@ -730,15 +879,31 @@ export default function CandidateDashboard() {
               </div>
             ) : (
               <div className="cd-jobs-grid">
-                {filteredApplications.map((app, idx) => (
+                {filteredApplications.map((app) => (
                   <ApplicationCard
                     key={app.id}
                     app={app}
-                    featured={idx === 1}
                     saved={savedIds.has(app.id)}
                     onToggleSave={() => toggleSave(app.id)}
                     flash={flashIds.has(app.job_id)}
                   />
+                ))}
+              </div>
+            )
+          ) : (
+            interviews.length === 0 ? (
+              <div className="cd-empty-state">
+                <Calendar size={44} strokeWidth={1.3} />
+                <h3>No interviews scheduled yet</h3>
+                <p>When recruiters schedule a technical round or screening call with you, details and video meeting links will appear here.</p>
+                <button type="button" className="btn btn-dark-pill btn-sm" onClick={() => setActiveTab("open")}>
+                  Explore Opportunities
+                </button>
+              </div>
+            ) : (
+              <div className="cd-jobs-grid">
+                {interviews.map((iv) => (
+                  <InterviewCard key={iv.id} interview={iv} />
                 ))}
               </div>
             )

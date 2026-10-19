@@ -288,6 +288,7 @@ export interface WelcomeEmailParams {
 	dashboardUrl: string;
 }
 
+
 /** 7. Welcome Email on Account Registration */
 export function getWelcomeEmail(params: WelcomeEmailParams): { subject: string; html: string } {
 	const subject = `Welcome to HireSight, ${params.userName}!`;
@@ -319,5 +320,58 @@ export function getWelcomeEmail(params: WelcomeEmailParams): { subject: string; 
 	`);
 	return { subject, html };
 }
+
+/** 8. Interview Invitation Email */
+export interface InterviewScheduledParams {
+	candidateName: string;
+	jobTitle: string;
+	companyName?: string;
+	roundType: string;
+	scheduledAtFormatted: string;
+	durationMinutes: number;
+	meetingLink?: string | null;
+	notes?: string | null;
+	dashboardUrl: string;
+}
+
+export function getInterviewScheduledEmail(params: InterviewScheduledParams): { subject: string; html: string } {
+	const subject = `Interview Invitation: ${params.roundType} — ${params.jobTitle}`;
+	const html = baseWrapper(`
+		<h2 style="font-size: 20px; margin-top: 0; color: #0d0d0d;">Interview Invitation 📅</h2>
+		<p>Hi <strong>${params.candidateName}</strong>,</p>
+		<p>You have been invited for an interview for the <strong>${params.jobTitle}</strong> position${params.companyName ? ` at <strong>${params.companyName}</strong>` : ""}.</p>
+
+		<div class="card-info" style="margin: 20px 0; border-left: 4px solid #10b981;">
+			<div style="margin-bottom: 12px;">
+				<div style="font-size: 11px; color: #888888; text-transform: uppercase; font-weight: 600;">Interview Round</div>
+				<div style="font-size: 16px; font-weight: 700; color: #0d0d0d;">${params.roundType}</div>
+			</div>
+			<div style="margin-bottom: 12px;">
+				<div style="font-size: 11px; color: #888888; text-transform: uppercase; font-weight: 600;">Date & Time</div>
+				<div style="font-size: 15px; font-weight: 600; color: #0d0d0d;">${params.scheduledAtFormatted} (${params.durationMinutes} minutes)</div>
+			</div>
+			${params.meetingLink ? `
+				<div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(0,0,0,0.1);">
+					<div style="font-size: 11px; color: #888888; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Meeting Link</div>
+					<a href="${params.meetingLink}" style="color: #2563eb; font-weight: 600; text-decoration: underline; word-break: break-all;">${params.meetingLink}</a>
+				</div>
+			` : ""}
+		</div>
+
+		${params.notes ? `
+			<div style="background: #ffffff; border-left: 4px solid #0d0d0d; padding: 12px 16px; margin: 16px 0; font-size: 13px; color: #444444;">
+				<strong>Notes from recruiter:</strong><br/>
+				${params.notes.replace(/\n/g, '<br/>')}
+			</div>
+		` : ""}
+
+		<div style="text-align: center; margin-top: 24px;">
+			${params.meetingLink ? `<a href="${params.meetingLink}" class="btn" style="margin-right: 8px;">Join Meeting →</a>` : ""}
+			<a href="${params.dashboardUrl}" class="btn" style="background: #333333;">Candidate Portal</a>
+		</div>
+	`);
+	return { subject, html };
+}
+
 
 

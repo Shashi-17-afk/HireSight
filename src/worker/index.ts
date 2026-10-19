@@ -11,6 +11,7 @@ import applications from "./routes/applications";
 import payments from "./routes/payments";
 import help from "./routes/help";
 import messages from "./routes/messages";
+import interviews from "./routes/interviews";
 import { authenticate, hrOwnsJob, requireHR } from "./lib/auth";
 import type { AuthVariables } from "./lib/auth";
 
@@ -55,6 +56,9 @@ app.route("/api/help", help);
 
 // Recruiter → Candidate messaging
 app.route("/api/messages", messages);
+
+// Interview scheduling system
+app.route("/api/interviews", interviews);
 
 // Candidate real-time status WebSocket.
 // Browsers can't send custom headers on WS upgrades, so JWT is passed as ?token=

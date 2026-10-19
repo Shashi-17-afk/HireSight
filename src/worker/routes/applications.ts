@@ -123,10 +123,19 @@ applications.get('/', authenticate(), requireHR(), async (c) => {
 // Falls back to basic info if no applications row exists (external link apply).
 applications.get('/:submission_id', authenticate(), requireHR(), async (c) => {
 	const submission_id = c.req.param('submission_id');
-	const job_id = c.req.query('job_id');
-	if (!job_id) return c.json({ error: 'job_id query param required' }, 400);
+	let job_id = c.req.query('job_id');
+
+	// If job_id not provided in query param, resolve it directly from the candidate record
+	if (!job_id) {
+		const cand = await c.env.DB.prepare('SELECT job_id FROM candidates WHERE id = ?')
+			.bind(submission_id).first<{ job_id: string }>();
+		if (cand) job_id = cand.job_id;
+	}
+
+	if (!job_id) return c.json({ error: 'job_id could not be determined' }, 400);
+
 	if (!(await hrOwnsJob(c.env.DB, job_id, c.get('user').id))) {
-		return c.json({ error: 'Candidate not found' }, 404);
+		return c.json({ error: 'Candidate not found or access denied' }, 404);
 	}
 
 	const row = await c.env.DB.prepare(`
@@ -157,24 +166,76 @@ applications.get('/:submission_id', authenticate(), requireHR(), async (c) => {
 
 	if (row) return c.json({ ...row, isAnonymous: false });
 
-	// No applications row → external link apply, show basic scoring info only.
+	// No applications row → external link apply, enrich with profile if candidate registered by email
 	const basic = await c.env.DB.prepare(`
-		SELECT id, name, email, score, reasoning, created_at AS applied_at, job_id
-		FROM candidates
-		WHERE id = ? AND job_id = ?
+		SELECT
+			cand.id                   AS candidate_submission_id,
+			cand.name                 AS candidate_name,
+			cand.email                AS candidate_email,
+			cand.score                AS ai_score,
+			cand.reasoning            AS ai_reasoning,
+			cand.created_at           AS applied_at,
+			cand.job_id,
+			j.title                   AS job_title,
+			u.id                      AS user_id,
+			cp.phone,
+			cp.headline,
+			cp.linkedin_url,
+			cp.github_url,
+			cp.portfolio_url,
+			cp.resume_url
+		FROM candidates cand
+		JOIN jobs j ON j.id = cand.job_id
+		LEFT JOIN users u ON LOWER(u.email) = LOWER(cand.email)
+		LEFT JOIN candidate_profiles cp ON cp.user_id = u.id
+		WHERE cand.id = ? AND cand.job_id = ?
 	`).bind(submission_id, job_id).first<Record<string, unknown>>();
 
 	if (!basic) return c.json({ error: 'Candidate not found' }, 404);
 
-	const job = await c.env.DB.prepare('SELECT title FROM jobs WHERE id = ?')
-		.bind(job_id).first<{ title: string }>();
+	// Ensure an applications row exists so HR can update status, send offers, and message them
+	let appId: string | null = null;
+	let appStatus = 'applied';
+	const candidateUserId = (basic.user_id as string | null) ?? null;
+
+	if (candidateUserId) {
+		const existingApp = await c.env.DB.prepare(
+			'SELECT id, status FROM applications WHERE user_id = ? AND job_id = ?'
+		).bind(candidateUserId, job_id).first<{ id: string; status: string }>();
+
+		if (existingApp) {
+			appId = existingApp.id;
+			appStatus = existingApp.status;
+			await c.env.DB.prepare(
+				'UPDATE applications SET candidate_submission_id = COALESCE(candidate_submission_id, ?) WHERE id = ?'
+			).bind(submission_id, appId).run();
+		}
+	}
+
+	if (!appId) {
+		const newAppId = crypto.randomUUID();
+		try {
+			await c.env.DB.prepare(`
+				INSERT INTO applications (id, user_id, job_id, candidate_submission_id, status, source, applied_at)
+				VALUES (?, ?, ?, ?, 'applied', 'link', ?)
+			`).bind(
+				newAppId,
+				candidateUserId,
+				job_id,
+				submission_id,
+				(basic.applied_at as string) || new Date().toISOString()
+			).run();
+			appId = newAppId;
+		} catch (err) {
+			console.error('[applications] auto-create application record failed:', String(err));
+		}
+	}
 
 	return c.json({
 		...basic,
-		job_title: job?.title ?? '',
-		application_id: null,
-		status: null,
-		isAnonymous: true,
+		application_id: appId,
+		status: appStatus,
+		isAnonymous: !basic.user_id,
 	});
 });
 

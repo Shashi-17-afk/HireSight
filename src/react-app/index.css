@@ -3713,7 +3713,7 @@ a:hover {
 
 
 /* ------------------------------------------------------------
-   Candidate Layout — Top Nav + Icon Rail Shell
+   Candidate Layout ï¿½ Top Nav + Icon Rail Shell
    ------------------------------------------------------------ */
 
 .cil-shell {
@@ -3977,7 +3977,7 @@ a:hover {
 }
 
 /* meta chip dot separator */
-.cd-meta-sep::before { content: " · "; color: var(--text-muted); }
+.cd-meta-sep::before { content: " ï¿½ "; color: var(--text-muted); }
 
 /* ------------------------------------------------------------
    Inbox Drawer
