@@ -1,5 +1,17 @@
 /* ── trams-eight inspired design system for HireSight ── */
 
+html {
+  scroll-behavior: smooth;
+}
+
+#features,
+#how-it-works,
+#pricing,
+#faq,
+section[id] {
+  scroll-margin-top: 5.5rem;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;

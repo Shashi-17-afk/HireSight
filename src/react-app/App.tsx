@@ -108,6 +108,18 @@ function Navbar() {
 		navigate("/");
 	}
 
+	function scrollToSection(e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) {
+		if (pathname === "/") {
+			e.preventDefault();
+			const el = document.getElementById(sectionId);
+			if (el) {
+				el.scrollIntoView({ behavior: "smooth", block: "start" });
+				window.history.pushState(null, "", `/#${sectionId}`);
+			}
+		}
+		setMenuOpen(false);
+	}
+
 	return (
 		<nav className={`nav${menuOpen ? " nav--open" : ""}`}>
 			<Link to="/" className="nav-logo">
@@ -115,11 +127,10 @@ function Navbar() {
 			</Link>
 
 			<div className="nav-links-landing">
-				<Link to="/trending-roles" className="nav-link" style={{ color: "#ea580c", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>🔥 Trending Roles</Link>
-				<a href="/#features" className="nav-link">Features</a>
-				<a href="/#how-it-works" className="nav-link">How it works</a>
-				<a href="/#pricing" className="nav-link">Pricing</a>
-				<a href="/#faq" className="nav-link">FAQ</a>
+				<a href="/#features" className="nav-link" onClick={(e) => scrollToSection(e, "features")}>Features</a>
+				<a href="/#how-it-works" className="nav-link" onClick={(e) => scrollToSection(e, "how-it-works")}>How it works</a>
+				<a href="/#pricing" className="nav-link" onClick={(e) => scrollToSection(e, "pricing")}>Pricing</a>
+				<a href="/#faq" className="nav-link" onClick={(e) => scrollToSection(e, "faq")}>FAQ</a>
 			</div>
 
 			<span className="nav-spacer" />
@@ -192,10 +203,10 @@ function Navbar() {
 						</>
 					) : (
 						<>
-							<a href="/#features" className="nav-mobile-link">Features</a>
-							<a href="/#how-it-works" className="nav-mobile-link">How it works</a>
-							<a href="/#pricing" className="nav-mobile-link">Pricing</a>
-							<a href="/#faq" className="nav-mobile-link">FAQ</a>
+							<a href="/#features" className="nav-mobile-link" onClick={(e) => scrollToSection(e, "features")}>Features</a>
+							<a href="/#how-it-works" className="nav-mobile-link" onClick={(e) => scrollToSection(e, "how-it-works")}>How it works</a>
+							<a href="/#pricing" className="nav-mobile-link" onClick={(e) => scrollToSection(e, "pricing")}>Pricing</a>
+							<a href="/#faq" className="nav-mobile-link" onClick={(e) => scrollToSection(e, "faq")}>FAQ</a>
 							<div className="nav-mobile-auth">
 								{isApply ? (
 									<Link to="/login/candidate" className="btn btn-dark-pill btn-sm">Sign in</Link>

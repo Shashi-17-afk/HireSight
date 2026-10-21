@@ -19,6 +19,7 @@ import {
 import * as pdfjsLib from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { authHeaders } from "../lib/hr";
+import CompanyLogo from "./CompanyLogo";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -436,24 +437,7 @@ export default function MangoTrendingSection({
               <div>
                 {/* Header: Company Avatar + Title + Badges */}
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "0.85rem", marginBottom: "0.75rem" }}>
-                  <div
-                    style={{
-                      width: "44px",
-                      height: "44px",
-                      borderRadius: "10px",
-                      background: role.companyColor,
-                      color: "#fff",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 800,
-                      fontSize: "1.2rem",
-                      flexShrink: 0,
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                    }}
-                  >
-                    {role.companyInitial}
-                  </div>
+                  <CompanyLogo company={role.company} size={46} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.2rem" }}>
                       <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text-primary)" }}>{role.company}</span>
@@ -657,23 +641,7 @@ export default function MangoTrendingSection({
 
             {/* Modal Header */}
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" }}>
-              <div
-                style={{
-                  width: "42px",
-                  height: "42px",
-                  borderRadius: "10px",
-                  background: simRole.companyColor,
-                  color: "#fff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 800,
-                  fontSize: "1.15rem",
-                  flexShrink: 0,
-                }}
-              >
-                {simRole.companyInitial}
-              </div>
+              <CompanyLogo company={simRole.company} size={44} />
               <div>
                 <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 600 }}>
                   AI Bar-Raiser Match Simulator · {simRole.company}
