@@ -4,9 +4,11 @@ import type { AuthVariables } from '../lib/auth';
 import { APPLICATION_STATUSES } from '../types/ats';
 import type { ApplicationStatus } from '../types/ats';
 import { sendEmail } from '../lib/email';
-import { getStatusUpdateEmail } from '../lib/email-templates';
+import { getStatusUpdateEmail, getOfferLetterEmail } from '../lib/email-templates';
+import { generateOfferLetterPdf, uint8ArrayToBase64 } from '../lib/pdf-generator';
 import { evaluateRateLimit } from '../lib/rate-limit';
 import { scoreResumeWithLlm } from '../lib/scoring';
+import { analyzeCandidateCv } from '../lib/cv-analysis';
 
 const applications = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
@@ -151,6 +153,7 @@ applications.get('/:submission_id', authenticate(), requireHR(), async (c) => {
 			cand.email                AS candidate_email,
 			cand.score                AS ai_score,
 			cand.reasoning            AS ai_reasoning,
+			cand.resume_text          AS resume_text,
 			cp.phone,
 			cp.headline,
 			cp.linkedin_url,
@@ -174,6 +177,7 @@ applications.get('/:submission_id', authenticate(), requireHR(), async (c) => {
 			cand.email                AS candidate_email,
 			cand.score                AS ai_score,
 			cand.reasoning            AS ai_reasoning,
+			cand.resume_text          AS resume_text,
 			cand.created_at           AS applied_at,
 			cand.job_id,
 			j.title                   AS job_title,
@@ -329,6 +333,59 @@ applications.post('/:submission_id/rescore', authenticate(), requireHR(), async 
 	});
 });
 
+// ── POST /api/applications/:submission_id/cv-analysis ────────────────────────
+// Performs in-depth AI CV Analysis: Skills match/gap, Seniority rating, ATS scores,
+// Standout strengths, Red flags, and Tailored interview questions.
+applications.post('/:submission_id/cv-analysis', authenticate(), requireHR(), async (c) => {
+	const submissionId = c.req.param('submission_id');
+	const hr = c.get('user');
+
+	const row = await c.env.DB.prepare(`
+		SELECT cand.id, cand.job_id, cand.name, cand.resume_text, cand.score,
+		       j.title AS job_title, j.description AS job_description, j.user_id AS job_owner_id
+		FROM candidates cand
+		JOIN jobs j ON j.id = cand.job_id
+		WHERE cand.id = ?
+	`).bind(submissionId).first<{
+		id: string;
+		job_id: string;
+		name: string;
+		resume_text: string;
+		score: number;
+		job_title: string;
+		job_description: string;
+		job_owner_id: string;
+	}>();
+
+	if (!row || row.job_owner_id !== hr.id) {
+		return c.json({ error: 'Candidate not found or access denied' }, 404);
+	}
+
+	if (!row.resume_text || !row.resume_text.trim()) {
+		return c.json({ error: 'No parsed resume text available for this candidate' }, 400);
+	}
+
+	const analysis = await analyzeCandidateCv(
+		c.env.AI,
+		row.job_title,
+		row.job_description,
+		row.resume_text
+	);
+
+	if (!analysis) {
+		return c.json({ error: 'AI analysis model could not process resume. Please try again.' }, 502);
+	}
+
+	return c.json({
+		success: true,
+		candidateId: row.id,
+		candidateName: row.name,
+		jobTitle: row.job_title,
+		resumeText: row.resume_text,
+		analysis,
+	});
+});
+
 // ── PATCH /api/applications/:id/status  ──────────────────────────────────────
 // HR moves a candidate through the pipeline.
 // Writes to applications + application_status_log, then pushes a real-time
@@ -437,4 +494,265 @@ applications.patch('/:id/status', authenticate(), requireHR(), async (c) => {
 	return c.json({ status: newStatus, changed: true });
 });
 
+// ── POST /api/applications/:id/offer ─────────────────────────────────────────
+// Issue an official formal offer of employment to candidate:
+// 1. Validates HR ownership of application
+// 2. Generates standard PDF Offer Letter bytes and base64
+// 3. Dispatches transactional email with PDF attached
+// 4. Sets application status to 'hired', logs to audit log, and notifies CandidateStatusDO
+applications.post('/:id/offer', authenticate(), requireHR(), async (c) => {
+	const applicationId = c.req.param('id');
+	const hr = c.get('user');
+
+	let body: {
+		salary: string;
+		startDate: string;
+		employmentType?: string;
+		workLocation?: string;
+		reportingManager?: string;
+		expiryDate?: string;
+		benefitsSummary?: string;
+		customNotes?: string;
+		companyName?: string;
+	};
+
+	try {
+		body = await c.req.json();
+	} catch {
+		return c.json({ error: 'Invalid JSON body' }, 400);
+	}
+
+	if (!body.salary?.trim() || !body.startDate?.trim()) {
+		return c.json({ error: 'Salary and start date are required to extend an official offer' }, 400);
+	}
+
+	// Fetch application & verify ownership
+	const app = await c.env.DB.prepare(`
+		SELECT a.id, a.status, a.user_id, a.job_id, j.title AS job_title, j.user_id AS job_owner_id,
+		       hr.name AS hr_name, hr.company_name AS hr_company,
+		       COALESCE(u.name, cand.name) AS candidate_name,
+		       COALESCE(u.email, cand.email) AS candidate_email
+		FROM applications a
+		JOIN jobs j ON j.id = a.job_id
+		JOIN users hr ON hr.id = j.user_id
+		LEFT JOIN candidates cand ON cand.id = a.candidate_submission_id
+		LEFT JOIN users u ON u.id = a.user_id
+		WHERE a.id = ?
+	`).bind(applicationId)
+	 .first<{
+		id: string;
+		status: string;
+		user_id: string | null;
+		job_id: string;
+		job_title: string;
+		job_owner_id: string | null;
+		hr_name: string | null;
+		hr_company: string | null;
+		candidate_name: string | null;
+		candidate_email: string | null;
+	 }>();
+
+	if (!app || app.job_owner_id !== hr.id) {
+		return c.json({ error: 'Application not found' }, 404);
+	}
+
+	const candidateName = app.candidate_name || 'Candidate';
+	const candidateEmail = app.candidate_email;
+	const company = body.companyName?.trim() || app.hr_company || 'HireSight Technologies';
+	const fromStatus = app.status;
+
+	// 1. Generate PDF Offer Letter
+	const pdfBytes = generateOfferLetterPdf({
+		candidateName,
+		candidateEmail: candidateEmail || '',
+		companyName: company,
+		jobTitle: app.job_title,
+		salary: body.salary.trim(),
+		startDate: body.startDate.trim(),
+		employmentType: body.employmentType?.trim() || 'Full-Time',
+		workLocation: body.workLocation?.trim() || 'Remote',
+		reportingManager: body.reportingManager?.trim() || 'Department Lead',
+		expiryDate: body.expiryDate?.trim(),
+		benefitsSummary: body.benefitsSummary?.trim(),
+		customNotes: body.customNotes?.trim(),
+		recruiterName: app.hr_name || 'HireSight Talent Team',
+	});
+	const pdfBase64 = uint8ArrayToBase64(pdfBytes);
+	const pdfFilename = `Offer_Letter_${candidateName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+
+	// 2. Update Application row to 'hired'
+	await c.env.DB.prepare(`
+		UPDATE applications
+		SET status = 'hired', changed_by_hr_id = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`).bind(hr.id, applicationId).run();
+
+	// 3. Insert audit log entry
+	const auditNote = `Official Offer Letter Issued: ${body.salary.trim()} · Start Date: ${body.startDate.trim()}`;
+	await c.env.DB.prepare(`
+		INSERT INTO application_status_log
+			(id, application_id, from_status, to_status, changed_by_hr_id, note)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`).bind(
+		crypto.randomUUID(),
+		applicationId,
+		fromStatus,
+		'hired',
+		hr.id,
+		auditNote
+	).run();
+
+	// 4. Real-time push via CandidateStatusDO (if authenticated applicant)
+	if (app.user_id) {
+		try {
+			const doId = c.env.CANDIDATE_STATUS.idFromName(app.user_id);
+			const stub = c.env.CANDIDATE_STATUS.get(doId);
+			await stub.fetch(new Request('https://do-internal/notify', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					application_id: applicationId,
+					job_id: app.job_id,
+					job_title: app.job_title,
+					from_status: fromStatus,
+					to_status: 'hired',
+				}),
+			}));
+		} catch (doErr) {
+			console.error('[applications] candidate status DO notification failed:', String(doErr));
+		}
+	}
+
+	// 5. Send Email with PDF Attachment
+	let emailSent = false;
+	if (candidateEmail) {
+		try {
+			const offerEmail = getOfferLetterEmail({
+				candidateName,
+				jobTitle: app.job_title,
+				companyName: company,
+				salary: body.salary.trim(),
+				startDate: body.startDate.trim(),
+				employmentType: body.employmentType?.trim(),
+				workLocation: body.workLocation?.trim(),
+				reportingManager: body.reportingManager?.trim(),
+				expiryDate: body.expiryDate?.trim(),
+				benefitsSummary: body.benefitsSummary?.trim(),
+				customNotes: body.customNotes?.trim(),
+				dashboardUrl: 'https://hiresight.shashishanthan2706.workers.dev/candidate/dashboard',
+			});
+
+			const sendRes = await sendEmail(c.env, {
+				to: candidateEmail,
+				subject: offerEmail.subject,
+				html: offerEmail.html,
+				attachments: [
+					{
+						name: pdfFilename,
+						content: pdfBase64,
+					},
+				],
+			});
+			emailSent = sendRes.success;
+		} catch (emailErr) {
+			console.error('[applications] offer email dispatch error:', String(emailErr));
+		}
+	}
+
+	return c.json({
+		success: true,
+		status: 'hired',
+		candidateName,
+		candidateEmail,
+		emailSent,
+		pdfFilename,
+		pdfBase64,
+		message: emailSent
+			? `Offer Letter PDF sent successfully to ${candidateEmail}!`
+			: `Offer recorded. (Email could not be delivered to ${candidateEmail || 'unregistered email'})`,
+	});
+});
+
+// ── POST /api/applications/:id/offer/preview ──────────────────────────────────
+// Generates and returns the PDF offer letter without modifying state or sending email.
+applications.post('/:id/offer/preview', authenticate(), requireHR(), async (c) => {
+	const applicationId = c.req.param('id');
+	const hr = c.get('user');
+
+	let body: {
+		salary?: string;
+		startDate?: string;
+		employmentType?: string;
+		workLocation?: string;
+		reportingManager?: string;
+		expiryDate?: string;
+		benefitsSummary?: string;
+		customNotes?: string;
+		companyName?: string;
+	};
+
+	try {
+		body = await c.req.json();
+	} catch {
+		body = {};
+	}
+
+	const app = await c.env.DB.prepare(`
+		SELECT a.id, a.status, a.user_id, a.job_id, j.title AS job_title, j.user_id AS job_owner_id,
+		       hr.name AS hr_name, hr.company_name AS hr_company,
+		       COALESCE(u.name, cand.name) AS candidate_name,
+		       COALESCE(u.email, cand.email) AS candidate_email
+		FROM applications a
+		JOIN jobs j ON j.id = a.job_id
+		JOIN users hr ON hr.id = j.user_id
+		LEFT JOIN candidates cand ON cand.id = a.candidate_submission_id
+		LEFT JOIN users u ON u.id = a.user_id
+		WHERE a.id = ?
+	`).bind(applicationId)
+	 .first<{
+		id: string;
+		status: string;
+		user_id: string | null;
+		job_id: string;
+		job_title: string;
+		job_owner_id: string | null;
+		hr_name: string | null;
+		hr_company: string | null;
+		candidate_name: string | null;
+		candidate_email: string | null;
+	 }>();
+
+	if (!app || app.job_owner_id !== hr.id) {
+		return c.json({ error: 'Application not found' }, 404);
+	}
+
+	const candidateName = app.candidate_name || 'Candidate';
+	const company = body.companyName?.trim() || app.hr_company || 'HireSight Technologies';
+
+	const pdfBytes = generateOfferLetterPdf({
+		candidateName,
+		candidateEmail: app.candidate_email || '',
+		companyName: company,
+		jobTitle: app.job_title,
+		salary: body.salary?.trim() || 'Competitive',
+		startDate: body.startDate?.trim() || 'To be mutually determined',
+		employmentType: body.employmentType?.trim() || 'Full-Time',
+		workLocation: body.workLocation?.trim() || 'Remote',
+		reportingManager: body.reportingManager?.trim() || 'Department Lead',
+		expiryDate: body.expiryDate?.trim(),
+		benefitsSummary: body.benefitsSummary?.trim(),
+		customNotes: body.customNotes?.trim(),
+		recruiterName: app.hr_name || 'HireSight Talent Team',
+	});
+
+	const pdfBase64 = uint8ArrayToBase64(pdfBytes);
+	const pdfFilename = `Offer_Letter_${candidateName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+
+	return c.json({
+		pdfFilename,
+		pdfBase64,
+	});
+});
+
 export default applications;
+

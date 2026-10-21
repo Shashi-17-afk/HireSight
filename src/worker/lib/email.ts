@@ -1,8 +1,14 @@
+export interface EmailAttachment {
+	name: string;
+	content: string; // Base64 encoded string
+}
+
 export interface SendEmailOptions {
 	to: string;
 	subject: string;
 	html: string;
 	from?: string;
+	attachments?: EmailAttachment[];
 }
 
 export interface SendEmailResult {
@@ -14,6 +20,7 @@ export interface SendEmailResult {
 /**
  * Send a transactional HTML email via Brevo REST API (or Resend API fallback).
  * Uses native fetch() — zero external npm dependencies required.
+ * Supports base64 attachments (e.g. PDF Offer Letters).
  */
 export async function sendEmail(
 	env: Env,
@@ -25,6 +32,20 @@ export async function sendEmail(
 	// Primary Engine: Brevo (Delivers to ALL recipients for 100% free)
 	if (brevoKey && brevoKey !== "brevo_placeholder_key") {
 		try {
+			const brevoBody: Record<string, unknown> = {
+				sender: { name: "HireSight AI", email: "shashishanthan2706@gmail.com" },
+				to: [{ email: options.to }],
+				subject: options.subject,
+				htmlContent: options.html,
+			};
+
+			if (options.attachments && options.attachments.length > 0) {
+				brevoBody.attachment = options.attachments.map((att) => ({
+					name: att.name,
+					content: att.content,
+				}));
+			}
+
 			const res = await fetch("https://api.brevo.com/v3/smtp/email", {
 				method: "POST",
 				headers: {
@@ -32,12 +53,7 @@ export async function sendEmail(
 					"content-type": "application/json",
 					"api-key": brevoKey,
 				},
-				body: JSON.stringify({
-					sender: { name: "HireSight AI", email: "shashishanthan2706@gmail.com" },
-					to: [{ email: options.to }],
-					subject: options.subject,
-					htmlContent: options.html,
-				}),
+				body: JSON.stringify(brevoBody),
 			});
 
 			const data = (await res.json()) as { messageId?: string; message?: string; code?: string };
@@ -61,18 +77,27 @@ export async function sendEmail(
 	if (resendKey && resendKey !== "re_placeholder_key") {
 		const from = options.from ?? "HireSight <onboarding@resend.dev>";
 		try {
+			const resendBody: Record<string, unknown> = {
+				from,
+				to: [options.to],
+				subject: options.subject,
+				html: options.html,
+			};
+
+			if (options.attachments && options.attachments.length > 0) {
+				resendBody.attachments = options.attachments.map((att) => ({
+					filename: att.name,
+					content: att.content,
+				}));
+			}
+
 			const res = await fetch("https://api.resend.com/emails", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${resendKey}`,
 				},
-				body: JSON.stringify({
-					from,
-					to: [options.to],
-					subject: options.subject,
-					html: options.html,
-				}),
+				body: JSON.stringify(resendBody),
 			});
 
 			const data = (await res.json()) as { id?: string; message?: string };

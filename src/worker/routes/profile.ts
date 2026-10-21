@@ -3,6 +3,7 @@ import { authenticate, requireCandidate } from '../lib/auth';
 import type { AuthVariables } from '../lib/auth';
 import { profileBodySchema } from '../lib/profileSchema';
 import { computeIsComplete } from '../types/ats';
+import { auditResumeForCandidate } from '../lib/cv-analysis';
 
 const profile = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
@@ -97,6 +98,67 @@ profile.put('/', authenticate(), requireCandidate(), async (c) => {
 	).bind(id).first<Record<string, unknown>>();
 
 	return c.json({ ...saved, is_complete: saved?.['is_complete'] === 1 });
+});
+
+// ── POST /api/profile/cv-analysis ───────────────────────────────────────────
+// Authenticated candidate evaluates their own resume text or past submission.
+profile.post('/cv-analysis', authenticate(), requireCandidate(), async (c) => {
+	const { id } = c.get('user');
+
+	let body: { resumeText?: string; targetRole?: string; targetJd?: string } = {};
+	try {
+		body = await c.req.json();
+	} catch {
+		body = {};
+	}
+
+	let resumeText = body.resumeText?.trim();
+
+	// If no resumeText provided in body, load their latest submitted resume from candidates
+	if (!resumeText) {
+		const latestApp = await c.env.DB.prepare(`
+			SELECT cand.resume_text
+			FROM applications a
+			JOIN candidates cand ON cand.id = a.candidate_submission_id
+			WHERE a.user_id = ?
+			ORDER BY a.applied_at DESC
+			LIMIT 1
+		`).bind(id).first<{ resume_text: string }>();
+
+		if (latestApp?.resume_text) {
+			resumeText = latestApp.resume_text;
+		}
+	}
+
+	// If still no resume text, check their profile skills/bio
+	if (!resumeText) {
+		const prof = await c.env.DB.prepare(`
+			SELECT headline, bio, skills, years_of_experience FROM candidate_profiles WHERE user_id = ?
+		`).bind(id).first<{ headline?: string; bio?: string; skills?: string; years_of_experience?: number }>();
+
+		if (prof?.skills || prof?.headline || prof?.bio) {
+			resumeText = `Candidate Headline: ${prof.headline || ''}\nExperience: ${prof.years_of_experience || ''} years\nSkills: ${prof.skills || ''}\nBio: ${prof.bio || ''}`;
+		}
+	}
+
+	if (!resumeText || resumeText.length < 20) {
+		return c.json({
+			error: 'No resume content found. Please paste or upload your resume text to analyze.',
+			hasResume: false,
+		}, 400);
+	}
+
+	const audit = await auditResumeForCandidate(c.env.AI, resumeText, body.targetRole, body.targetJd);
+	if (!audit) {
+		return c.json({ error: 'AI analysis model could not process resume. Please try again.' }, 502);
+	}
+
+	return c.json({
+		success: true,
+		resumeSnippet: resumeText.slice(0, 500),
+		hasResume: true,
+		audit,
+	});
 });
 
 export default profile;

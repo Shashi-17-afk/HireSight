@@ -20,6 +20,10 @@ const CandidateDetail  = lazy(() => import("./pages/CandidateDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const HomePage = lazy(() => import("./pages/HomePage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const CompaniesPage = lazy(() => import("./pages/CompaniesPage"));
+const CompanyDetailPage = lazy(() => import("./pages/CompanyDetailPage"));
+const CandidateCvAnalysisPage = lazy(() => import("./pages/CandidateCvAnalysisPage"));
+const MangoRolesPage = lazy(() => import("./pages/MangoRolesPage"));
 
 const PageFallback = <div className="page" style={{ color: "var(--text-muted)", textAlign: "center", paddingTop: "4rem" }}>Loading…</div>;
 
@@ -111,6 +115,7 @@ function Navbar() {
 			</Link>
 
 			<div className="nav-links-landing">
+				<Link to="/trending-roles" className="nav-link" style={{ color: "#ea580c", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>🔥 Trending Roles</Link>
 				<a href="/#features" className="nav-link">Features</a>
 				<a href="/#how-it-works" className="nav-link">How it works</a>
 				<a href="/#pricing" className="nav-link">Pricing</a>
@@ -257,7 +262,13 @@ function isHrWorkspace(pathname: string) {
 }
 
 function isJobsBrowsePath(pathname: string) {
-	return pathname.startsWith("/jobs") || pathname.startsWith("/apply");
+	return (
+		pathname.startsWith("/jobs") ||
+		pathname.startsWith("/apply") ||
+		pathname.startsWith("/companies") ||
+		pathname.startsWith("/trending-roles") ||
+		pathname.startsWith("/mango-roles")
+	);
 }
 
 function isCandidateWorkspace(pathname: string) {
@@ -338,12 +349,17 @@ export default function App() {
 				<Route element={<CandidateWorkspace />}>
 					<Route path="/candidate/dashboard" element={<HrPage><CandidateDashboard /></HrPage>} />
 					<Route path="/candidate/profile" element={<HrPage><CandidateProfile /></HrPage>} />
+					<Route path="/candidate/cv-analysis" element={<HrPage><CandidateCvAnalysisPage /></HrPage>} />
 				</Route>
 
 				<Route element={<OptionalCandidateShell />}>
 					<Route path="/jobs" element={<Suspense fallback={PageFallback}><JobsBoard /></Suspense>} />
 					<Route path="/jobs/:job_id" element={<Suspense fallback={PageFallback}><JobDetail /></Suspense>} />
 					<Route path="/apply/:job_id" element={<Suspense fallback={PageFallback}><ApplyJob /></Suspense>} />
+					<Route path="/companies" element={<Suspense fallback={PageFallback}><CompaniesPage /></Suspense>} />
+					<Route path="/companies/:company_id" element={<Suspense fallback={PageFallback}><CompanyDetailPage /></Suspense>} />
+					<Route path="/trending-roles" element={<Suspense fallback={PageFallback}><MangoRolesPage /></Suspense>} />
+					<Route path="/mango-roles" element={<Navigate to="/trending-roles" replace />} />
 				</Route>
 
 				<Route path="*" element={<Suspense fallback={PageFallback}><NotFound /></Suspense>} />

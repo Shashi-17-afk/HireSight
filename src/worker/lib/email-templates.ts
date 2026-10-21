@@ -373,5 +373,97 @@ export function getInterviewScheduledEmail(params: InterviewScheduledParams): { 
 	return { subject, html };
 }
 
+export interface OfferLetterEmailParams {
+	candidateName: string;
+	jobTitle: string;
+	companyName?: string;
+	salary: string;
+	startDate: string;
+	employmentType?: string;
+	workLocation?: string;
+	reportingManager?: string;
+	expiryDate?: string;
+	benefitsSummary?: string;
+	customNotes?: string;
+	dashboardUrl: string;
+}
+
+export function getOfferLetterEmail(params: OfferLetterEmailParams): { subject: string; html: string } {
+	const company = params.companyName || "HireSight";
+	const subject = `Official Offer of Employment: ${params.jobTitle} — ${company} 🎉`;
+	const html = baseWrapper(`
+		<div style="text-align: center; margin-bottom: 20px;">
+			<span style="background: #ecfdf5; color: #059669; font-weight: 700; font-size: 12px; padding: 5px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid rgba(16, 185, 129, 0.3);">
+				Official Offer Letter Attached 📄
+			</span>
+		</div>
+		<h2 style="font-size: 22px; margin-top: 0; color: #0d0d0d; text-align: center;">Congratulations, ${params.candidateName}! 🎉</h2>
+		<p style="font-size: 15px; color: #374151; line-height: 1.6;">We are delighted to extend you a formal offer of employment for the position of <strong>${params.jobTitle}</strong> at <strong>${company}</strong>. Our entire team was deeply impressed with your background and interview performance.</p>
+
+		<div class="card-info" style="margin: 24px 0; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+			<h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #6366f1; margin: 0 0 16px 0; font-weight: 700;">Summary of Terms</h3>
+			
+			<table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+				<tr style="border-bottom: 1px solid #f3f4f6;">
+					<td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Position</td>
+					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${params.jobTitle}</td>
+				</tr>
+				<tr style="border-bottom: 1px solid #f3f4f6;">
+					<td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Base Compensation</td>
+					<td style="padding: 8px 0; color: #059669; font-weight: 700; font-size: 15px; text-align: right;">${params.salary}</td>
+				</tr>
+				<tr style="border-bottom: 1px solid #f3f4f6;">
+					<td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Employment Type</td>
+					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${params.employmentType || "Full-Time"}</td>
+				</tr>
+				<tr style="border-bottom: 1px solid #f3f4f6;">
+					<td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Work Mode / Location</td>
+					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${params.workLocation || "Remote"}</td>
+				</tr>
+				<tr style="border-bottom: 1px solid #f3f4f6;">
+					<td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Reporting To</td>
+					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${params.reportingManager || "Department Head"}</td>
+				</tr>
+				<tr style="border-bottom: 1px solid #f3f4f6;">
+					<td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Proposed Start Date</td>
+					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${params.startDate}</td>
+				</tr>
+				${params.expiryDate ? `
+				<tr>
+					<td style="padding: 8px 0; color: #ef4444; font-weight: 500;">Offer Expiry Date</td>
+					<td style="padding: 8px 0; color: #ef4444; font-weight: 600; text-align: right;">${params.expiryDate}</td>
+				</tr>
+				` : ""}
+			</table>
+		</div>
+
+		${params.benefitsSummary ? `
+			<div style="background: #f9fafb; border-radius: 8px; padding: 14px 16px; margin: 16px 0; font-size: 13px; color: #4b5563; border-left: 3px solid #6366f1;">
+				<strong style="color: #111827;">Benefits & Perks:</strong><br/>
+				${params.benefitsSummary.replace(/\n/g, '<br/>')}
+			</div>
+		` : ""}
+
+		${params.customNotes ? `
+			<div style="background: #ffffff; border: 1px dashed #d1d5db; border-radius: 8px; padding: 14px 16px; margin: 16px 0; font-size: 13px; color: #374151;">
+				<strong style="color: #111827;">Personal Note from Hiring Team:</strong><br/>
+				${params.customNotes.replace(/\n/g, '<br/>')}
+			</div>
+		` : ""}
+
+		<p style="font-size: 13px; color: #6b7280; margin-top: 20px; line-height: 1.5;">
+			📎 <strong>An official, signed PDF copy of this offer letter is attached to this email.</strong> Please review the terms, sign the document or confirm acceptance directly via your candidate dashboard.
+		</p>
+
+		<div style="text-align: center; margin-top: 28px;">
+			<a href="${params.dashboardUrl}" class="btn" style="background: #0d0d0d; color: #ffffff; padding: 12px 28px; font-weight: 600; text-decoration: none; border-radius: 9999px; display: inline-block;">
+				Review & Accept Offer →
+			</a>
+		</div>
+	`);
+	return { subject, html };
+}
+
+
 
 

@@ -172,6 +172,9 @@ skills-lock.json
 
 # Internal documentation
 INTERVIEW_PREP.md
+INTERVIEW_GUIDE.html
+*interview*guide*
+docs/interview-guide.html
 CHANGELOG.md
 CONTRIBUTING.md
 AGENTS.md

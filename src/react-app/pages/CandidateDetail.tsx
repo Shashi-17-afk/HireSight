@@ -17,9 +17,52 @@ import {
   X,
   ExternalLink,
   Sparkles,
+  Download,
+  Briefcase,
+  DollarSign,
+  Award,
+  Check,
+  Building,
+  Printer,
+  Eye,
+  AlertTriangle,
+  Copy,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import Seo from "../components/Seo";
 import { authHeaders, formatDate, initials, scoreClass, STATUS_LABEL } from "../lib/hr";
+
+interface RecommendedQuestion {
+  topic: string;
+  question: string;
+  targetSignal: string;
+}
+
+interface CvAnalysisData {
+  matchScore: number;
+  verdict: string;
+  summary: string;
+  seniority: {
+    estimatedYears: number;
+    level: string;
+    alignmentWithRole: string;
+  };
+  skillsAnalysis: {
+    matchedSkills: string[];
+    missingSkills: string[];
+    bonusSkills: string[];
+  };
+  strengths: string[];
+  concernsOrGaps: string[];
+  recommendedInterviewQuestions: RecommendedQuestion[];
+  atsScores: {
+    technicalFit: number;
+    experienceRelevance: number;
+    educationAndDomain: number;
+    impactAndClarity: number;
+  };
+}
 
 interface InterviewItem {
   id: string;
@@ -58,6 +101,7 @@ interface CandidateData {
   candidate_email: string;
   ai_score: number;
   ai_reasoning: string;
+  resume_text?: string | null;
   status: string | null;
   job_id: string;
   job_title: string;
@@ -117,6 +161,181 @@ export default function CandidateDetail() {
   const [feedbackRating, setFeedbackRating] = useState<number>(5);
   const [feedbackText, setFeedbackText] = useState("");
   const [savingFeedback, setSavingFeedback] = useState(false);
+
+  // ── AI CV Analysis state ──
+  const [cvAnalysis, setCvAnalysis] = useState<CvAnalysisData | null>(null);
+  const [loadingCvAnalysis, setLoadingCvAnalysis] = useState(false);
+  const [cvAnalysisError, setCvAnalysisError] = useState("");
+  const [showRawResume, setShowRawResume] = useState(false);
+  const [copiedQuestionIdx, setCopiedQuestionIdx] = useState<number | null>(null);
+
+  const handleRunCvAnalysis = useCallback(async () => {
+    if (!submission_id) return;
+    setLoadingCvAnalysis(true);
+    setCvAnalysisError("");
+    try {
+      const res = await fetch(`/api/applications/${submission_id}/cv-analysis`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      const json = (await res.json()) as {
+        success?: boolean;
+        analysis?: CvAnalysisData;
+        resumeText?: string;
+        error?: string;
+      };
+      if (!res.ok || !json.analysis) {
+        throw new Error(json.error ?? "Failed to perform AI CV analysis");
+      }
+      setCvAnalysis(json.analysis);
+      if (json.resumeText) {
+        setData((prev) => (prev ? { ...prev, resume_text: json.resumeText } : prev));
+      }
+    } catch (err) {
+      setCvAnalysisError(err instanceof Error ? err.message : "Analysis failed");
+    } finally {
+      setLoadingCvAnalysis(false);
+    }
+  }, [submission_id]);
+
+  // ── Offer Studio state ──
+  const [offerSalary, setOfferSalary] = useState("$130,000 / year");
+  const [offerStartDate, setOfferStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 14);
+    return d.toISOString().split("T")[0];
+  });
+  const [offerEmploymentType, setOfferEmploymentType] = useState("Full-Time");
+  const [offerWorkLocation, setOfferWorkLocation] = useState("Remote");
+  const [offerReportingManager, setOfferReportingManager] = useState("Engineering Director");
+  const [offerExpiryDate, setOfferExpiryDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split("T")[0];
+  });
+  const [offerBenefitsSummary, setOfferBenefitsSummary] = useState(
+    "Comprehensive Medical, Dental & Vision insurance; 401(k) retirement plan with 4% company match; Unlimited Flexible Paid Time Off (PTO); $1,500 annual equipment & learning stipend."
+  );
+  const [offerCustomNotes, setOfferCustomNotes] = useState(
+    "We were thoroughly impressed by your performance throughout our interview process and are excited about the skills and energy you will bring to the team."
+  );
+  const [offerCompanyName, setOfferCompanyName] = useState("HireSight Technologies");
+  const [offerSending, setOfferSending] = useState(false);
+  const [offerDownloading, setOfferDownloading] = useState(false);
+  const [offerResult, setOfferResult] = useState<{
+    ok: boolean;
+    text: string;
+    pdfBase64?: string;
+    pdfFilename?: string;
+  } | null>(null);
+  const [offerTabMode, setOfferTabMode] = useState<"form" | "preview">("form");
+
+  function downloadBase64Pdf(base64Data: string, filename: string) {
+    const binaryString = window.atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleDownloadOfferPreview() {
+    if (!data?.application_id) return;
+    setOfferDownloading(true);
+    try {
+      const res = await fetch(`/api/applications/${data.application_id}/offer/preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          salary: offerSalary,
+          startDate: offerStartDate,
+          employmentType: offerEmploymentType,
+          workLocation: offerWorkLocation,
+          reportingManager: offerReportingManager,
+          expiryDate: offerExpiryDate,
+          benefitsSummary: offerBenefitsSummary,
+          customNotes: offerCustomNotes,
+          companyName: offerCompanyName,
+        }),
+      });
+      const json = (await res.json()) as { pdfBase64?: string; pdfFilename?: string; error?: string };
+      if (!res.ok || !json.pdfBase64) throw new Error(json.error ?? "Failed to generate PDF preview");
+      downloadBase64Pdf(json.pdfBase64, json.pdfFilename || `Offer_Letter_${data.candidate_name}.pdf`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error downloading offer PDF");
+    } finally {
+      setOfferDownloading(false);
+    }
+  }
+
+  async function handleSendOfficialOffer() {
+    if (!data?.application_id) return;
+    if (!offerSalary.trim()) {
+      alert("Please provide a salary / compensation amount.");
+      return;
+    }
+    if (!offerStartDate.trim()) {
+      alert("Please select an anticipated start date.");
+      return;
+    }
+
+    setOfferSending(true);
+    setOfferResult(null);
+
+    try {
+      const res = await fetch(`/api/applications/${data.application_id}/offer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          salary: offerSalary.trim(),
+          startDate: offerStartDate.trim(),
+          employmentType: offerEmploymentType.trim(),
+          workLocation: offerWorkLocation.trim(),
+          reportingManager: offerReportingManager.trim(),
+          expiryDate: offerExpiryDate.trim(),
+          benefitsSummary: offerBenefitsSummary.trim(),
+          customNotes: offerCustomNotes.trim(),
+          companyName: offerCompanyName.trim(),
+        }),
+      });
+
+      const json = (await res.json()) as {
+        success?: boolean;
+        status?: string;
+        emailSent?: boolean;
+        pdfFilename?: string;
+        pdfBase64?: string;
+        message?: string;
+        error?: string;
+      };
+
+      if (!res.ok) throw new Error(json.error ?? "Failed to send offer");
+
+      setSelectedStatus("hired");
+      setData((prev) => (prev ? { ...prev, status: "hired" } : prev));
+      setOfferResult({
+        ok: true,
+        text: json.message ?? "Official Offer Letter PDF generated and dispatched successfully!",
+        pdfBase64: json.pdfBase64,
+        pdfFilename: json.pdfFilename,
+      });
+    } catch (err) {
+      setOfferResult({
+        ok: false,
+        text: err instanceof Error ? err.message : "Failed to send offer letter.",
+      });
+    } finally {
+      setOfferSending(false);
+    }
+  }
 
   const token = localStorage.getItem("token") ?? "";
 
@@ -302,6 +521,7 @@ export default function CandidateDetail() {
           candidate_email: raw.candidate_email || raw.email || "",
           ai_score: raw.ai_score ?? raw.score ?? 0,
           ai_reasoning: raw.ai_reasoning || raw.reasoning || "",
+          resume_text: (raw as { resume_text?: string }).resume_text || null,
         };
         setData(normalized);
         setSelectedStatus(normalized.status ?? "applied");
@@ -312,6 +532,12 @@ export default function CandidateDetail() {
       .catch(() => setLoadError("Failed to load candidate data."))
       .finally(() => setLoading(false));
   }, [submission_id, job_id, token, loadInterviews]);
+
+  useEffect(() => {
+    if (tab === "Documents" && !cvAnalysis && !loadingCvAnalysis && submission_id) {
+      void handleRunCvAnalysis();
+    }
+  }, [tab, cvAnalysis, loadingCvAnalysis, submission_id, handleRunCvAnalysis]);
 
   async function handleStatusUpdate(nextStatus = selectedStatus) {
     if (!data?.application_id || !nextStatus) return;
@@ -472,10 +698,13 @@ export default function CandidateDetail() {
           <button
             type="button"
             className="btn btn-dark-pill btn-sm"
-            disabled={data.isAnonymous || !data.application_id || updating || currentStatus === "hired"}
-            onClick={() => void handleStatusUpdate("hired")}
+            onClick={() => {
+              setTab("Offer");
+              const el = document.querySelector(".hr-tabs");
+              if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
           >
-            <Send size={14} /> {currentStatus === "hired" ? "Hired" : "Send Offer"}
+            <Send size={14} /> {currentStatus === "hired" ? "View Offer / Hired" : "Send Offer"}
           </button>
         </div>
       </div>
@@ -705,6 +934,17 @@ export default function CandidateDetail() {
             >
               {rescoring ? "Re-scoring…" : "Re-run AI Screening"}
             </button>
+            <button
+              type="button"
+              className="btn btn-dark-pill btn-sm"
+              style={{ marginTop: "0.5rem", width: "100%", justifyContent: "center" }}
+              onClick={() => {
+                setTab("Documents");
+                if (!cvAnalysis) void handleRunCvAnalysis();
+              }}
+            >
+              <Sparkles size={14} /> View In-Depth CV Analysis
+            </button>
             {rescoreMsg && (
               <p className={rescoreMsg.ok ? "delta-up" : "delta-down"} style={{ marginTop: "0.6rem", fontSize: "0.82rem" }}>
                 {rescoreMsg.text}
@@ -715,13 +955,289 @@ export default function CandidateDetail() {
       )}
 
       {tab === "Documents" && (
-        <div className="hr-panel">
-          {data.resume_url ? (
-            <a href={data.resume_url} target="_blank" rel="noreferrer" className="btn btn-dark-pill">
-              Open resume
-            </a>
-          ) : (
-            <div className="hr-empty-inline">No hosted resume file is attached. The original resume text was scored at apply time.</div>
+        <div className="cv-studio-wrap">
+          {/* Header Action Bar */}
+          <div className="cv-hero-card">
+            <div className="cv-verdict-group">
+              <div
+                className={`cv-score-circle ${
+                  (cvAnalysis?.matchScore ?? data.ai_score ?? 0) >= 80
+                    ? ""
+                    : (cvAnalysis?.matchScore ?? data.ai_score ?? 0) >= 60
+                    ? "score-amber"
+                    : "score-red"
+                }`}
+              >
+                <span>{cvAnalysis ? `${cvAnalysis.matchScore}%` : `${data.ai_score}%`}</span>
+                <span style={{ fontSize: "0.62rem", fontWeight: 700, textTransform: "uppercase" }}>Match</span>
+              </div>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700 }}>
+                    AI CV Analysis & ATS Evaluation
+                  </h3>
+                  {cvAnalysis && (
+                    <span className="badge badge-green" style={{ fontSize: "0.76rem" }}>
+                      {cvAnalysis.verdict}
+                    </span>
+                  )}
+                  {cvAnalysis?.seniority && (
+                    <span className="badge badge-yellow" style={{ fontSize: "0.76rem" }}>
+                      {cvAnalysis.seniority.level} ({cvAnalysis.seniority.estimatedYears}+ yrs)
+                    </span>
+                  )}
+                </div>
+                <p className="hr-muted" style={{ margin: "4px 0 0 0", fontSize: "0.85rem" }}>
+                  {cvAnalysis?.summary || data.ai_reasoning || "Deep semantic CV analysis against job description."}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="btn btn-dark-pill btn-sm"
+                disabled={loadingCvAnalysis}
+                onClick={() => void handleRunCvAnalysis()}
+              >
+                <Sparkles size={14} />
+                {loadingCvAnalysis ? "Analyzing CV…" : "Re-run AI Analysis"}
+              </button>
+              {data.resume_url && (
+                <a href={data.resume_url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">
+                  <ExternalLink size={14} /> Open Resume PDF
+                </a>
+              )}
+              {data.resume_text && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowRawResume((v) => !v)}
+                >
+                  {showRawResume ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  {showRawResume ? "Hide Raw Text" : "View Raw Resume Text"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {cvAnalysisError && (
+            <div className="delta-down" style={{ fontSize: "0.86rem" }}>
+              <AlertCircle size={15} style={{ verticalAlign: "middle", marginRight: "4px" }} />
+              {cvAnalysisError}
+            </div>
+          )}
+
+          {loadingCvAnalysis && !cvAnalysis && (
+            <div className="hr-panel" style={{ textAlign: "center", padding: "2.5rem 1rem" }}>
+              <Sparkles size={28} className="spin-slow" style={{ color: "var(--brand-coral, #ff5b5b)", marginBottom: "0.75rem" }} />
+              <h4 style={{ margin: "0 0 0.35rem 0", fontSize: "1rem" }}>Extracting & Evaluating Candidate CV…</h4>
+              <p style={{ margin: 0, fontSize: "0.84rem", color: "var(--text-secondary)" }}>
+                Parsing candidate experience graph, cross-matching technical requirements, and calculating ATS dimensions.
+              </p>
+            </div>
+          )}
+
+          {/* ATS Dimension Quad */}
+          {cvAnalysis && (
+            <>
+              <div className="cv-metrics-quad">
+                <div className="cv-metric-tile">
+                  <div className="cv-metric-tile-title">
+                    <span>Technical Fit</span>
+                    <span className="cv-metric-tile-pct">{cvAnalysis.atsScores.technicalFit}%</span>
+                  </div>
+                  <div className="cv-bar-track">
+                    <div className="cv-bar-fill bar-green" style={{ width: `${cvAnalysis.atsScores.technicalFit}%` }} />
+                  </div>
+                </div>
+
+                <div className="cv-metric-tile">
+                  <div className="cv-metric-tile-title">
+                    <span>Experience Fit</span>
+                    <span className="cv-metric-tile-pct">{cvAnalysis.atsScores.experienceRelevance}%</span>
+                  </div>
+                  <div className="cv-bar-track">
+                    <div className="cv-bar-fill bar-blue" style={{ width: `${cvAnalysis.atsScores.experienceRelevance}%` }} />
+                  </div>
+                </div>
+
+                <div className="cv-metric-tile">
+                  <div className="cv-metric-tile-title">
+                    <span>Domain / Education</span>
+                    <span className="cv-metric-tile-pct">{cvAnalysis.atsScores.educationAndDomain}%</span>
+                  </div>
+                  <div className="cv-bar-track">
+                    <div className="cv-bar-fill bar-purple" style={{ width: `${cvAnalysis.atsScores.educationAndDomain}%` }} />
+                  </div>
+                </div>
+
+                <div className="cv-metric-tile">
+                  <div className="cv-metric-tile-title">
+                    <span>Impact & Clarity</span>
+                    <span className="cv-metric-tile-pct">{cvAnalysis.atsScores.impactAndClarity}%</span>
+                  </div>
+                  <div className="cv-bar-track">
+                    <div className="cv-bar-fill bar-amber" style={{ width: `${cvAnalysis.atsScores.impactAndClarity}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Skills Analysis */}
+              <div className="cv-skills-section">
+                <div className="hr-panel-head" style={{ marginBottom: "0.25rem" }}>
+                  <h3 style={{ margin: 0, fontSize: "1rem" }}>Skills Alignment & Gap Matrix</h3>
+                </div>
+                <p className="hr-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
+                  Semantic comparison against requirements for <strong>{data.job_title}</strong>.
+                </p>
+
+                <div className="cv-skills-grid">
+                  <div>
+                    <span style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "#065f46" }}>
+                      Matched Requirements ({cvAnalysis.skillsAnalysis.matchedSkills.length})
+                    </span>
+                    <div className="cv-skill-chips-row" style={{ marginTop: "0.4rem" }}>
+                      {cvAnalysis.skillsAnalysis.matchedSkills.length > 0 ? (
+                        cvAnalysis.skillsAnalysis.matchedSkills.map((s) => (
+                          <span key={s} className="cv-chip matched">
+                            <Check size={12} strokeWidth={3} /> {s}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="hr-muted" style={{ fontSize: "0.82rem" }}>No direct keyword matches detected.</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {cvAnalysis.skillsAnalysis.missingSkills.length > 0 && (
+                    <div>
+                      <span style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "#b45309" }}>
+                        Missing / Gap Requirements ({cvAnalysis.skillsAnalysis.missingSkills.length})
+                      </span>
+                      <div className="cv-skill-chips-row" style={{ marginTop: "0.4rem" }}>
+                        {cvAnalysis.skillsAnalysis.missingSkills.map((s) => (
+                          <span key={s} className="cv-chip missing">
+                            <AlertTriangle size={12} /> {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {cvAnalysis.skillsAnalysis.bonusSkills.length > 0 && (
+                    <div>
+                      <span style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "#6d28d9" }}>
+                        Bonus Capabilities ({cvAnalysis.skillsAnalysis.bonusSkills.length})
+                      </span>
+                      <div className="cv-skill-chips-row" style={{ marginTop: "0.4rem" }}>
+                        {cvAnalysis.skillsAnalysis.bonusSkills.map((s) => (
+                          <span key={s} className="cv-chip bonus">
+                            + {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Strengths & Watch-outs */}
+              <div className="cv-strengths-columns">
+                <div className="cv-flag-box">
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <CheckCircle size={18} style={{ color: "#10b981" }} />
+                    <h3 style={{ margin: 0, fontSize: "0.98rem" }}>Key Strengths (Green Flags)</h3>
+                  </div>
+                  <ul className="cv-flag-list">
+                    {cvAnalysis.strengths.map((str, idx) => (
+                      <li key={idx} className="cv-flag-item">
+                        <span style={{ color: "#10b981", fontWeight: "bold" }}>•</span>
+                        <span>{str}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="cv-flag-box">
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <AlertCircle size={18} style={{ color: "#f59e0b" }} />
+                    <h3 style={{ margin: 0, fontSize: "0.98rem" }}>Areas of Concern / Watch-outs</h3>
+                  </div>
+                  <ul className="cv-flag-list">
+                    {cvAnalysis.concernsOrGaps.length > 0 ? (
+                      cvAnalysis.concernsOrGaps.map((c, idx) => (
+                        <li key={idx} className="cv-flag-item">
+                          <span style={{ color: "#f59e0b", fontWeight: "bold" }}>•</span>
+                          <span>{c}</span>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="cv-flag-item" style={{ fontStyle: "italic", color: "var(--text-muted)" }}>
+                        No significant red flags or resume gaps detected.
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Recommended Tailored Interview Questions */}
+              {cvAnalysis.recommendedInterviewQuestions.length > 0 && (
+                <div className="cv-questions-wrap">
+                  <div className="hr-panel-head" style={{ marginBottom: "0.25rem" }}>
+                    <h3 style={{ margin: 0, fontSize: "1rem" }}>Tailored Interview Probing Questions</h3>
+                  </div>
+                  <p className="hr-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
+                    AI-generated interview questions addressing this candidate's specific background and gap areas.
+                  </p>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.5rem" }}>
+                    {cvAnalysis.recommendedInterviewQuestions.map((q, idx) => (
+                      <div key={idx} className="cv-question-card">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
+                          <span className="cv-question-topic">{q.topic}</span>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: "0.2rem 0.5rem", fontSize: "0.74rem" }}
+                            onClick={() => {
+                              navigator.clipboard.writeText(q.question);
+                              setCopiedQuestionIdx(idx);
+                              setTimeout(() => setCopiedQuestionIdx(null), 2000);
+                            }}
+                          >
+                            <Copy size={12} /> {copiedQuestionIdx === idx ? "Copied!" : "Copy"}
+                          </button>
+                        </div>
+                        <div className="cv-question-text">{q.question}</div>
+                        <div className="cv-target-signal">
+                          <strong>Target Signal:</strong> {q.targetSignal}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Raw Resume Inspector */}
+          {showRawResume && data.resume_text && (
+            <div className="hr-panel">
+              <div className="hr-panel-head">
+                <h3 style={{ margin: 0, fontSize: "0.95rem" }}>Parsed Resume Source Text</h3>
+                <span className="hr-muted" style={{ fontSize: "0.78rem" }}>
+                  Extracted at application time
+                </span>
+              </div>
+              <div className="cv-raw-inspector">{data.resume_text}</div>
+            </div>
+          )}
+
+          {!data.resume_url && !data.resume_text && !loadingCvAnalysis && (
+            <div className="hr-empty-inline">
+              No hosted resume file or text was found for this candidate.
+            </div>
           )}
         </div>
       )}
@@ -1009,17 +1525,350 @@ export default function CandidateDetail() {
 
       {tab === "Offer" && (
         <div className="hr-panel">
-          <p className="hr-muted" style={{ marginBottom: "1rem" }}>
-            Sending an offer marks this candidate as Hired in the pipeline and emails them if they applied with an account.
-          </p>
-          <button
-            type="button"
-            className="btn btn-dark-pill"
-            disabled={data.isAnonymous || !data.application_id || updating || currentStatus === "hired"}
-            onClick={() => void handleStatusUpdate("hired")}
-          >
-            {currentStatus === "hired" ? "Already hired" : "Send Offer / Mark Hired"}
-          </button>
+          <div className="offer-studio-header">
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.25rem" }}>
+                <Award size={20} style={{ color: "#d97706" }} />
+                <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700 }}>
+                  Formal Offer Letter & Employment Terms
+                </h3>
+                {currentStatus === "hired" && (
+                  <span className="offer-studio-badge">
+                    <Check size={13} /> Candidate Hired / Offer Extended
+                  </span>
+                )}
+              </div>
+              <p className="hr-muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+                Generate an official, legally formatted PDF offer letter and dispatch it directly to{" "}
+                <strong>{data.candidate_email || "the candidate"}</strong> with contractual terms.
+              </p>
+            </div>
+
+            {/* Toggle Form / Live Preview */}
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${offerTabMode === "form" ? "btn-dark-pill" : "btn-secondary"}`}
+                onClick={() => setOfferTabMode("form")}
+              >
+                <Briefcase size={14} /> Customize Terms
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${offerTabMode === "preview" ? "btn-dark-pill" : "btn-secondary"}`}
+                onClick={() => setOfferTabMode("preview")}
+              >
+                <Eye size={14} /> Document Preview
+              </button>
+            </div>
+          </div>
+
+          {/* Success Banner if offer sent */}
+          {offerResult?.ok && (
+            <div className="offer-success-banner">
+              <CheckCircle size={26} style={{ color: "var(--status-green)", flexShrink: 0, marginTop: "2px" }} />
+              <div style={{ flex: 1 }}>
+                <div className="offer-success-title">Offer Letter Successfully Issued!</div>
+                <div className="offer-success-text">{offerResult.text}</div>
+                <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+                  {offerResult.pdfBase64 && (
+                    <button
+                      type="button"
+                      className="btn btn-dark-pill btn-sm"
+                      onClick={() =>
+                        downloadBase64Pdf(
+                          offerResult.pdfBase64!,
+                          offerResult.pdfFilename || `Offer_Letter_${data.candidate_name}.pdf`
+                        )
+                      }
+                    >
+                      <Download size={14} /> Download Sent PDF
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setOfferResult(null)}
+                  >
+                    Dismiss Notice
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {offerResult && !offerResult.ok && (
+            <div className="delta-down" style={{ marginBottom: "1rem", fontSize: "0.88rem" }}>
+              <AlertCircle size={15} style={{ verticalAlign: "middle", marginRight: "4px" }} />
+              {offerResult.text}
+            </div>
+          )}
+
+          {data.isAnonymous && (
+            <div className="alert-card" style={{ marginBottom: "1.25rem", padding: "0.85rem 1rem" }}>
+              <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)" }}>
+                <strong>Offline Notice:</strong> This candidate submitted an anonymous application or has no registered email account. You can configure and download the signed PDF offer letter for direct handover.
+              </p>
+            </div>
+          )}
+
+          {offerTabMode === "form" ? (
+            <div className="offer-form-card">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
+                <div className="form-row">
+                  <label className="form-label">
+                    <DollarSign size={13} style={{ verticalAlign: "middle", marginRight: "3px" }} />
+                    Compensation / Base Salary <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. $130,000 / year or ₹24,00,000 / year"
+                    value={offerSalary}
+                    onChange={(e) => setOfferSalary(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <label className="form-label">
+                    <Calendar size={13} style={{ verticalAlign: "middle", marginRight: "3px" }} />
+                    Anticipated Start Date <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={offerStartDate}
+                    onChange={(e) => setOfferStartDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <label className="form-label">
+                    <Briefcase size={13} style={{ verticalAlign: "middle", marginRight: "3px" }} />
+                    Employment Type
+                  </label>
+                  <select
+                    className="form-input"
+                    value={offerEmploymentType}
+                    onChange={(e) => setOfferEmploymentType(e.target.value)}
+                  >
+                    <option value="Full-Time">Full-Time (Permanent)</option>
+                    <option value="Contract">Contract / Consultant</option>
+                    <option value="Internship">Internship</option>
+                    <option value="Part-Time">Part-Time</option>
+                  </select>
+                </div>
+
+                <div className="form-row">
+                  <label className="form-label">
+                    Work Location & Mode
+                  </label>
+                  <select
+                    className="form-input"
+                    value={offerWorkLocation}
+                    onChange={(e) => setOfferWorkLocation(e.target.value)}
+                  >
+                    <option value="Remote">Remote</option>
+                    <option value="Hybrid">Hybrid</option>
+                    <option value="On-site">On-site</option>
+                    <option value="Flexible">Flexible / Distributed</option>
+                  </select>
+                </div>
+
+                <div className="form-row">
+                  <label className="form-label">
+                    Reporting Manager / Line
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Engineering Director or VP of Product"
+                    value={offerReportingManager}
+                    onChange={(e) => setOfferReportingManager(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <label className="form-label">
+                    Offer Expiration Date
+                  </label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={offerExpiryDate}
+                    onChange={(e) => setOfferExpiryDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <label className="form-label">
+                    <Building size={13} style={{ verticalAlign: "middle", marginRight: "3px" }} />
+                    Issuing Entity / Company
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={offerCompanyName}
+                    onChange={(e) => setOfferCompanyName(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <label className="form-label">Benefits & Perks Package</label>
+                <textarea
+                  className="form-input"
+                  rows={3}
+                  value={offerBenefitsSummary}
+                  onChange={(e) => setOfferBenefitsSummary(e.target.value)}
+                  style={{ resize: "vertical" }}
+                />
+              </div>
+
+              <div className="form-row">
+                <label className="form-label">Personal Welcome Note to Candidate</label>
+                <textarea
+                  className="form-input"
+                  rows={3}
+                  value={offerCustomNotes}
+                  onChange={(e) => setOfferCustomNotes(e.target.value)}
+                  style={{ resize: "vertical" }}
+                />
+              </div>
+            </div>
+          ) : (
+            /* Live Document Preview */
+            <div className="offer-preview-paper">
+              <div className="offer-paper-topbar">
+                <div>
+                  <div className="offer-paper-brand">
+                    <Building size={20} />
+                    <span>{offerCompanyName || "HireSight Technologies"}</span>
+                  </div>
+                  <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "2px" }}>
+                    Official Letter of Employment & Agreement
+                  </div>
+                </div>
+                <div className="offer-paper-ref">
+                  <div><strong>Date:</strong> {formatDate(new Date().toISOString())}</div>
+                  <div><strong>Ref:</strong> OFF-{new Date().getFullYear()}-{data.application_id?.slice(0, 6).toUpperCase() || "DEMO"}</div>
+                  <div><strong>Status:</strong> {currentStatus === "hired" ? "Hired / Extended" : "Draft Offer"}</div>
+                </div>
+              </div>
+
+              <div className="offer-paper-salutation">
+                Dear {data.candidate_name},
+              </div>
+
+              <p className="offer-paper-body">
+                On behalf of <strong>{offerCompanyName}</strong>, we are thrilled to offer you the position of{" "}
+                <strong>{data.job_title}</strong>. We were thoroughly impressed by your background, achievements, and performance during our assessment and interview rounds. We are confident you will make a remarkable addition to our team.
+              </p>
+
+              <div className="offer-paper-section-title">Employment Terms & Summary</div>
+              <div className="offer-terms-grid">
+                <div className="offer-term-item">
+                  <span className="offer-term-label">Position / Role</span>
+                  <span className="offer-term-val">{data.job_title}</span>
+                </div>
+                <div className="offer-term-item">
+                  <span className="offer-term-label">Classification</span>
+                  <span className="offer-term-val">{offerEmploymentType}</span>
+                </div>
+                <div className="offer-term-item">
+                  <span className="offer-term-label">Base Compensation</span>
+                  <span className="offer-term-val" style={{ color: "#065f46" }}>{offerSalary || "Competitive"}</span>
+                </div>
+                <div className="offer-term-item">
+                  <span className="offer-term-label">Anticipated Start Date</span>
+                  <span className="offer-term-val">{offerStartDate || "To be confirmed"}</span>
+                </div>
+                <div className="offer-term-item">
+                  <span className="offer-term-label">Work Arrangement</span>
+                  <span className="offer-term-val">{offerWorkLocation}</span>
+                </div>
+                <div className="offer-term-item">
+                  <span className="offer-term-label">Reporting Line</span>
+                  <span className="offer-term-val">{offerReportingManager}</span>
+                </div>
+                <div className="offer-term-item">
+                  <span className="offer-term-label">Offer Expiration</span>
+                  <span className="offer-term-val">{offerExpiryDate || "7 Days from issuance"}</span>
+                </div>
+                <div className="offer-term-item">
+                  <span className="offer-term-label">Candidate Recipient</span>
+                  <span className="offer-term-val" style={{ fontSize: "0.82rem" }}>{data.candidate_email || "Direct Handover"}</span>
+                </div>
+              </div>
+
+              {offerBenefitsSummary && (
+                <>
+                  <div className="offer-paper-section-title">Benefits & Additional Terms</div>
+                  <p className="offer-paper-body" style={{ fontSize: "0.84rem", margin: "0.4rem 0 1rem" }}>
+                    {offerBenefitsSummary}
+                  </p>
+                </>
+              )}
+
+              {offerCustomNotes && (
+                <>
+                  <div className="offer-paper-section-title">Executive Note</div>
+                  <p className="offer-paper-body" style={{ fontStyle: "italic", fontSize: "0.84rem", margin: "0.4rem 0 1rem" }}>
+                    "{offerCustomNotes}"
+                  </p>
+                </>
+              )}
+
+              <div className="offer-signatures">
+                <div>
+                  <div className="offer-sig-line">{offerCompanyName} Talent Board</div>
+                  <div className="offer-sig-name">Authorized Signatory</div>
+                  <div className="offer-sig-title">{offerCompanyName} Recruiting Operations</div>
+                </div>
+                <div>
+                  <div className="offer-sig-line" style={{ color: "#94a3b8" }}>
+                    Acceptance Signature
+                  </div>
+                  <div className="offer-sig-name">{data.candidate_name}</div>
+                  <div className="offer-sig-title">Candidate Signature & Date</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Toolbar */}
+          <div className="hr-inline-actions" style={{ marginTop: "1.25rem", borderTop: "1px solid var(--card-border)", paddingTop: "1rem" }}>
+            <button
+              type="button"
+              className="btn btn-dark-pill"
+              disabled={offerSending || !offerSalary.trim() || !offerStartDate.trim() || !data.application_id}
+              onClick={() => void handleSendOfficialOffer()}
+            >
+              <Send size={14} />
+              {offerSending ? "Generating PDF & Dispatching Email…" : "Send Official Offer via Email (Attach PDF)"}
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={offerDownloading || !data.application_id}
+              onClick={() => void handleDownloadOfferPreview()}
+            >
+              <Download size={14} />
+              {offerDownloading ? "Building PDF…" : "Download PDF Copy"}
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setOfferTabMode("preview");
+                setTimeout(() => window.print(), 200);
+              }}
+            >
+              <Printer size={14} /> Print Letter
+            </button>
+          </div>
         </div>
       )}
 

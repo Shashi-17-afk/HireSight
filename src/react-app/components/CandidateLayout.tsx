@@ -301,8 +301,9 @@ const ICON_NAV = [
 // ── Top Nav Links (no Mock Interview, no Career Coach) ─────────────────────────
 const TOP_NAV = [
   { label: "Find Jobs",      to: "/jobs" },
-  { label: "Companies",      to: "/jobs" },
-  { label: "AI CV Analysis", to: "/candidate/profile" },
+  { label: "Companies",      to: "/companies" },
+  { label: "MANGO Roles",    to: "/trending-roles" },
+  { label: "AI CV Analysis", to: "/candidate/cv-analysis" },
   { label: "About",          to: "/" },
 ];
 
@@ -351,7 +352,10 @@ export default function CandidateLayout() {
 
         <nav className="cil-topnav-links">
           {TOP_NAV.map((item) => {
-            const isActive = item.label === "Find Jobs" ? isJobsActive : false;
+            const isActive =
+              item.to === "/jobs"
+                ? isJobsActive
+                : item.to !== "/" && pathname.startsWith(item.to);
             return (
               <Link
                 key={item.label}
