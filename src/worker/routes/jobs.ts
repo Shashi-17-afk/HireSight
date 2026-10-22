@@ -169,6 +169,96 @@ jobs.get("/:id", async (c) => {
   return c.json(job);
 });
 
+// Update a job (HR recruiter owner only)
+jobs.put("/:id", authenticate(), requireHR(), async (c) => {
+  const jobId = c.req.param("id");
+  const user = c.get("user");
+  const body = await c.req.json<{ title?: string; description?: string; status?: string }>();
+
+  if (!body.title?.trim() || !body.description?.trim()) {
+    return c.json({ error: "Title and description are required" }, 400);
+  }
+
+  // 1. Fetch job to verify existence & ownership
+  const job = await c.env.DB.prepare("SELECT id, title, user_id, status FROM jobs WHERE id = ?")
+    .bind(jobId)
+    .first<{ id: string; title: string; user_id: string | null; status: string }>();
+
+  if (!job) {
+    return c.json({ error: "Job not found" }, 404);
+  }
+
+  if (job.user_id && job.user_id !== user.id) {
+    return c.json({ error: "Forbidden: You can only edit jobs you created" }, 403);
+  }
+
+  const newStatus = body.status === "closed" ? "closed" : "open";
+  const newTitle = body.title.trim();
+  const newDesc = body.description.trim();
+
+  // 2. Update job record in D1
+  await c.env.DB.prepare(
+    "UPDATE jobs SET title = ?, description = ?, status = ? WHERE id = ? AND user_id = ?"
+  )
+    .bind(newTitle, newDesc, newStatus, jobId, user.id)
+    .run();
+
+  // 3. Recompute and update Vectorize embedding for this job (non-blocking failure)
+  try {
+    const embeddingResponse = await c.env.AI.run(
+      "@cf/baai/bge-base-en-v1.5" as Parameters<typeof c.env.AI.run>[0],
+      { text: [newDesc] }
+    );
+    const embedding = (embeddingResponse as { data: number[][] }).data?.[0];
+    if (embedding?.length && c.env.VECTORIZE) {
+      await c.env.VECTORIZE.upsert([
+        {
+          id: `job_${jobId}`,
+          values: embedding,
+          metadata: { job_id: jobId, type: "job_description" },
+        },
+      ]);
+    }
+  } catch (err) {
+    console.error("[jobs] re-embedding vectorize failed for job", jobId, String(err));
+  }
+
+  return c.json({
+    id: jobId,
+    title: newTitle,
+    description: newDesc,
+    status: newStatus,
+    message: "Job updated successfully",
+  });
+});
+
+// AI enhance / polish existing job description
+jobs.post("/enhance-description", authenticate(), requireHR(), async (c) => {
+  const body = await c.req.json<{ description: string; instructions?: string }>();
+  if (!body.description?.trim()) {
+    return c.json({ error: "description is required" }, 400);
+  }
+
+  try {
+    const prompt = `You are an expert HR talent partner. Review and professionally enhance the following job description. Improve clarity, impact, inclusive language, and clean markdown structure (Role Summary, Key Responsibilities, Requirements, Preferred Qualifications) while strictly preserving all factual expectations, skills, and qualifications. Return ONLY the enhanced job description in clean markdown without any conversational filler.\n\n${body.instructions ? `Special Instructions: ${body.instructions}\n\n` : ""}Job Description:\n${body.description.trim()}`;
+
+    const res = await c.env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast" as Parameters<typeof c.env.AI.run>[0], {
+      messages: [
+        { role: "system", content: "You are an expert executive recruiter writing high-converting, professional job postings in markdown." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 1200,
+    });
+
+    const enhanced = (res as { response?: string }).response || body.description;
+    return c.json({ enhancedDescription: enhanced.trim() });
+  } catch (err) {
+    console.error("[jobs] AI enhance description failed", String(err));
+    return c.json({ error: "Failed to enhance description with AI" }, 500);
+  }
+});
+
+
 // Permanent delete a job and all associated candidate data (HR recruiter owner only)
 jobs.delete("/:id", authenticate(), requireHR(), async (c) => {
   const jobId = c.req.param("id");

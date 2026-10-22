@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Inbox, Search, ArrowLeft, ExternalLink, Copy, Check, Radio } from "lucide-react";
+import { Inbox, Search, ArrowLeft, ExternalLink, Copy, Check, Radio, Edit3 } from "lucide-react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import Seo from "../components/Seo";
 
@@ -240,6 +240,9 @@ export default function Dashboard() {
           <code style={{ fontSize: "0.85rem", color: "var(--text-secondary)", wordBreak: "break-all" }}>{applyLink}</code>
         </div>
         <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", width: "100%" }}>
+          <Link to={`/hr/jobs/${job_id ?? ""}/edit`} className="btn btn-secondary btn-sm" style={{ flex: 1, minWidth: "120px" }}>
+            <Edit3 size={14} /> Edit Job
+          </Link>
           <button className="btn btn-secondary btn-sm" onClick={copyLink} type="button" style={{ flex: 1, minWidth: "140px" }}>
             {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy Apply Link</>}
           </button>
@@ -247,6 +250,7 @@ export default function Dashboard() {
             Open Apply Page <ExternalLink size={14} />
           </Link>
         </div>
+
       </div>
 
       {/* Filter Controls */}

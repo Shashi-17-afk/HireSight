@@ -24,6 +24,7 @@ const CompaniesPage = lazy(() => import("./pages/CompaniesPage"));
 const CompanyDetailPage = lazy(() => import("./pages/CompanyDetailPage"));
 const CandidateCvAnalysisPage = lazy(() => import("./pages/CandidateCvAnalysisPage"));
 const MangoRolesPage = lazy(() => import("./pages/MangoRolesPage"));
+const JobEditPage = lazy(() => import("./pages/JobEditPage"));
 
 const PageFallback = <div className="page" style={{ color: "var(--text-muted)", textAlign: "center", paddingTop: "4rem" }}>Loading…</div>;
 
@@ -351,6 +352,7 @@ export default function App() {
 					<Route path="/hr/dashboard" element={<HrPage><HRDashboard /></HrPage>} />
 					<Route path="/hr/jobs" element={<HrPage><JobRequisitions /></HrPage>} />
 					<Route path="/hr/jobs/new" element={<HrPage><JobDescriptionCreator /></HrPage>} />
+					<Route path="/hr/jobs/:job_id/edit" element={<HrPage><JobEditPage /></HrPage>} />
 					<Route path="/hr/candidates" element={<HrPage><CandidatesList /></HrPage>} />
 					<Route path="/hr/candidate/:submission_id" element={<HrPage><CandidateDetail /></HrPage>} />
 					<Route path="/dashboard/:job_id" element={<HrPage><Dashboard /></HrPage>} />

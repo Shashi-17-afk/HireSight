@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Search, Copy, Check, ArrowRight, Trash2, MoreHorizontal, Download } from "lucide-react";
+import { Plus, Search, Copy, Check, ArrowRight, Trash2, MoreHorizontal, Download, Edit3, ExternalLink } from "lucide-react";
 import Seo from "../components/Seo";
 import {
   authHeaders,
@@ -26,6 +26,15 @@ export default function JobRequisitions() {
   const [confirmTitle, setConfirmTitle] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Quick Edit State
+  const [editTarget, setEditTarget] = useState<HrJob | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editStatus, setEditStatus] = useState<"open" | "closed">("open");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+
 
   const q = params.get("q") ?? "";
   const statusFilter = params.get("status") ?? "all";
@@ -117,6 +126,40 @@ export default function JobRequisitions() {
       setDeleting(false);
     }
   }
+
+  async function handleQuickSave() {
+    if (!editTarget) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/jobs/${editTarget.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDesc.trim(),
+          status: editStatus,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to update job");
+
+      setJobs((prev) =>
+        prev.map((j) =>
+          j.id === editTarget.id
+            ? { ...j, title: editTitle.trim(), description: editDesc.trim(), status: editStatus }
+            : j
+        )
+      );
+      setToast(`Job "${editTitle.trim()}" updated successfully.`);
+      setEditTarget(null);
+      setTimeout(() => setToast(null), 3500);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update job");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
 
   const kpis = [
     { label: "Total Requisitions", value: jobs.length, delta: pctDelta(jobs.filter((j) => inCurrentMonth(j.created_at)).length, jobs.filter((j) => inPreviousMonth(j.created_at)).length) },
@@ -232,6 +275,30 @@ export default function JobRequisitions() {
                       </button>
                       {menuId === j.id && (
                         <div className="hr-menu">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditTarget(j);
+                              setEditTitle(j.title);
+                              setEditDesc(j.description || "");
+                              setEditStatus((j.status === "closed" ? "closed" : "open") as "open" | "closed");
+                              setMenuId(null);
+                              if (!j.description) {
+                                setEditLoading(true);
+                                fetch(`/api/jobs/${j.id}`, { headers: authHeaders() })
+                                  .then((r) => r.json() as Promise<{ description?: string }>)
+                                  .then((data) => {
+                                    if (data.description) setEditDesc(data.description);
+                                  })
+                                  .finally(() => setEditLoading(false));
+                              }
+                            }}
+                          >
+                            <Edit3 size={14} /> Quick edit
+                          </button>
+                          <button type="button" onClick={() => navigate(`/hr/jobs/${j.id}/edit`)}>
+                            <ExternalLink size={14} /> Full editor
+                          </button>
                           <button type="button" onClick={() => { copyLink(j.id); setMenuId(null); }}>
                             {copiedId === j.id ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy apply link</>}
                           </button>
@@ -256,7 +323,105 @@ export default function JobRequisitions() {
         )}
       </div>
 
+      {editTarget && (
+        <div className="hr-modal-backdrop">
+          <div className="card hr-modal" style={{ maxWidth: "620px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+              <span className="mono badge badge-gray" style={{ fontSize: "0.75rem" }}>
+                {requisitionCode(editTarget.id)}
+              </span>
+              <button
+                type="button"
+                onClick={() => navigate(`/hr/jobs/${editTarget.id}/edit`)}
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: "0.8rem", color: "var(--brand-primary)" }}
+              >
+                Open in full editor <ExternalLink size={13} style={{ marginLeft: 4 }} />
+              </button>
+            </div>
+            <h2>Quick Edit Requisition</h2>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "1rem" }}>
+              Make quick edits to this role. Saving immediately updates candidate screenings and application criteria.
+            </p>
+
+            <div className="form-group">
+              <label className="label">Job Title *</label>
+              <input
+                className="form-input"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Job title..."
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="label">Recruitment Status</label>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${editStatus === "open" ? "btn-dark-pill" : "btn-secondary"}`}
+                  onClick={() => setEditStatus("open")}
+                  style={{ flex: 1, justifyContent: "center" }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", display: "inline-block", marginRight: 6 }} />
+                  Open (Accepting)
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${editStatus === "closed" ? "btn-dark-pill" : "btn-secondary"}`}
+                  onClick={() => setEditStatus("closed")}
+                  style={{ flex: 1, justifyContent: "center" }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#eab308", display: "inline-block", marginRight: 6 }} />
+                  Closed (Archived)
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="label">Job Description & Screening Criteria *</label>
+              {editLoading ? (
+                <div style={{ padding: "1.5rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                  Loading full description...
+                </div>
+              ) : (
+                <textarea
+                  className="form-input"
+                  rows={8}
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  placeholder="Role summary, responsibilities, requirements..."
+                  style={{ fontFamily: "monospace", fontSize: "0.85rem", lineHeight: "1.5" }}
+                  required
+                />
+              )}
+            </div>
+
+            <div className="hr-modal-actions" style={{ marginTop: "1.25rem" }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={editSaving}
+                onClick={() => setEditTarget(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-dark-pill"
+                disabled={!editTitle.trim() || !editDesc.trim() || editSaving}
+                onClick={() => void handleQuickSave()}
+              >
+                {editSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {deleteTarget && (
+
         <div className="hr-modal-backdrop">
           <div className="card hr-modal">
             <h2>Permanently delete job role?</h2>
