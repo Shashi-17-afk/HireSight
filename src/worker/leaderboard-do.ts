@@ -27,6 +27,33 @@ export class LeaderboardDO extends DurableObject<Env> {
 
     // WebSocket upgrade — frontend leaderboard viewer
     if (request.headers.get("Upgrade") === "websocket") {
+      const match = url.pathname.match(/\/api\/leaderboard\/([^/]+)/);
+      const jobId = match ? match[1] : null;
+
+      if (jobId) {
+        try {
+          const d1Results = await this.env.DB.prepare(
+            `SELECT id, name, score, reasoning, CAST(strftime('%s', created_at) AS INTEGER) * 1000 AS submittedAt
+             FROM candidates
+             WHERE job_id = ?
+             ORDER BY score DESC, created_at ASC`
+          ).bind(jobId).all<LeaderboardEntry>();
+
+          if (d1Results.results && d1Results.results.length > 0) {
+            const existingMap = new Map(this.entries.map((e) => [e.id, e]));
+            for (const r of d1Results.results) {
+              if (!existingMap.has(r.id)) {
+                this.entries.push(r);
+              }
+            }
+            this.entries.sort((a, b) => b.score - a.score || a.submittedAt - b.submittedAt);
+            await this.ctx.storage.put("entries", this.entries);
+          }
+        } catch (syncErr) {
+          console.error("[LeaderboardDO] D1 sync error:", String(syncErr));
+        }
+      }
+
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
 
@@ -40,6 +67,7 @@ export class LeaderboardDO extends DurableObject<Env> {
 
       return new Response(null, { status: 101, webSocket: client });
     }
+
 
     // Internal update from candidate scoring endpoint
     if (url.pathname.endsWith("/update") && request.method === "POST") {
