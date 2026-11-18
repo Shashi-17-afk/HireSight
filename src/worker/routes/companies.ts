@@ -154,7 +154,7 @@ companies.get("/", async (c) => {
     const jobInfo = companyJobsMap[c.name] || { count: 0, titles: [] };
     return {
       ...c,
-      openRolesCount: Math.max(jobInfo.count, c.slug === "hiresight" ? (jobs?.length || 3) : (jobInfo.count || 2)),
+      openRolesCount: jobInfo.count,
     };
   });
 
@@ -188,24 +188,41 @@ companies.get("/", async (c) => {
 companies.get("/:slugOrId", async (c) => {
   const param = c.req.param("slugOrId").toLowerCase();
 
-  // Find in curated or fallback
+  // Open jobs with the posting recruiter's company. Jobs without a company
+  // name are listed under HireSight Technologies, matching the list endpoint.
+  const { results: openJobs } = await c.env.DB.prepare(`
+    SELECT j.id, j.title, j.description, j.created_at, j.status, u.company_name,
+           (SELECT COUNT(*) FROM candidates c WHERE c.job_id = j.id) AS applicant_count
+    FROM jobs j
+    LEFT JOIN users u ON u.id = j.user_id
+    WHERE j.status = 'open'
+    ORDER BY j.created_at DESC
+  `).all<{
+    id: string;
+    title: string;
+    description: string;
+    created_at: string;
+    status: string;
+    company_name: string | null;
+    applicant_count: number;
+  }>();
+  const companyOf = (job: { company_name: string | null }) =>
+    job.company_name?.trim() || CURATED_COMPANIES[0].name;
+
   let profile = CURATED_COMPANIES.find(
-    (comp) => comp.slug.toLowerCase() === param || comp.id.toLowerCase() === param || comp.name.toLowerCase() === param
+    (comp) => comp.slug === param || comp.id.toLowerCase() === param || comp.name.toLowerCase() === param
   );
 
-  // If not in curated, search D1 users
+  // Otherwise a recruiter company with open jobs, matched by its slug.
   if (!profile) {
-    const hrUser = await c.env.DB.prepare(`
-      SELECT company_name FROM users WHERE LOWER(company_name) = ? OR LOWER(id) = ? LIMIT 1
-    `).bind(param, param).first<{ company_name: string }>();
-
-    if (hrUser && hrUser.company_name) {
+    const name = (openJobs ?? []).map(companyOf).find((n) => toSlug(n) === param || n.toLowerCase() === param);
+    if (name) {
       profile = {
-        id: `comp-${toSlug(hrUser.company_name)}`,
-        name: hrUser.company_name,
-        slug: toSlug(hrUser.company_name),
+        id: `comp-${toSlug(name)}`,
+        name,
+        slug: toSlug(name),
         tagline: "Innovative tech team scaling high-impact products",
-        description: `${hrUser.company_name} is actively hiring exceptional talent to build next-generation applications.`,
+        description: `${name} is actively hiring exceptional talent to build next-generation applications.`,
         industry: "Technology",
         location: "Remote / Hybrid",
         size: "50-250 employees",
@@ -213,56 +230,20 @@ companies.get("/:slugOrId", async (c) => {
         founded: 2023,
         tags: ["Fast-Growing", "Engineering", "Collaborative"],
         color: "#3b82f6",
-        initial: hrUser.company_name.charAt(0).toUpperCase(),
+        initial: name.charAt(0).toUpperCase(),
       };
     }
   }
 
   if (!profile) {
-    // Default fallback to HireSight Technologies
-    profile = CURATED_COMPANIES[0];
+    return c.json({ error: "Company not found" }, 404);
   }
 
-  // Fetch open jobs for this company from D1
-  const { results: rawJobs } = await c.env.DB.prepare(`
-    SELECT j.id, j.title, j.description, j.created_at, j.status,
-           COUNT(c.id) AS applicant_count
-    FROM jobs j
-    LEFT JOIN users u ON u.id = j.user_id
-    LEFT JOIN candidates c ON c.job_id = j.id
-    WHERE j.status = 'open' AND (LOWER(u.company_name) = ? OR ? = 'hiresight')
-    GROUP BY j.id
-    ORDER BY j.created_at DESC
-  `).bind(profile.name.toLowerCase(), profile.slug).all<{
-    id: string;
-    title: string;
-    description: string;
-    created_at: string;
-    status: string;
-    applicant_count: number;
-  }>();
-
-  // If company has no direct jobs yet in D1, grab up to 3 open platform jobs so candidate can apply
-  let jobs = rawJobs || [];
-  if (jobs.length === 0) {
-    const { results: fallbackJobs } = await c.env.DB.prepare(`
-      SELECT j.id, j.title, j.description, j.created_at, j.status,
-             COUNT(c.id) AS applicant_count
-      FROM jobs j
-      LEFT JOIN candidates c ON c.job_id = j.id
-      WHERE j.status = 'open'
-      GROUP BY j.id
-      LIMIT 3
-    `).all<{
-      id: string;
-      title: string;
-      description: string;
-      created_at: string;
-      status: string;
-      applicant_count: number;
-    }>();
-    jobs = fallbackJobs || [];
-  }
+  // Only this company's own open jobs — never another company's roles.
+  const companyName = profile.name.toLowerCase();
+  const jobs = (openJobs ?? [])
+    .filter((job) => companyOf(job).toLowerCase() === companyName)
+    .map(({ company_name: _company, ...job }) => job);
 
   return c.json({
     company: {
