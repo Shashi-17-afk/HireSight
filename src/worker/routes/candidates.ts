@@ -4,6 +4,7 @@ import { authenticate, requireCandidate } from "../lib/auth";
 import type { AuthVariables } from "../lib/auth";
 
 import { scoreResumeWithLlm } from "../lib/scoring";
+import { evaluateRateLimit } from "../lib/rate-limit";
 import { sendEmail } from "../lib/email";
 import { getApplicantConfirmationEmail, getRecruiterNewApplicantAlertEmail } from "../lib/email-templates";
 
@@ -47,34 +48,29 @@ candidates.post("/", async (c) => {
 		"unknown";
 	const rlKey = `rl:${ip}`;
 
-	const rawRl = await c.env.RATE_LIMIT.get(rlKey);
-	const now = Math.floor(Date.now() / 1000);
-
-	let rlCount = 0;
-	let expiresAt = now + WINDOW_SECS;
-
-	if (rawRl) {
-		const stored = JSON.parse(rawRl) as { count: number; expiresAt: number };
-		rlCount = stored.count;
-		expiresAt = stored.expiresAt;
+	try {
+		const decision = evaluateRateLimit({
+			raw: await c.env.RATE_LIMIT.get(rlKey),
+			now: Math.floor(Date.now() / 1000),
+			limit: RATE_LIMIT,
+			windowSecs: WINDOW_SECS,
+		});
+		if (!decision.allowed) {
+			return c.json(
+				{ error: "Too many submissions. Please wait before trying again.", retryAfter: decision.retryAfter },
+				429,
+				{ "Retry-After": String(decision.retryAfter) }
+			);
+		}
+		if (decision.nextValue) {
+			// Full-window TTL; KV rejects TTLs under 60s.
+			await c.env.RATE_LIMIT.put(rlKey, JSON.stringify(decision.nextValue), {
+				expirationTtl: decision.ttlSeconds,
+			});
+		}
+	} catch (rlErr) {
+		console.error("[candidates] rate-limit KV error", String(rlErr));
 	}
-
-	if (rlCount >= RATE_LIMIT) {
-		const retryAfter = Math.max(1, expiresAt - now);
-		return c.json(
-			{ error: "Too many submissions. Please wait before trying again.", retryAfter },
-			429,
-			{ "Retry-After": String(retryAfter) }
-		);
-	}
-
-	// Persist incremented count; TTL ticks down from the original window start.
-	const ttl = Math.max(1, expiresAt - now);
-	await c.env.RATE_LIMIT.put(
-		rlKey,
-		JSON.stringify({ count: rlCount + 1, expiresAt }),
-		{ expirationTtl: ttl }
-	);
 	// --- end rate limiting ---
 
 	// Resolve authenticated candidate from Bearer token (if present).
@@ -110,12 +106,12 @@ candidates.post("/", async (c) => {
 		}
 	}
 
-  const body = await c.req.json<{
-    job_id: string;
-    name: string;
-    email: string;
-    resume_text: string;
-  }>();
+  let body: { job_id?: string; name?: string; email?: string; resume_text?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
 
   if (!body.job_id || !body.name || !body.email || !body.resume_text) {
     return c.json({ error: "job_id, name, email, and resume_text are required" }, 400);
