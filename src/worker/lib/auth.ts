@@ -91,8 +91,9 @@ export async function verifyPassword(password: string, storedHash: string): Prom
   const parts = storedHash.split(":");
   if (parts.length !== 2) return false;
   const [saltHex, hashHex] = parts;
+  if (!/^[0-9a-f]+$/i.test(saltHex) || saltHex.length % 2 !== 0) return false;
   const salt = new Uint8Array(
-    saltHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
+    saltHex.match(/.{2}/g)!.map((byte) => parseInt(byte, 16))
   );
   const passwordBuffer = new TextEncoder().encode(password);
   const importKey = await crypto.subtle.importKey(
@@ -115,5 +116,9 @@ export async function verifyPassword(password: string, storedHash: string): Prom
   const newHashHex = Array.from(new Uint8Array(derivedBits))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  return hashHex === newHashHex;
+  // Constant-time comparison so response timing doesn't leak hash prefixes.
+  if (hashHex.length !== newHashHex.length) return false;
+  let diff = 0;
+  for (let i = 0; i < hashHex.length; i++) diff |= hashHex.charCodeAt(i) ^ newHashHex.charCodeAt(i);
+  return diff === 0;
 }
