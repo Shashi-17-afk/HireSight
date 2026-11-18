@@ -8,8 +8,8 @@ const messages = new Hono<AppEnv>();
 
 // ── POST /api/messages — HR sends a message to a candidate ────────────────────
 // Body: { to_user_id?, application_id?, candidate_submission_id?, candidate_email?, subject, body }
-// If to_user_id is omitted, we resolve the candidate's user_id from application_id,
-// candidate_submission_id, or candidate_email.
+// If to_user_id is omitted, we resolve the candidate's user_id from application_id
+// or candidate_submission_id (logged-in applications only).
 messages.post("/", authenticate(), requireHR(), async (c) => {
 	const hr = c.get("user");
 	const body = await c.req.json<{
@@ -55,45 +55,13 @@ messages.post("/", authenticate(), requireHR(), async (c) => {
 		if (app) {
 			toUserId = app.user_id;
 			if (!applicationId) applicationId = app.id;
-		} else {
-			// Check candidates table + users table by email
-			const cand = await c.env.DB.prepare(
-				`SELECT c.job_id, u.id AS user_id, c.created_at
-				 FROM candidates c
-				 JOIN users u ON LOWER(u.email) = LOWER(c.email)
-				 WHERE c.id = ? AND u.role = 'candidate'`
-			)
-				.bind(subId)
-				.first<{ job_id: string; user_id: string; created_at: string }>();
-
-			if (cand) {
-				toUserId = cand.user_id;
-				if (!applicationId && cand.job_id) {
-					const existingApp = await c.env.DB.prepare(
-						"SELECT id FROM applications WHERE user_id = ? AND job_id = ?"
-					)
-						.bind(cand.user_id, cand.job_id)
-						.first<{ id: string }>();
-					if (existingApp) {
-						applicationId = existingApp.id;
-					}
-				}
-			}
 		}
 	}
 
-	// 3. Resolve from candidate_email if still not resolved
-	if (!toUserId && body.candidate_email?.trim()) {
-		const candUser = await c.env.DB.prepare(
-			"SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND role = 'candidate'"
-		)
-			.bind(body.candidate_email.trim())
-			.first<{ id: string }>();
-
-		if (candUser) {
-			toUserId = candUser.id;
-		}
-	}
+	// The email on a submission (or sent as candidate_email) was typed into
+	// the public apply form and is unverified, so it is never used to find a
+	// candidate account. Otherwise anyone could apply with someone else's
+	// email and have recruiter messages land in that person's inbox.
 
 	if (!toUserId) {
 		return c.json(
