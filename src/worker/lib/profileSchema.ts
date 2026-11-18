@@ -5,7 +5,14 @@ import { z } from 'zod';
 const optionalUrl = z
 	.string()
 	.transform((v) => (v.trim() === '' ? null : v.trim()))
-	.pipe(z.string().url('Must be a full URL starting with https://').nullable())
+	.pipe(
+		z
+			.string()
+			.url('Must be a full URL starting with https://')
+			// Only web links: rejects javascript:, data:, etc.
+			.refine((v) => /^https?:\/\//i.test(v), 'Must be a full URL starting with https://')
+			.nullable()
+	)
 	.nullable()
 	.optional();
 
