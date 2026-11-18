@@ -58,8 +58,8 @@ HireSight is an edge-native, full-lifecycle recruitment and applicant tracking s
 - **Non-Blocking Background Delivery**: Wrapped inside `ctx.waitUntil()` to guarantee email dispatch never delays API response times.
 - **Full Notification Suite**: Dispatches welcome emails, candidate application confirmations, recruiter high-match alerts (score ≥ 80), ATS status change alerts, interview invites, and subscription receipts.
 
-### 10. 🔑 Hardened 4-Digit OTP Password Reset Flow
-- **4-Digit Numeric Verification**: Auto-advancing OTP UI with verification codes delivered to the user's email.
+### 10. 🔑 Hardened 6-Digit OTP Password Reset Flow
+- **6-Digit Numeric Verification**: Auto-advancing OTP UI with verification codes delivered to the user's email.
 - **Cloudflare KV State**: 10-minute expiry window, 60-second resend cooldowns, single-use invalidation, and strict 5-attempt brute-force protection.
 - **Anti-Enumeration Design**: Obscures whether an account exists to mitigate reconnaissance attacks.
 
@@ -84,7 +84,7 @@ HireSight is an edge-native, full-lifecycle recruitment and applicant tracking s
 | **AI Inference** | [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/) | `@cf/baai/bge-base-en-v1.5` embeddings & `@cf/meta/llama-3.1-8b-instruct-fast` LLM |
 | **Vector Search** | [Cloudflare Vectorize](https://developers.cloudflare.com/vectorize/) | 768-dim cosine similarity index (`resumes_index`) |
 | **Stateful Real-Time** | [Cloudflare Durable Objects](https://developers.cloudflare.com/durable-objects/) | `LeaderboardDO` (live rankings) & `CandidateStatusDO` (status push) with Hibernation API |
-| **Distributed Cache & KV**| [Cloudflare KV](https://developers.cloudflare.com/kv/) | `RATE_LIMIT` namespace for IP throttling, 4-digit OTP state, and attempt tracking |
+| **Distributed Cache & KV**| [Cloudflare KV](https://developers.cloudflare.com/kv/) | `RATE_LIMIT` namespace for IP throttling, 6-digit OTP state, and attempt tracking |
 | **Frontend UI** | React 19 + TypeScript + Vite 7 | Modern SPA, Lucide React icons, Motion micro-animations, lazy-loaded routes |
 | **PDF Extraction** | [pdfjs-dist](https://mozilla.github.io/pdf.js/) | 100% client-side text parsing protecting candidate file privacy |
 | **Email Subsystem** | [Brevo REST API](https://www.brevo.com/) + Resend | Resilient dual-engine transactional email with automated failover |
@@ -124,7 +124,7 @@ HireSight is an edge-native, full-lifecycle recruitment and applicant tracking s
 │               │ │  llama-3.1-8b │           │  LeaderboardDO   │ │          │
 │ • users       │ └───────┬───────┘           │  (Live rankings) │ │• IP rate │
 │ • jobs        │         │                   │                  │ │  limits  │
-│ • candidates  │         ▼                   │  CandidateStatus │ │• 4-digit │
+│ • candidates  │         ▼                   │  CandidateStatus │ │• 6-digit │
 │ • applications│ ┌───────────────┐           │  (Status push)   │ │  OTP state│
 │ • profiles    │ │   Vectorize   │           └──────────────────┘ └──────────┘
 │ • interviews  │ │ (768-dim      │                     ▲
@@ -213,8 +213,8 @@ Open [http://localhost:5173](http://localhost:5173). The frontend React SPA and 
 | `POST` | `/api/auth/register/candidate` | Public | Register candidate account & dispatch welcome email |
 | `POST` | `/api/auth/login/hr` | Public | Authenticate recruiter & issue 24-hr JWT |
 | `POST` | `/api/auth/login/candidate` | Public | Authenticate candidate & issue 24-hr JWT |
-| `POST` | `/api/auth/forgot-password` | Public | Generate 4-digit OTP code & dispatch email (IP & email rate limited) |
-| `POST` | `/api/auth/verify-otp` | Public | Verify 4-digit OTP code with attempt counter |
+| `POST` | `/api/auth/forgot-password` | Public | Generate 6-digit OTP code & dispatch email (IP & email rate limited) |
+| `POST` | `/api/auth/verify-otp` | Public | Verify 6-digit OTP code with attempt counter |
 | `POST` | `/api/auth/reset-password` | Public | Finalize password reset using verified OTP |
 
 ### 💼 Jobs & AI Description Generation
@@ -335,10 +335,10 @@ The platform is deployed globally on Cloudflare Workers and available for evalua
    - Review scheduled interviews with meeting launch links.
    - Check the message inbox for recruiter communications.
 
-### 5. Test 4-Digit OTP Password Reset Flow
+### 5. Test 6-Digit OTP Password Reset Flow
 1. Navigate to `/forgot-password`.
-2. Input an account email to request a 4-digit OTP.
-3. Enter the 4-digit code in the numeric input boxes to verify and set a new password.
+2. Input an account email to request a 6-digit OTP.
+3. Enter the 6-digit code in the numeric input boxes to verify and set a new password.
 
 ---
 
