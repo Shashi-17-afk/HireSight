@@ -178,14 +178,16 @@ interviews.post("/", authenticate(), requireHR(), async (c) => {
 			try {
 				const doId = c.env.CANDIDATE_STATUS.idFromName(app.user_id);
 				const stub = c.env.CANDIDATE_STATUS.get(doId);
-				await stub.fetch(new Request("https://do-internal/push", {
+				// Same contract as PATCH /api/applications/:id/status.
+				await stub.fetch(new Request("https://do-internal/notify", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						type: "status_changed",
 						application_id: app.id,
-						status: "interview",
-						updated_at: now,
+						job_id: app.job_id,
+						job_title: app.job_title,
+						from_status: app.status,
+						to_status: "interview",
 					}),
 				}));
 			} catch (doErr) {
