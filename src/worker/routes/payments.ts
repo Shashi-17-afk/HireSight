@@ -15,6 +15,14 @@ function bufToHex(buf: ArrayBuffer): string {
 		.join("");
 }
 
+/** Constant-time string comparison for signatures. */
+function timingSafeEqualHex(a: string, b: string): boolean {
+	if (a.length !== b.length) return false;
+	let diff = 0;
+	for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+	return diff === 0;
+}
+
 /** HMAC-SHA256 signature using Web Crypto (Cloudflare Workers compatible). */
 async function hmacSha256(message: string, secret: string): Promise<string> {
 	const enc = new TextEncoder();
@@ -29,20 +37,29 @@ async function hmacSha256(message: string, secret: string): Promise<string> {
 	return bufToHex(sig);
 }
 
+// Server-side price list. The client only names a plan; it never sets the
+// amount, otherwise a recruiter could pay ₹1 for a paid plan.
+const PLANS: Record<string, { amount: number; currency: string; label: string; display: string }> = {
+	growth: { amount: 409900, currency: "INR", label: "Growth", display: "₹4,099" },
+};
+
 // ── POST /api/payments/create-order ──────────────────────────────────────────
 
 payments.post("/create-order", authenticate(), requireHR(), async (c) => {
-	const body = await c.req.json<{ amount?: number; currency?: string; plan?: string }>();
+	let body: { plan?: string } = {};
+	try {
+		body = await c.req.json();
+	} catch {
+		body = {};
+	}
 	const user = c.get("user");
 
-	const amount = body.amount ?? 409900; // default ₹4,099 in paise
-	const currency = body.currency ?? "INR";
-	const plan = body.plan ?? "growth";
-
-	// Validate minimum amount (Razorpay requires >= 100 paise)
-	if (typeof amount !== "number" || amount < 100) {
-		return c.json({ error: "Amount must be at least 100 paise (₹1)" }, 400);
+	const plan = (body.plan ?? "growth").toLowerCase();
+	const planInfo = PLANS[plan];
+	if (!planInfo) {
+		return c.json({ error: "Unknown plan" }, 400);
 	}
+	const { amount, currency } = planInfo;
 
 	const keyId = c.env.RAZORPAY_KEY_ID;
 	const keySecret = c.env.RAZORPAY_KEY_SECRET;
@@ -88,7 +105,8 @@ payments.post("/create-order", authenticate(), requireHR(), async (c) => {
 			.run();
 	} catch (err) {
 		console.error("[payments] D1 insert failed:", String(err));
-		// Non-fatal: order was already created on Razorpay, still return it
+		// Verification needs this row, so don't hand out an order we can't verify.
+		return c.json({ error: "Failed to record payment order" }, 500);
 	}
 
 	return c.json({
@@ -114,6 +132,18 @@ payments.post("/verify", authenticate(), requireHR(), async (c) => {
 		return c.json({ error: "Missing required fields: razorpay_order_id, razorpay_payment_id, razorpay_signature" }, 400);
 	}
 
+	// The order must have been created by this recruiter through create-order,
+	// for a known plan at that plan's server-side price.
+	const order = await c.env.DB.prepare(
+		"SELECT plan, amount, currency FROM payments WHERE razorpay_order_id = ? AND user_id = ?"
+	)
+		.bind(razorpay_order_id, c.get("user").id)
+		.first<{ plan: string; amount: number; currency: string }>();
+	const orderPlan = order ? PLANS[order.plan] : undefined;
+	if (!order || !orderPlan || order.amount !== orderPlan.amount || order.currency !== orderPlan.currency) {
+		return c.json({ error: "Payment order not found" }, 404);
+	}
+
 	const keySecret = c.env.RAZORPAY_KEY_SECRET;
 	if (!keySecret) {
 		return c.json({ error: "Payment gateway not configured" }, 500);
@@ -125,7 +155,7 @@ payments.post("/verify", authenticate(), requireHR(), async (c) => {
 		keySecret
 	);
 
-	if (expectedSignature !== razorpay_signature) {
+	if (!timingSafeEqualHex(expectedSignature, razorpay_signature)) {
 		console.error("[payments] Signature mismatch for order", razorpay_order_id);
 
 		// Trigger Subscription Payment Failed Email to HR Recruiter
@@ -138,8 +168,8 @@ payments.post("/verify", authenticate(), requireHR(), async (c) => {
 			if (userDetails?.email) {
 				const failedTpl = getSubscriptionPaymentFailedEmail({
 					recruiterName: userDetails.name || "Recruiter",
-					planName: "Growth",
-					amount: "₹4,099",
+					planName: orderPlan.label,
+					amount: orderPlan.display,
 					failureReason: "Payment verification failed due to invalid signature or declined authorization.",
 					retryPaymentUrl: "https://hiresight.shashishanthan2706.workers.dev/hr/dashboard",
 				});
@@ -164,9 +194,9 @@ payments.post("/verify", authenticate(), requireHR(), async (c) => {
 			        status = 'paid',
 			        signature_verified = 1,
 			        updated_at = CURRENT_TIMESTAMP
-			  WHERE razorpay_order_id = ?`
+			  WHERE razorpay_order_id = ? AND user_id = ?`
 		)
-			.bind(razorpay_payment_id, razorpay_order_id)
+			.bind(razorpay_payment_id, razorpay_order_id, c.get("user").id)
 			.run();
 
 		// Trigger Subscription Receipt Email to HR Recruiter
@@ -178,8 +208,8 @@ payments.post("/verify", authenticate(), requireHR(), async (c) => {
 		if (userDetails?.email) {
 			const receiptTpl = getRecruiterSubscriptionEmail({
 				recruiterName: userDetails.name || "Recruiter",
-				planName: "Growth",
-				amountPaid: "₹4,099",
+				planName: orderPlan.label,
+				amountPaid: orderPlan.display,
 				paymentId: razorpay_payment_id,
 				orderId: razorpay_order_id,
 				date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),

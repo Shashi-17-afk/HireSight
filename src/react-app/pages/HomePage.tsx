@@ -222,7 +222,7 @@ export default function HomePage() {
 		if (email) setSubscribed(true);
 	}
 
-	async function handleRazorpayCheckout(amountPaise: number, planName: string) {
+	async function handleRazorpayCheckout(planName: string) {
 		const token = localStorage.getItem("token");
 		if (!token) {
 			setPaymentMsg({ type: "error", text: "Please sign in as a recruiter to subscribe." });
@@ -240,7 +240,7 @@ export default function HomePage() {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${token}`,
 				},
-				body: JSON.stringify({ amount: amountPaise, currency: "INR", plan: planName }),
+				body: JSON.stringify({ plan: planName }),
 			});
 
 			if (orderRes.status === 401) {
@@ -504,7 +504,7 @@ export default function HomePage() {
 											className="btn btn-primary"
 											style={{ width: "100%" }}
 											disabled={paymentLoading}
-											onClick={() => void handleRazorpayCheckout(p.amountPaise!, p.name.toLowerCase())}
+											onClick={() => void handleRazorpayCheckout(p.name.toLowerCase())}
 										>
 											{paymentLoading ? "Processing…" : p.cta}
 										</button>
