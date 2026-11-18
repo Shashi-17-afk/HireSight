@@ -107,6 +107,20 @@ export class LeaderboardDO extends DurableObject<Env> {
       return Response.json({ ok: true, total: this.entries.length });
     }
 
+    // Internal reset — called when the job is deleted
+    if (url.pathname.endsWith("/reset") && request.method === "POST") {
+      for (const ws of this.ctx.getWebSockets()) {
+        try {
+          ws.close(1000, "Job deleted");
+        } catch {
+          // Already closed
+        }
+      }
+      this.entries = [];
+      await this.ctx.storage.deleteAll();
+      return Response.json({ ok: true });
+    }
+
     // Snapshot endpoint — REST fallback for non-WS clients
     if (url.pathname.endsWith("/snapshot") && request.method === "GET") {
       return Response.json({ entries: this.entries });
