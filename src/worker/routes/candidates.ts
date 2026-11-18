@@ -181,7 +181,9 @@ candidates.post("/", async (c) => {
     try {
       const vectorQuery = await c.env.VECTORIZE.query(resumeEmbedding, {
         topK: 1,
-        filter: { job_id: body.job_id },
+        // Resumes are stored with the same job_id, so also filter on type —
+        // otherwise the nearest match is often another applicant's resume.
+        filter: { job_id: body.job_id, type: "job_description" },
         returnMetadata: "all",
       });
       if (vectorQuery.matches.length > 0) {

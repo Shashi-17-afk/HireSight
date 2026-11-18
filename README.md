@@ -195,7 +195,15 @@ npm run db:migrate:local
 ```
 *(For production Cloudflare D1 deployment, use `npm run db:migrate:remote`)*
 
-### 5. Start the Development Server
+### 5. Create Vectorize Metadata Indexes
+Resume scoring filters vectors by `job_id` and `type`, and Vectorize only filters on indexed metadata. Run once per index (`wrangler.toml` binds the index remotely, so this also covers local dev):
+```bash
+npx wrangler vectorize create-metadata-index resumes_index --property-name=job_id --type=string
+npx wrangler vectorize create-metadata-index resumes_index --property-name=type --type=string
+```
+Vectors written before an index exists are not indexed, so re-save older jobs (Edit → Save) to re-embed them.
+
+### 6. Start the Development Server
 ```bash
 npm run dev
 ```
