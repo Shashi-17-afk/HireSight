@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { clientIp, enforceRateLimit } from "../lib/rate-limit";
 import { verify } from "hono/jwt";
 import type { AuthVariables } from "../lib/auth";
 
@@ -299,6 +300,11 @@ mango.get("/roles/:id", (c) => {
 // ── POST /api/mango/simulate-match ─────────────────────────────────────────────
 // Runs an instant AI match evaluation of a candidate's resume against a MANGO role
 mango.post("/simulate-match", async (c) => {
+  // Public AI endpoint: limit per IP to cap Workers AI spend.
+  const wait = await enforceRateLimit(c.env.RATE_LIMIT, `mango_sim:${clientIp((n) => c.req.header(n))}`, 5, 60);
+  if (wait !== null) {
+      return c.json({ error: "Too many match simulations. Please wait a moment.", retryAfter: wait }, 429, { "Retry-After": String(wait) });
+    }
   let body: { roleId: string; cvText?: string };
   try {
     body = await c.req.json();

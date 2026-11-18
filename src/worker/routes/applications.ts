@@ -6,7 +6,7 @@ import type { ApplicationStatus } from '../types/ats';
 import { sendEmail } from '../lib/email';
 import { getStatusUpdateEmail, getOfferLetterEmail } from '../lib/email-templates';
 import { generateOfferLetterPdf, uint8ArrayToBase64 } from '../lib/pdf-generator';
-import { evaluateRateLimit } from '../lib/rate-limit';
+import { enforceRateLimit, evaluateRateLimit } from '../lib/rate-limit';
 import { scoreResumeWithLlm } from '../lib/scoring';
 import { analyzeCandidateCv } from '../lib/cv-analysis';
 
@@ -316,6 +316,11 @@ applications.post('/:submission_id/rescore', authenticate(), requireHR(), async 
 applications.post('/:submission_id/cv-analysis', authenticate(), requireHR(), async (c) => {
 	const submissionId = c.req.param('submission_id');
 	const hr = c.get('user');
+
+	const wait = await enforceRateLimit(c.env.RATE_LIMIT, `cvanalysis:${hr.id}`, 10, 60);
+	if (wait !== null) {
+		return c.json({ error: 'Too many analyses. Please wait a moment.', retryAfter: wait }, 429, { 'Retry-After': String(wait) });
+	}
 
 	const row = await c.env.DB.prepare(`
 		SELECT cand.id, cand.job_id, cand.name, cand.resume_text, cand.score,

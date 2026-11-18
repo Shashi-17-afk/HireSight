@@ -83,3 +83,36 @@ export function evaluateRateLimit(opts: {
 		ttlSeconds: Math.max(KV_MIN_TTL_SECONDS, windowSecs),
 	};
 }
+
+/**
+ * Apply a fixed-window limit backed by KV. Returns the seconds to wait when
+ * blocked, or null when the request is allowed. KV errors fail open so a
+ * KV outage doesn't take the endpoint down.
+ */
+export async function enforceRateLimit(
+	kv: KVNamespace,
+	key: string,
+	limit: number,
+	windowSecs: number
+): Promise<number | null> {
+	try {
+		const decision = evaluateRateLimit({
+			raw: await kv.get(key),
+			now: Math.floor(Date.now() / 1000),
+			limit,
+			windowSecs,
+		});
+		if (!decision.allowed) return decision.retryAfter;
+		if (decision.nextValue) {
+			await kv.put(key, JSON.stringify(decision.nextValue), { expirationTtl: decision.ttlSeconds });
+		}
+	} catch (err) {
+		console.error("[rate-limit] KV error for", key, String(err));
+	}
+	return null;
+}
+
+/** Best-effort client IP for per-IP limits. */
+export function clientIp(header: (name: string) => string | undefined): string {
+	return header("CF-Connecting-IP") ?? header("X-Forwarded-For")?.split(",")[0].trim() ?? "unknown";
+}

@@ -4,6 +4,7 @@ import type { AuthVariables } from '../lib/auth';
 import { profileBodySchema } from '../lib/profileSchema';
 import { computeIsComplete } from '../types/ats';
 import { auditResumeForCandidate } from '../lib/cv-analysis';
+import { enforceRateLimit } from '../lib/rate-limit';
 
 const profile = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
@@ -104,6 +105,11 @@ profile.put('/', authenticate(), requireCandidate(), async (c) => {
 // Authenticated candidate evaluates their own resume text or past submission.
 profile.post('/cv-analysis', authenticate(), requireCandidate(), async (c) => {
 	const { id } = c.get('user');
+
+	const wait = await enforceRateLimit(c.env.RATE_LIMIT, `cvaudit:${id}`, 5, 60);
+	if (wait !== null) {
+		return c.json({ error: 'Too many analyses. Please wait a moment.', retryAfter: wait }, 429, { 'Retry-After': String(wait) });
+	}
 
 	let body: { resumeText?: string; targetRole?: string; targetJd?: string } = {};
 	try {
