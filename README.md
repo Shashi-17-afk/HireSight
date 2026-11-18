@@ -6,7 +6,7 @@ HireSight is an edge-native, full-lifecycle recruitment and applicant tracking s
 
 ---
 
-[![CI](https://img.shields.io/github/actions/workflow/status/Shashi-17-afk/HireSight/ci.yml?label=CI&style=flat-square)](https://github.com/Shashi-17-afk/HireSight/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/Shashi-17-afk/Cloudflare_Hackathon/ci.yml?label=CI&style=flat-square)](https://github.com/Shashi-17-afk/Cloudflare_Hackathon/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6366f1?style=flat-square)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-hiresight.workers.dev-10b981?style=flat-square)](https://hiresight.shashishanthan2706.workers.dev)
 
@@ -45,7 +45,7 @@ HireSight is an edge-native, full-lifecycle recruitment and applicant tracking s
 
 ### 7. 💬 In-App Recruiter ↔ Candidate Messaging
 - **Direct Recruiter Outreach**: HR can compose in-app messages linked to specific candidates or job applications.
-- **Candidate Inbox & Notification Center**: Unread badge counts and message thread inspection. Recruiters can message candidates who applied to their jobs while logged in.
+- **Candidate Inbox & Notification Center**: Real-time unread badge counts, message thread inspection, and automatic transactional email dispatch notifying the candidate of recruiter communications.
 
 ### 8. 👤 Candidate Self-Service Portal & Profile Completeness
 - **Profile Completeness Engine**: Candidates maintain contact details, headline, bio, experience years, skills, salary expectations, LinkedIn, GitHub, and portfolio links.
@@ -164,7 +164,7 @@ The database is built on Cloudflare D1 and partitioned across 6 structured SQL m
 
 ### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/Shashi-17-afk/HireSight.git hiresight
+git clone https://github.com/Shashi-17-afk/Cloudflare_Hackathon.git hiresight
 cd hiresight
 npm install
 ```
@@ -195,15 +195,7 @@ npm run db:migrate:local
 ```
 *(For production Cloudflare D1 deployment, use `npm run db:migrate:remote`)*
 
-### 5. Create Vectorize Metadata Indexes
-Resume scoring filters vectors by `job_id` and `type`, and Vectorize only filters on indexed metadata. Run once per index (`wrangler.toml` binds the index remotely, so this also covers local dev):
-```bash
-npx wrangler vectorize create-metadata-index resumes_index --property-name=job_id --type=string
-npx wrangler vectorize create-metadata-index resumes_index --property-name=type --type=string
-```
-Vectors written before an index exists are not indexed, so re-save older jobs (Edit → Save) to re-embed them.
-
-### 6. Start the Development Server
+### 5. Start the Development Server
 ```bash
 npm run dev
 ```

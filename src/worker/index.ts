@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { HTTPException } from "hono/http-exception";
 import { verify } from "hono/jwt";
 import { LeaderboardDO } from "./leaderboard-do";
 import { CandidateStatusDO } from "./candidate-status-do";
@@ -32,17 +31,6 @@ app.use(
 		allowHeaders: ["Content-Type", "Authorization"],
 	})
 );
-
-// Malformed JSON request bodies are a client error, not a server error.
-// Routes that call c.req.json() without their own try/catch land here.
-app.onError((err, c) => {
-	if (err instanceof HTTPException) return err.getResponse();
-	if (err instanceof SyntaxError) {
-		return c.json({ error: "Invalid JSON body" }, 400);
-	}
-	console.error("[worker] unhandled error", c.req.method, c.req.path, String(err));
-	return c.json({ error: "Internal server error" }, 500);
-});
 
 // Health check (public)
 app.get("/api/health", (c) => c.json({ status: "ok", service: "hiresight" }));

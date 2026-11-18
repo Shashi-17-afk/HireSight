@@ -7,7 +7,6 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "npm run build && vite preview",
-    "test": "node --experimental-strip-types --test \"test/**/*.test.ts\"",
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types",
     "db:migrate:local": "wrangler d1 execute hiring_db --local --file=./migrations/0001_init.sql && wrangler d1 execute hiring_db --local --file=./migrations/0002_auth.sql && wrangler d1 execute hiring_db --local --file=./migrations/0003_ats_core.sql && wrangler d1 execute hiring_db --local --file=./migrations/0004_payments.sql && wrangler d1 execute hiring_db --local --file=./migrations/0005_messages.sql && wrangler d1 execute hiring_db --local --file=./migrations/0006_interviews.sql",

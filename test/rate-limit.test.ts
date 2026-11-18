@@ -1,22 +1,9 @@
-// Runs on Node's built-in test runner: `npm test`
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, expect, it } from "vitest";
 import {
 	KV_MIN_TTL_SECONDS,
 	evaluateRateLimit,
 	parseWindow,
-} from "../src/worker/lib/rate-limit.ts";
-
-// Minimal expect() over node:assert, covering the matchers used below.
-function expect(actual: unknown) {
-	return {
-		toBe: (expected: unknown) => assert.strictEqual(actual, expected),
-		toEqual: (expected: unknown) => assert.deepStrictEqual(actual, expected),
-		toBeNull: () => assert.strictEqual(actual, null),
-		toBeGreaterThanOrEqual: (n: number) =>
-			assert.ok((actual as number) >= n, `expected ${String(actual)} >= ${n}`),
-	};
-}
+} from "../src/worker/lib/rate-limit";
 
 const LIMIT = 5;
 const WINDOW = 60;

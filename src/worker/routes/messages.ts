@@ -7,9 +7,9 @@ type AppEnv = { Bindings: Env; Variables: AuthVariables };
 const messages = new Hono<AppEnv>();
 
 // ── POST /api/messages — HR sends a message to a candidate ────────────────────
-// Body: { to_user_id?, application_id?, candidate_submission_id?, subject, body }
-// The recipient is resolved from an application on one of the recruiter's
-// own jobs; candidate_email is accepted but ignored.
+// Body: { to_user_id?, application_id?, candidate_submission_id?, candidate_email?, subject, body }
+// If to_user_id is omitted, we resolve the candidate's user_id from application_id,
+// candidate_submission_id, or candidate_email.
 messages.post("/", authenticate(), requireHR(), async (c) => {
 	const hr = c.get("user");
 	const body = await c.req.json<{
@@ -24,47 +24,109 @@ messages.post("/", authenticate(), requireHR(), async (c) => {
 	if (!body.subject?.trim() || !body.body?.trim()) {
 		return c.json({ error: "subject and body are required" }, 400);
 	}
-	if (body.subject.length > 200 || body.body.length > 5000) {
-		return c.json({ error: "Subject must be at most 200 characters and body at most 5000" }, 400);
-	}
 
-	// A recruiter may only message a candidate account that applied (while
-	// logged in) to one of the recruiter's own jobs. Emails typed into the
-	// public apply form are unverified, so they never select an account.
-	type OwnedApp = { id: string; user_id: string | null };
-	const hrApp = (where: string, value: string) =>
-		c.env.DB.prepare(
-			`SELECT a.id, a.user_id FROM applications a
-			 JOIN jobs j ON j.id = a.job_id
-			 WHERE ${where} AND j.user_id = ?
-			 ORDER BY a.user_id IS NULL
-			 LIMIT 1`
+	let toUserId = body.to_user_id?.trim() || null;
+	let applicationId = body.application_id?.trim() || null;
+
+	// 1. Resolve from application if to_user_id not given directly
+	if (!toUserId && applicationId) {
+		const app = await c.env.DB.prepare(
+			"SELECT id, user_id FROM applications WHERE id = ?"
 		)
-			.bind(value, hr.id)
-			.first<OwnedApp>();
+			.bind(applicationId)
+			.first<{ id: string; user_id: string | null }>();
 
-	let app: OwnedApp | null = null;
-	const applicationIdIn = body.application_id?.trim();
-	const submissionIdIn = body.candidate_submission_id?.trim();
-	const toUserIdIn = body.to_user_id?.trim();
-
-	if (applicationIdIn) app = await hrApp("a.id = ?", applicationIdIn);
-	if (!app?.user_id && submissionIdIn) app = await hrApp("a.candidate_submission_id = ?", submissionIdIn);
-	if (!app?.user_id && toUserIdIn) app = await hrApp("a.user_id = ?", toUserIdIn);
-
-	// If the caller named a recipient, it must match the application's account.
-	if (app?.user_id && toUserIdIn && app.user_id !== toUserIdIn) {
-		app = await hrApp("a.user_id = ?", toUserIdIn);
+		if (app?.user_id) {
+			toUserId = app.user_id;
+		}
 	}
 
-	const toUserId = app?.user_id ?? null;
-	const applicationId = app?.id ?? null;
+	// 2. Resolve from candidate_submission_id if still not resolved
+	if (!toUserId && body.candidate_submission_id?.trim()) {
+		const subId = body.candidate_submission_id.trim();
+
+		// Check applications table first
+		const app = await c.env.DB.prepare(
+			"SELECT id, user_id FROM applications WHERE candidate_submission_id = ? AND user_id IS NOT NULL"
+		)
+			.bind(subId)
+			.first<{ id: string; user_id: string }>();
+
+		if (app) {
+			toUserId = app.user_id;
+			if (!applicationId) applicationId = app.id;
+		} else {
+			// Check candidates table + users table by email
+			const cand = await c.env.DB.prepare(
+				`SELECT c.job_id, u.id AS user_id, c.created_at
+				 FROM candidates c
+				 JOIN users u ON LOWER(u.email) = LOWER(c.email)
+				 WHERE c.id = ? AND u.role = 'candidate'`
+			)
+				.bind(subId)
+				.first<{ job_id: string; user_id: string; created_at: string }>();
+
+			if (cand) {
+				toUserId = cand.user_id;
+				if (!applicationId && cand.job_id) {
+					const existingApp = await c.env.DB.prepare(
+						"SELECT id FROM applications WHERE user_id = ? AND job_id = ?"
+					)
+						.bind(cand.user_id, cand.job_id)
+						.first<{ id: string }>();
+					if (existingApp) {
+						applicationId = existingApp.id;
+					}
+				}
+			}
+		}
+	}
+
+	// 3. Resolve from candidate_email if still not resolved
+	if (!toUserId && body.candidate_email?.trim()) {
+		const candUser = await c.env.DB.prepare(
+			"SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND role = 'candidate'"
+		)
+			.bind(body.candidate_email.trim())
+			.first<{ id: string }>();
+
+		if (candUser) {
+			toUserId = candUser.id;
+		}
+	}
 
 	if (!toUserId) {
 		return c.json(
 			{ error: "This candidate has not created a candidate account yet. Please use the 'Email directly' button to contact them via email." },
 			400
 		);
+	}
+
+	// Verify the target user exists and is a candidate
+	const target = await c.env.DB.prepare(
+		"SELECT id FROM users WHERE id = ? AND role = 'candidate'"
+	)
+		.bind(toUserId)
+		.first<{ id: string }>();
+
+	if (!target) {
+		return c.json(
+			{ error: "This candidate has not created a candidate account yet. Please use the 'Email directly' button to contact them via email." },
+			404
+		);
+	}
+
+	// Verify applicationId exists in applications table (foreign key constraint)
+	if (applicationId) {
+		const validApp = await c.env.DB.prepare(
+			"SELECT id FROM applications WHERE id = ?"
+		)
+			.bind(applicationId)
+			.first<{ id: string }>();
+
+		if (!validApp) {
+			applicationId = null;
+		}
 	}
 
 	const id = crypto.randomUUID();

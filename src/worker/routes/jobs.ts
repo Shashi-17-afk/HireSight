@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { authenticate, requireHR } from "../lib/auth";
 import type { AuthVariables } from "../lib/auth";
-import { enforceRateLimit, evaluateRateLimit } from "../lib/rate-limit";
+import { evaluateRateLimit } from "../lib/rate-limit";
 import {
   JD_MODEL,
   buildJdMessages,
@@ -192,10 +192,7 @@ jobs.put("/:id", authenticate(), requireHR(), async (c) => {
     return c.json({ error: "Forbidden: You can only edit jobs you created" }, 403);
   }
 
-  // Keep the current status unless a valid new one was sent (a missing or
-  // unknown value must not silently reopen a closed or draft job).
-  const JOB_STATUSES = ["open", "closed", "draft"];
-  const newStatus = body.status && JOB_STATUSES.includes(body.status) ? body.status : job.status;
+  const newStatus = body.status === "closed" ? "closed" : "open";
   const newTitle = body.title.trim();
   const newDesc = body.description.trim();
 
@@ -237,17 +234,9 @@ jobs.put("/:id", authenticate(), requireHR(), async (c) => {
 
 // AI enhance / polish existing job description
 jobs.post("/enhance-description", authenticate(), requireHR(), async (c) => {
-  const wait = await enforceRateLimit(c.env.RATE_LIMIT, `jdenhance:${c.get("user").id}`, 5, 60);
-  if (wait !== null) {
-      return c.json({ error: "Too many enhancement requests. Please wait a moment.", retryAfter: wait }, 429, { "Retry-After": String(wait) });
-    }
-
   const body = await c.req.json<{ description: string; instructions?: string }>();
   if (!body.description?.trim()) {
     return c.json({ error: "description is required" }, 400);
-  }
-  if (body.description.length > 20_000 || (body.instructions?.length ?? 0) > 1_000) {
-    return c.json({ error: "Description or instructions are too long" }, 400);
   }
 
   try {

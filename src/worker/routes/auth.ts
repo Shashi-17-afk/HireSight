@@ -1,9 +1,10 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { sign } from "hono/jwt";
 import { hashPassword, verifyPassword } from "../lib/auth";
 import type { AuthVariables } from "../lib/auth";
 import { sendEmail } from "../lib/email";
-import { KV_MIN_TTL_SECONDS, clientIp, enforceRateLimit, parseWindow } from "../lib/rate-limit";
+import { KV_MIN_TTL_SECONDS, evaluateRateLimit, parseWindow } from "../lib/rate-limit";
 import { getOtpResetEmail, getWelcomeEmail } from "../lib/email-templates";
 
 const auth = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
@@ -240,6 +241,25 @@ const OTP_RE = new RegExp(`^\\d{${OTP_DIGITS}}$`);
 
 type OtpData = { otp: string; attempts: number; expiresAt: number };
 
+function clientIp(c: Context<{ Bindings: Env; Variables: AuthVariables }>): string {
+  return (
+    c.req.header("CF-Connecting-IP") ??
+    c.req.header("X-Forwarded-For")?.split(",")[0].trim() ??
+    "unknown"
+  );
+}
+
+/** Fixed-window KV rate limit. Returns seconds to wait when blocked, else null. */
+async function hitRateLimit(env: Env, key: string, limit: number, windowSecs: number): Promise<number | null> {
+  const now = Math.floor(Date.now() / 1000);
+  const decision = evaluateRateLimit({ raw: await env.RATE_LIMIT.get(key), now, limit, windowSecs });
+  if (!decision.allowed) return decision.retryAfter;
+  if (decision.nextValue) {
+    await env.RATE_LIMIT.put(key, JSON.stringify(decision.nextValue), { expirationTtl: decision.ttlSeconds });
+  }
+  return null;
+}
+
 function generateOtp(): string {
   // Rejection sampling avoids modulo bias.
   const limit = Math.floor(0x1_0000_0000 / 10 ** OTP_DIGITS) * 10 ** OTP_DIGITS;
@@ -329,7 +349,7 @@ auth.post("/forgot-password", async (c) => {
   const userEmail = body.email.trim().toLowerCase();
 
   // Max 5 code requests per IP per 15 minutes.
-  const ipWait = await enforceRateLimit(c.env.RATE_LIMIT, `rl:forgot_pw:${clientIp((n) => c.req.header(n))}`, 5, 900);
+  const ipWait = await hitRateLimit(c.env, `rl:forgot_pw:${clientIp(c)}`, 5, 900);
   if (ipWait !== null) {
     return c.json(
       { error: "Too many password reset requests from this IP. Please wait before trying again.", retryAfter: ipWait },
@@ -388,7 +408,7 @@ auth.post("/verify-otp", async (c) => {
     return c.json({ error: `OTP code must be exactly ${OTP_DIGITS} digits` }, 400);
   }
 
-  const ipWait = await enforceRateLimit(c.env.RATE_LIMIT, `rl:otp_check:${clientIp((n) => c.req.header(n))}`, 20, 900);
+  const ipWait = await hitRateLimit(c.env, `rl:otp_check:${clientIp(c)}`, 20, 900);
   if (ipWait !== null) {
     return c.json({ error: "Too many attempts. Please wait before trying again.", retryAfter: ipWait }, 429, {
       "Retry-After": String(ipWait),
@@ -424,7 +444,7 @@ auth.post("/reset-password", async (c) => {
     return c.json({ error: `Verification code must be ${OTP_DIGITS} digits` }, 400);
   }
 
-  const ipWait = await enforceRateLimit(c.env.RATE_LIMIT, `rl:otp_check:${clientIp((n) => c.req.header(n))}`, 20, 900);
+  const ipWait = await hitRateLimit(c.env, `rl:otp_check:${clientIp(c)}`, 20, 900);
   if (ipWait !== null) {
     return c.json({ error: "Too many attempts. Please wait before trying again.", retryAfter: ipWait }, 429, {
       "Retry-After": String(ipWait),
