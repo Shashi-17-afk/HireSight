@@ -8,6 +8,16 @@ type AppEnv = { Bindings: Env; Variables: AuthVariables };
 
 const interviews = new Hono<AppEnv>();
 
+const INTERVIEW_STATUSES = ["scheduled", "completed", "cancelled", "rescheduled"];
+
+function isValidDate(value: unknown): value is string {
+	return typeof value === "string" && value.trim() !== "" && !Number.isNaN(Date.parse(value));
+}
+
+function isValidDuration(value: unknown): value is number {
+	return typeof value === "number" && Number.isInteger(value) && value >= 5 && value <= 480;
+}
+
 // ── POST /api/interviews — Schedule a new interview round ────────────────────
 interviews.post("/", authenticate(), requireHR(), async (c) => {
 	const hr = c.get("user");
@@ -25,6 +35,12 @@ interviews.post("/", authenticate(), requireHR(), async (c) => {
 
 	if (!body.application_id || !body.scheduled_at) {
 		return c.json({ error: "application_id and scheduled_at are required" }, 400);
+	}
+	if (!isValidDate(body.scheduled_at)) {
+		return c.json({ error: "scheduled_at must be a valid date-time" }, 400);
+	}
+	if (body.duration_minutes !== undefined && !isValidDuration(body.duration_minutes)) {
+		return c.json({ error: "duration_minutes must be a whole number between 5 and 480" }, 400);
 	}
 
 	// 1. Fetch application details & verify HR ownership (by application_id or candidate_submission_id)
@@ -121,7 +137,7 @@ interviews.post("/", authenticate(), requireHR(), async (c) => {
 	const interviewId = crypto.randomUUID();
 	const candidateId = app.user_id || app.candidate_submission_id || app.id;
 	const roundType = (body.round_type?.trim() || "Technical Round");
-	const duration = body.duration_minutes && body.duration_minutes > 0 ? body.duration_minutes : 45;
+	const duration = body.duration_minutes ?? 45;
 	const meetingLink = body.meeting_link?.trim() || null;
 	const notes = body.notes?.trim() || null;
 	const now = new Date().toISOString();
@@ -432,8 +448,25 @@ interviews.patch("/:id", authenticate(), requireHR(), async (c) => {
 		notes?: string;
 		status?: string;
 		feedback?: string;
-		rating?: number;
+		rating?: number | null;
 	}>();
+
+	if (body.scheduled_at !== undefined && !isValidDate(body.scheduled_at)) {
+		return c.json({ error: "scheduled_at must be a valid date-time" }, 400);
+	}
+	if (body.duration_minutes !== undefined && !isValidDuration(body.duration_minutes)) {
+		return c.json({ error: "duration_minutes must be a whole number between 5 and 480" }, 400);
+	}
+	if (body.status !== undefined && !INTERVIEW_STATUSES.includes(body.status)) {
+		return c.json({ error: `Invalid status. Allowed: ${INTERVIEW_STATUSES.join(", ")}` }, 400);
+	}
+	if (
+		body.rating !== undefined &&
+		body.rating !== null &&
+		!(Number.isInteger(body.rating) && body.rating >= 1 && body.rating <= 5)
+	) {
+		return c.json({ error: "rating must be a whole number from 1 to 5" }, 400);
+	}
 
 	// Verify ownership
 	const existing = await c.env.DB.prepare(`
@@ -471,7 +504,7 @@ interviews.patch("/:id", authenticate(), requireHR(), async (c) => {
 	}
 	if (body.status !== undefined) {
 		updates.push("status = ?");
-		bindings.push(body.status.trim());
+		bindings.push(body.status);
 	}
 	if (body.feedback !== undefined) {
 		updates.push("feedback = ?");
