@@ -169,7 +169,8 @@ applications.get('/:submission_id', authenticate(), requireHR(), async (c) => {
 
 	if (row) return c.json({ ...row, isAnonymous: false });
 
-	// No applications row → external link apply, enrich with profile if candidate registered by email
+	// No applications row → external link apply. The submitted email is
+	// unverified, so it is not used to look up an account or its private profile.
 	const basic = await c.env.DB.prepare(`
 		SELECT
 			cand.id                   AS candidate_submission_id,
@@ -180,51 +181,26 @@ applications.get('/:submission_id', authenticate(), requireHR(), async (c) => {
 			cand.resume_text          AS resume_text,
 			cand.created_at           AS applied_at,
 			cand.job_id,
-			j.title                   AS job_title,
-			u.id                      AS user_id,
-			cp.phone,
-			cp.headline,
-			cp.linkedin_url,
-			cp.github_url,
-			cp.portfolio_url,
-			cp.resume_url
+			j.title                   AS job_title
 		FROM candidates cand
 		JOIN jobs j ON j.id = cand.job_id
-		LEFT JOIN users u ON LOWER(u.email) = LOWER(cand.email)
-		LEFT JOIN candidate_profiles cp ON cp.user_id = u.id
 		WHERE cand.id = ? AND cand.job_id = ?
 	`).bind(submission_id, job_id).first<Record<string, unknown>>();
 
 	if (!basic) return c.json({ error: 'Candidate not found' }, 404);
 
-	// Ensure an applications row exists so HR can update status, send offers, and message them
+	// Ensure an applications row exists so HR can update status and send offers
 	let appId: string | null = null;
-	let appStatus = 'applied';
-	const candidateUserId = (basic.user_id as string | null) ?? null;
+	const appStatus = 'applied';
 
-	if (candidateUserId) {
-		const existingApp = await c.env.DB.prepare(
-			'SELECT id, status FROM applications WHERE user_id = ? AND job_id = ?'
-		).bind(candidateUserId, job_id).first<{ id: string; status: string }>();
-
-		if (existingApp) {
-			appId = existingApp.id;
-			appStatus = existingApp.status;
-			await c.env.DB.prepare(
-				'UPDATE applications SET candidate_submission_id = COALESCE(candidate_submission_id, ?) WHERE id = ?'
-			).bind(submission_id, appId).run();
-		}
-	}
-
-	if (!appId) {
+	{
 		const newAppId = crypto.randomUUID();
 		try {
 			await c.env.DB.prepare(`
 				INSERT INTO applications (id, user_id, job_id, candidate_submission_id, status, source, applied_at)
-				VALUES (?, ?, ?, ?, 'applied', 'link', ?)
+				VALUES (?, NULL, ?, ?, 'applied', 'link', ?)
 			`).bind(
 				newAppId,
-				candidateUserId,
 				job_id,
 				submission_id,
 				(basic.applied_at as string) || new Date().toISOString()
@@ -238,8 +214,9 @@ applications.get('/:submission_id', authenticate(), requireHR(), async (c) => {
 	return c.json({
 		...basic,
 		application_id: appId,
+		user_id: null,
 		status: appStatus,
-		isAnonymous: !basic.user_id,
+		isAnonymous: true,
 	});
 });
 

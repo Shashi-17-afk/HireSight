@@ -239,13 +239,11 @@ candidates.post("/", async (c) => {
   // Record application in the ATS pipeline.
   // Non-fatal — a failure here must not block the score response.
   try {
-    let targetUserId = authenticatedUserId;
-    if (!targetUserId && body.email) {
-      const u = await c.env.DB.prepare(
-        "SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND role = 'candidate'"
-      ).bind(body.email.trim()).first<{ id: string }>();
-      if (u) targetUserId = u.id;
-    }
+    // Only a verified login ties an application to an account. The email typed
+    // into the public form is unverified, so it must never select a user —
+    // otherwise anyone could attach applications to (or overwrite the resume
+    // on) another person's account.
+    const targetUserId = authenticatedUserId;
 
     const existingApp = targetUserId ? await c.env.DB.prepare(
       "SELECT id FROM applications WHERE user_id = ? AND job_id = ?"
