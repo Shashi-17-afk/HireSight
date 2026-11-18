@@ -188,7 +188,7 @@ jobs.put("/:id", authenticate(), requireHR(), async (c) => {
     return c.json({ error: "Job not found" }, 404);
   }
 
-  if (job.user_id && job.user_id !== user.id) {
+  if (job.user_id !== user.id) {
     return c.json({ error: "Forbidden: You can only edit jobs you created" }, 403);
   }
 
@@ -273,7 +273,8 @@ jobs.delete("/:id", authenticate(), requireHR(), async (c) => {
     return c.json({ error: "Job not found" }, 404);
   }
 
-  if (job.user_id && job.user_id !== user.id) {
+  // Ownerless legacy jobs belong to no recruiter, so nobody may delete them.
+  if (job.user_id !== user.id) {
     return c.json({ error: "Forbidden: You can only delete jobs you created" }, 403);
   }
 
@@ -291,13 +292,23 @@ jobs.delete("/:id", authenticate(), requireHR(), async (c) => {
         "DELETE FROM application_status_log WHERE application_id IN (SELECT id FROM applications WHERE job_id = ?)"
       ).bind(jobId),
 
-      // b. Delete applications tied to this job
+      // b. Delete interviews for this job
+      c.env.DB.prepare(
+        "DELETE FROM interviews WHERE job_id = ? OR application_id IN (SELECT id FROM applications WHERE job_id = ?)"
+      ).bind(jobId, jobId),
+
+      // c. Keep candidates' messages, but detach them from the deleted applications
+      c.env.DB.prepare(
+        "UPDATE messages SET application_id = NULL WHERE application_id IN (SELECT id FROM applications WHERE job_id = ?)"
+      ).bind(jobId),
+
+      // d. Delete applications tied to this job
       c.env.DB.prepare("DELETE FROM applications WHERE job_id = ?").bind(jobId),
 
-      // c. Delete candidates (AI scoring rows) tied to this job
+      // e. Delete candidates (AI scoring rows) tied to this job
       c.env.DB.prepare("DELETE FROM candidates WHERE job_id = ?").bind(jobId),
 
-      // d. Delete job record itself
+      // f. Delete job record itself
       c.env.DB.prepare("DELETE FROM jobs WHERE id = ? AND user_id = ?").bind(jobId, user.id),
     ]);
   } catch (err) {
@@ -313,6 +324,14 @@ jobs.delete("/:id", authenticate(), requireHR(), async (c) => {
     }
   } catch (vecErr) {
     console.error("[jobs] Vectorize vector deletion failed for job", jobId, String(vecErr));
+  }
+
+  // 5. Clear the job's live leaderboard so its candidate data doesn't linger
+  try {
+    const stub = c.env.LEADERBOARD.get(c.env.LEADERBOARD.idFromName(jobId));
+    await stub.fetch(new Request("https://do-internal/reset", { method: "POST" }));
+  } catch (doErr) {
+    console.error("[jobs] leaderboard reset failed for job", jobId, String(doErr));
   }
 
   return c.json({ message: "Job permanently deleted successfully", job_id: jobId }, 200);
