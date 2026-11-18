@@ -192,7 +192,10 @@ jobs.put("/:id", authenticate(), requireHR(), async (c) => {
     return c.json({ error: "Forbidden: You can only edit jobs you created" }, 403);
   }
 
-  const newStatus = body.status === "closed" ? "closed" : "open";
+  // Keep the current status unless a valid new one was sent (a missing or
+  // unknown value must not silently reopen a closed or draft job).
+  const JOB_STATUSES = ["open", "closed", "draft"];
+  const newStatus = body.status && JOB_STATUSES.includes(body.status) ? body.status : job.status;
   const newTitle = body.title.trim();
   const newDesc = body.description.trim();
 
