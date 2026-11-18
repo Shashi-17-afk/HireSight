@@ -47,6 +47,29 @@ const statusColorMap: Record<string, { bg: string; text: string; label: string }
 	offered: { bg: "#ecfdf5", text: "#059669", label: "Offer Extended 📄" },
 };
 
+/** Escape a value for safe inclusion in HTML text or a quoted attribute. */
+export function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
+/**
+ * Return a copy of a template's params with every string escaped for HTML.
+ * Names, job titles, notes etc. come from users (some from a public form),
+ * so none of them may be interpolated into email HTML raw.
+ */
+function escapeParams<T extends object>(params: T): T {
+	const out: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(params)) {
+		out[k] = typeof v === "string" ? escapeHtml(v) : v;
+	}
+	return out as T;
+}
+
 function baseWrapper(content: string): string {
 	return `<!DOCTYPE html>
 <html>
@@ -87,20 +110,21 @@ function baseWrapper(content: string): string {
 /** 1. Candidate Application Confirmation */
 export function getApplicantConfirmationEmail(params: CandidateConfirmationParams): { subject: string; html: string } {
 	const subject = `Application Received: ${params.jobTitle} at HireSight`;
+	const p = escapeParams(params);
 	const html = baseWrapper(`
 		<h2 style="font-size: 20px; margin-top: 0;">Application Submitted Successfully!</h2>
-		<p>Hi <strong>${params.candidateName}</strong>,</p>
-		<p>Your application for the <strong>${params.jobTitle}</strong> position has been successfully submitted and scored by Workers AI.</p>
+		<p>Hi <strong>${p.candidateName}</strong>,</p>
+		<p>Your application for the <strong>${p.jobTitle}</strong> position has been successfully submitted and scored by Workers AI.</p>
 		
 		<div class="card-info">
 			<div style="font-size: 12px; color: #888888; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Role Applied</div>
-			<div style="font-size: 16px; font-weight: 700; color: #0d0d0d;">${params.jobTitle}</div>
-			${params.companyName ? `<div style="font-size: 13px; color: #555555; margin-top: 2px;">${params.companyName}</div>` : ""}
+			<div style="font-size: 16px; font-weight: 700; color: #0d0d0d;">${p.jobTitle}</div>
+			${p.companyName ? `<div style="font-size: 13px; color: #555555; margin-top: 2px;">${p.companyName}</div>` : ""}
 		</div>
 
 		<p>You can monitor your application status in real-time from your Candidate Dashboard:</p>
 		<div style="text-align: center;">
-			<a href="${params.dashboardUrl}" class="btn">View Candidate Dashboard →</a>
+			<a href="${p.dashboardUrl}" class="btn">View Candidate Dashboard →</a>
 		</div>
 	`);
 	return { subject, html };
@@ -111,25 +135,26 @@ export function getStatusUpdateEmail(params: StatusUpdateParams): { subject: str
 	const statusInfo = statusColorMap[params.newStatus] ?? { bg: "#f0f0ed", text: "#0d0d0d", label: params.newStatus };
 	const subject = `Status Update: ${params.jobTitle} — ${statusInfo.label}`;
 	
+	const p = escapeParams(params);
 	const html = baseWrapper(`
 		<h2 style="font-size: 20px; margin-top: 0;">Application Status Update</h2>
-		<p>Hi <strong>${params.candidateName}</strong>,</p>
-		<p>There is an update on your application for <strong>${params.jobTitle}</strong>:</p>
+		<p>Hi <strong>${p.candidateName}</strong>,</p>
+		<p>There is an update on your application for <strong>${p.jobTitle}</strong>:</p>
 
 		<div class="card-info" style="text-align: center;">
 			<div style="font-size: 12px; color: #888888; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">New Status</div>
 			<div class="badge" style="background: ${statusInfo.bg}; color: ${statusInfo.text};">${statusInfo.label}</div>
 		</div>
 
-		${params.note ? `
+		${p.note ? `
 			<div style="background: #ffffff; border-left: 4px solid #0d0d0d; padding: 12px 16px; margin: 16px 0; font-style: italic; color: #555555;">
-				"${params.note}"
+				"${p.note}"
 			</div>
 		` : ""}
 
 		<p>Log in to your Candidate Dashboard for more details:</p>
 		<div style="text-align: center;">
-			<a href="${params.dashboardUrl}" class="btn">Go to Candidate Dashboard →</a>
+			<a href="${p.dashboardUrl}" class="btn">Go to Candidate Dashboard →</a>
 		</div>
 	`);
 	return { subject, html };
@@ -138,19 +163,20 @@ export function getStatusUpdateEmail(params: StatusUpdateParams): { subject: str
 /** 3. Recruiter Subscription Payment Receipt */
 export function getRecruiterSubscriptionEmail(params: RecruiterSubscriptionParams): { subject: string; html: string } {
 	const subject = `Payment Confirmation: HireSight ${params.planName} Plan`;
+	const p = escapeParams(params);
 	const html = baseWrapper(`
 		<h2 style="font-size: 20px; margin-top: 0; color: #10b981;">Subscription Active! 🎉</h2>
-		<p>Hi <strong>${params.recruiterName}</strong>,</p>
-		<p>Thank you for subscribing to the <strong>HireSight ${params.planName} Plan</strong>. Your account has been upgraded successfully.</p>
+		<p>Hi <strong>${p.recruiterName}</strong>,</p>
+		<p>Thank you for subscribing to the <strong>HireSight ${p.planName} Plan</strong>. Your account has been upgraded successfully.</p>
 
 		<div class="card-info">
 			<div style="font-size: 14px; font-weight: 700; margin-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 8px;">Receipt Details</div>
 			<table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-				<tr><td style="padding: 4px 0; color: #888888;">Plan:</td><td style="text-align: right; font-weight: 600;">${params.planName} Plan</td></tr>
-				<tr><td style="padding: 4px 0; color: #888888;">Amount Paid:</td><td style="text-align: right; font-weight: 600; color: #10b981;">${params.amountPaid}</td></tr>
-				<tr><td style="padding: 4px 0; color: #888888;">Payment ID:</td><td style="text-align: right; font-family: monospace;">${params.paymentId}</td></tr>
-				<tr><td style="padding: 4px 0; color: #888888;">Order ID:</td><td style="text-align: right; font-family: monospace;">${params.orderId}</td></tr>
-				<tr><td style="padding: 4px 0; color: #888888;">Date:</td><td style="text-align: right;">${params.date}</td></tr>
+				<tr><td style="padding: 4px 0; color: #888888;">Plan:</td><td style="text-align: right; font-weight: 600;">${p.planName} Plan</td></tr>
+				<tr><td style="padding: 4px 0; color: #888888;">Amount Paid:</td><td style="text-align: right; font-weight: 600; color: #10b981;">${p.amountPaid}</td></tr>
+				<tr><td style="padding: 4px 0; color: #888888;">Payment ID:</td><td style="text-align: right; font-family: monospace;">${p.paymentId}</td></tr>
+				<tr><td style="padding: 4px 0; color: #888888;">Order ID:</td><td style="text-align: right; font-family: monospace;">${p.orderId}</td></tr>
+				<tr><td style="padding: 4px 0; color: #888888;">Date:</td><td style="text-align: right;">${p.date}</td></tr>
 			</table>
 		</div>
 
@@ -164,30 +190,31 @@ export function getRecruiterSubscriptionEmail(params: RecruiterSubscriptionParam
 /** 4. Recruiter Instant Alert for New Applicant */
 export function getRecruiterNewApplicantAlertEmail(params: RecruiterNewApplicantParams): { subject: string; html: string } {
 	const subject = `New Applicant: ${params.candidateName} for ${params.jobTitle}`;
+	const p = escapeParams(params);
 	const html = baseWrapper(`
 		<h2 style="font-size: 20px; margin-top: 0;">New Applicant Alert ⚡</h2>
-		<p>Hi <strong>${params.recruiterName}</strong>,</p>
-		<p>A new applicant has submitted their resume for <strong>${params.jobTitle}</strong>.</p>
+		<p>Hi <strong>${p.recruiterName}</strong>,</p>
+		<p>A new applicant has submitted their resume for <strong>${p.jobTitle}</strong>.</p>
 
 		<div class="card-info">
 			<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
 				<div>
-					<div style="font-size: 16px; font-weight: 700;">${params.candidateName}</div>
-					<div style="font-size: 13px; color: #555555;">${params.candidateEmail}</div>
+					<div style="font-size: 16px; font-weight: 700;">${p.candidateName}</div>
+					<div style="font-size: 13px; color: #555555;">${p.candidateEmail}</div>
 				</div>
 				<div style="background: #f9c35a; color: #0d0d0d; font-size: 18px; font-weight: 700; padding: 6px 12px; border-radius: 9999px;">
-					${params.matchScore}% Match
+					${p.matchScore}% Match
 				</div>
 			</div>
-			${params.reasoning ? `
+			${p.reasoning ? `
 				<div style="font-size: 12px; color: #555555; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.08);">
-					<strong>AI Fit Reasoning:</strong> ${params.reasoning}
+					<strong>AI Fit Reasoning:</strong> ${p.reasoning}
 				</div>
 			` : ""}
 		</div>
 
 		<div style="text-align: center;">
-			<a href="${params.hrDashboardUrl}" class="btn">View Live Leaderboard →</a>
+			<a href="${p.hrDashboardUrl}" class="btn">View Live Leaderboard →</a>
 		</div>
 	`);
 	return { subject, html };
@@ -216,17 +243,18 @@ export interface PaymentFailedParams {
 /** 5. Password Reset OTP Email */
 export function getOtpResetEmail(params: OtpResetParams): { subject: string; html: string } {
 	const subject = `${params.otp} is your HireSight verification code`;
+	const p = escapeParams(params);
 	const html = baseWrapper(`
 		<h2 style="font-size: 20px; margin-top: 0; color: #0d0d0d;">Password Reset Code 🔑</h2>
-		<p>Hi <strong>${params.userName || "there"}</strong>,</p>
+		<p>Hi <strong>${p.userName || "there"}</strong>,</p>
 		<p>Use the following 4-digit verification code to reset your HireSight account password:</p>
 
 		<div style="text-align: center; margin: 28px 0;">
 			<div style="display: inline-block; background: #f4f4f0; border: 2px dashed #0d0d0d; border-radius: 16px; padding: 16px 36px; letter-spacing: 12px; font-size: 36px; font-weight: 800; font-family: monospace; color: #0d0d0d;">
-				${params.otp}
+				${p.otp}
 			</div>
 			<div style="font-size: 13px; color: #666666; margin-top: 10px;">
-				This code is valid for <strong>${params.expiresInMinutes ?? 10} minutes</strong>. Do not share this code with anyone.
+				This code is valid for <strong>${p.expiresInMinutes ?? 10} minutes</strong>. Do not share this code with anyone.
 			</div>
 		</div>
 
@@ -240,15 +268,16 @@ export function getOtpResetEmail(params: OtpResetParams): { subject: string; htm
 /** 5b. Legacy Password Reset Email */
 export function getPasswordResetEmail(params: PasswordResetParams): { subject: string; html: string } {
 	const subject = "Reset your HireSight password";
+	const p = escapeParams(params);
 	const html = baseWrapper(`
 		<h2 style="font-size: 20px; margin-top: 0;">Password Reset Request 🔑</h2>
-		<p>Hi <strong>${params.userName || "there"}</strong>,</p>
+		<p>Hi <strong>${p.userName || "there"}</strong>,</p>
 		<p>We received a request to reset the password for your HireSight account.</p>
 		
-		<p>Click the button below to set a new password. This link is valid for <strong>${params.expiresInMinutes ?? 60} minutes</strong> and can only be used once:</p>
+		<p>Click the button below to set a new password. This link is valid for <strong>${p.expiresInMinutes ?? 60} minutes</strong> and can only be used once:</p>
 		
 		<div style="text-align: center; margin: 24px 0;">
-			<a href="${params.resetUrl}" class="btn">Reset Password →</a>
+			<a href="${p.resetUrl}" class="btn">Reset Password →</a>
 		</div>
 
 		<div style="font-size: 12px; color: #777777; margin-top: 20px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.06);">
@@ -261,22 +290,23 @@ export function getPasswordResetEmail(params: PasswordResetParams): { subject: s
 /** 6. Subscription Payment Failed Alert */
 export function getSubscriptionPaymentFailedEmail(params: PaymentFailedParams): { subject: string; html: string } {
 	const subject = "Payment Failed — Action Required for Your HireSight Subscription";
+	const p = escapeParams(params);
 	const html = baseWrapper(`
 		<h2 style="font-size: 20px; margin-top: 0; color: #ef4444;">Payment Failure Notice ⚠️</h2>
-		<p>Hi <strong>${params.recruiterName}</strong>,</p>
-		<p>We were unable to process your payment for the <strong>HireSight ${params.planName} Plan</strong> (${params.amount}).</p>
+		<p>Hi <strong>${p.recruiterName}</strong>,</p>
+		<p>We were unable to process your payment for the <strong>HireSight ${p.planName} Plan</strong> (${p.amount}).</p>
 
 		<div class="card-info" style="border-left: 4px solid #ef4444;">
 			<div style="font-size: 14px; font-weight: 700; color: #ef4444; margin-bottom: 8px;">Transaction Status</div>
 			<p style="font-size: 13px; margin: 0; color: #555555;">
-				${params.failureReason ?? "The payment attempt was declined or cancelled during verification."}
+				${p.failureReason ?? "The payment attempt was declined or cancelled during verification."}
 			</p>
 		</div>
 
 		<p>To keep your HR recruitment dashboard active and avoid service disruption, please retry or update your payment method:</p>
 
 		<div style="text-align: center; margin: 24px 0;">
-			<a href="${params.retryPaymentUrl}" class="btn" style="background: #ef4444 !important;">Retry Payment Now →</a>
+			<a href="${p.retryPaymentUrl}" class="btn" style="background: #ef4444 !important;">Retry Payment Now →</a>
 		</div>
 	`);
 	return { subject, html };
@@ -294,9 +324,10 @@ export function getWelcomeEmail(params: WelcomeEmailParams): { subject: string; 
 	const subject = `Welcome to HireSight, ${params.userName}!`;
 	const isRecruiter = params.role === "recruiter";
 
+	const p = escapeParams(params);
 	const html = baseWrapper(`
 		<h2 style="font-size: 20px; margin-top: 0;">Welcome to HireSight! 🎉</h2>
-		<p>Hi <strong>${params.userName}</strong>,</p>
+		<p>Hi <strong>${p.userName}</strong>,</p>
 		<p>Thank you for creating your HireSight account as a <strong>${isRecruiter ? "Recruiter" : "Candidate"}</strong>.</p>
 
 		<div class="card-info">
@@ -313,7 +344,7 @@ export function getWelcomeEmail(params: WelcomeEmailParams): { subject: string; 
 		</div>
 
 		<div style="text-align: center; margin: 24px 0;">
-			<a href="${params.dashboardUrl}" class="btn">
+			<a href="${p.dashboardUrl}" class="btn">
 				${isRecruiter ? "Open Recruiter Workspace →" : "Go to Candidate Dashboard →"}
 			</a>
 		</div>
@@ -336,38 +367,43 @@ export interface InterviewScheduledParams {
 
 export function getInterviewScheduledEmail(params: InterviewScheduledParams): { subject: string; html: string } {
 	const subject = `Interview Invitation: ${params.roundType} — ${params.jobTitle}`;
+	// Only link to http(s) meeting URLs.
+	const p = escapeParams({
+		...params,
+		meetingLink: params.meetingLink && /^https?:\/\//i.test(params.meetingLink.trim()) ? params.meetingLink.trim() : undefined,
+	});
 	const html = baseWrapper(`
 		<h2 style="font-size: 20px; margin-top: 0; color: #0d0d0d;">Interview Invitation 📅</h2>
-		<p>Hi <strong>${params.candidateName}</strong>,</p>
-		<p>You have been invited for an interview for the <strong>${params.jobTitle}</strong> position${params.companyName ? ` at <strong>${params.companyName}</strong>` : ""}.</p>
+		<p>Hi <strong>${p.candidateName}</strong>,</p>
+		<p>You have been invited for an interview for the <strong>${p.jobTitle}</strong> position${p.companyName ? ` at <strong>${p.companyName}</strong>` : ""}.</p>
 
 		<div class="card-info" style="margin: 20px 0; border-left: 4px solid #10b981;">
 			<div style="margin-bottom: 12px;">
 				<div style="font-size: 11px; color: #888888; text-transform: uppercase; font-weight: 600;">Interview Round</div>
-				<div style="font-size: 16px; font-weight: 700; color: #0d0d0d;">${params.roundType}</div>
+				<div style="font-size: 16px; font-weight: 700; color: #0d0d0d;">${p.roundType}</div>
 			</div>
 			<div style="margin-bottom: 12px;">
 				<div style="font-size: 11px; color: #888888; text-transform: uppercase; font-weight: 600;">Date & Time</div>
-				<div style="font-size: 15px; font-weight: 600; color: #0d0d0d;">${params.scheduledAtFormatted} (${params.durationMinutes} minutes)</div>
+				<div style="font-size: 15px; font-weight: 600; color: #0d0d0d;">${p.scheduledAtFormatted} (${p.durationMinutes} minutes)</div>
 			</div>
-			${params.meetingLink ? `
+			${p.meetingLink ? `
 				<div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(0,0,0,0.1);">
 					<div style="font-size: 11px; color: #888888; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Meeting Link</div>
-					<a href="${params.meetingLink}" style="color: #2563eb; font-weight: 600; text-decoration: underline; word-break: break-all;">${params.meetingLink}</a>
+					<a href="${p.meetingLink}" style="color: #2563eb; font-weight: 600; text-decoration: underline; word-break: break-all;">${p.meetingLink}</a>
 				</div>
 			` : ""}
 		</div>
 
-		${params.notes ? `
+		${p.notes ? `
 			<div style="background: #ffffff; border-left: 4px solid #0d0d0d; padding: 12px 16px; margin: 16px 0; font-size: 13px; color: #444444;">
 				<strong>Notes from recruiter:</strong><br/>
-				${params.notes.replace(/\n/g, '<br/>')}
+				${p.notes.replace(/\n/g, '<br/>')}
 			</div>
 		` : ""}
 
 		<div style="text-align: center; margin-top: 24px;">
-			${params.meetingLink ? `<a href="${params.meetingLink}" class="btn" style="margin-right: 8px;">Join Meeting →</a>` : ""}
-			<a href="${params.dashboardUrl}" class="btn" style="background: #333333;">Candidate Portal</a>
+			${p.meetingLink ? `<a href="${p.meetingLink}" class="btn" style="margin-right: 8px;">Join Meeting →</a>` : ""}
+			<a href="${p.dashboardUrl}" class="btn" style="background: #333333;">Candidate Portal</a>
 		</div>
 	`);
 	return { subject, html };
@@ -391,14 +427,15 @@ export interface OfferLetterEmailParams {
 export function getOfferLetterEmail(params: OfferLetterEmailParams): { subject: string; html: string } {
 	const company = params.companyName || "HireSight";
 	const subject = `Official Offer of Employment: ${params.jobTitle} — ${company} 🎉`;
+	const p = escapeParams(params);
 	const html = baseWrapper(`
 		<div style="text-align: center; margin-bottom: 20px;">
 			<span style="background: #ecfdf5; color: #059669; font-weight: 700; font-size: 12px; padding: 5px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid rgba(16, 185, 129, 0.3);">
 				Official Offer Letter Attached 📄
 			</span>
 		</div>
-		<h2 style="font-size: 22px; margin-top: 0; color: #0d0d0d; text-align: center;">Congratulations, ${params.candidateName}! 🎉</h2>
-		<p style="font-size: 15px; color: #374151; line-height: 1.6;">We are delighted to extend you a formal offer of employment for the position of <strong>${params.jobTitle}</strong> at <strong>${company}</strong>. Our entire team was deeply impressed with your background and interview performance.</p>
+		<h2 style="font-size: 22px; margin-top: 0; color: #0d0d0d; text-align: center;">Congratulations, ${p.candidateName}! 🎉</h2>
+		<p style="font-size: 15px; color: #374151; line-height: 1.6;">We are delighted to extend you a formal offer of employment for the position of <strong>${p.jobTitle}</strong> at <strong>${escapeHtml(company)}</strong>. Our entire team was deeply impressed with your background and interview performance.</p>
 
 		<div class="card-info" style="margin: 24px 0; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
 			<h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #6366f1; margin: 0 0 16px 0; font-weight: 700;">Summary of Terms</h3>
@@ -406,48 +443,48 @@ export function getOfferLetterEmail(params: OfferLetterEmailParams): { subject: 
 			<table style="width: 100%; border-collapse: collapse; font-size: 14px;">
 				<tr style="border-bottom: 1px solid #f3f4f6;">
 					<td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Position</td>
-					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${params.jobTitle}</td>
+					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${p.jobTitle}</td>
 				</tr>
 				<tr style="border-bottom: 1px solid #f3f4f6;">
 					<td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Base Compensation</td>
-					<td style="padding: 8px 0; color: #059669; font-weight: 700; font-size: 15px; text-align: right;">${params.salary}</td>
+					<td style="padding: 8px 0; color: #059669; font-weight: 700; font-size: 15px; text-align: right;">${p.salary}</td>
 				</tr>
 				<tr style="border-bottom: 1px solid #f3f4f6;">
 					<td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Employment Type</td>
-					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${params.employmentType || "Full-Time"}</td>
+					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${p.employmentType || "Full-Time"}</td>
 				</tr>
 				<tr style="border-bottom: 1px solid #f3f4f6;">
 					<td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Work Mode / Location</td>
-					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${params.workLocation || "Remote"}</td>
+					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${p.workLocation || "Remote"}</td>
 				</tr>
 				<tr style="border-bottom: 1px solid #f3f4f6;">
 					<td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Reporting To</td>
-					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${params.reportingManager || "Department Head"}</td>
+					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${p.reportingManager || "Department Head"}</td>
 				</tr>
 				<tr style="border-bottom: 1px solid #f3f4f6;">
 					<td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Proposed Start Date</td>
-					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${params.startDate}</td>
+					<td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">${p.startDate}</td>
 				</tr>
-				${params.expiryDate ? `
+				${p.expiryDate ? `
 				<tr>
 					<td style="padding: 8px 0; color: #ef4444; font-weight: 500;">Offer Expiry Date</td>
-					<td style="padding: 8px 0; color: #ef4444; font-weight: 600; text-align: right;">${params.expiryDate}</td>
+					<td style="padding: 8px 0; color: #ef4444; font-weight: 600; text-align: right;">${p.expiryDate}</td>
 				</tr>
 				` : ""}
 			</table>
 		</div>
 
-		${params.benefitsSummary ? `
+		${p.benefitsSummary ? `
 			<div style="background: #f9fafb; border-radius: 8px; padding: 14px 16px; margin: 16px 0; font-size: 13px; color: #4b5563; border-left: 3px solid #6366f1;">
 				<strong style="color: #111827;">Benefits & Perks:</strong><br/>
-				${params.benefitsSummary.replace(/\n/g, '<br/>')}
+				${p.benefitsSummary.replace(/\n/g, '<br/>')}
 			</div>
 		` : ""}
 
-		${params.customNotes ? `
+		${p.customNotes ? `
 			<div style="background: #ffffff; border: 1px dashed #d1d5db; border-radius: 8px; padding: 14px 16px; margin: 16px 0; font-size: 13px; color: #374151;">
 				<strong style="color: #111827;">Personal Note from Hiring Team:</strong><br/>
-				${params.customNotes.replace(/\n/g, '<br/>')}
+				${p.customNotes.replace(/\n/g, '<br/>')}
 			</div>
 		` : ""}
 
@@ -456,7 +493,7 @@ export function getOfferLetterEmail(params: OfferLetterEmailParams): { subject: 
 		</p>
 
 		<div style="text-align: center; margin-top: 28px;">
-			<a href="${params.dashboardUrl}" class="btn" style="background: #0d0d0d; color: #ffffff; padding: 12px 28px; font-weight: 600; text-decoration: none; border-radius: 9999px; display: inline-block;">
+			<a href="${p.dashboardUrl}" class="btn" style="background: #0d0d0d; color: #ffffff; padding: 12px 28px; font-weight: 600; text-decoration: none; border-radius: 9999px; display: inline-block;">
 				Review & Accept Offer →
 			</a>
 		</div>
