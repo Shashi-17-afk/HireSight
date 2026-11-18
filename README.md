@@ -6,7 +6,7 @@ HireSight is an edge-native, full-lifecycle recruitment and applicant tracking s
 
 ---
 
-[![CI](https://img.shields.io/github/actions/workflow/status/Shashi-17-afk/Cloudflare_Hackathon/ci.yml?label=CI&style=flat-square)](https://github.com/Shashi-17-afk/Cloudflare_Hackathon/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/Shashi-17-afk/HireSight/ci.yml?label=CI&style=flat-square)](https://github.com/Shashi-17-afk/HireSight/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6366f1?style=flat-square)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-hiresight.workers.dev-10b981?style=flat-square)](https://hiresight.shashishanthan2706.workers.dev)
 
@@ -45,7 +45,7 @@ HireSight is an edge-native, full-lifecycle recruitment and applicant tracking s
 
 ### 7. 💬 In-App Recruiter ↔ Candidate Messaging
 - **Direct Recruiter Outreach**: HR can compose in-app messages linked to specific candidates or job applications.
-- **Candidate Inbox & Notification Center**: Real-time unread badge counts, message thread inspection, and automatic transactional email dispatch notifying the candidate of recruiter communications.
+- **Candidate Inbox & Notification Center**: Unread badge counts and message thread inspection. Recruiters can message candidates who applied to their jobs while logged in.
 
 ### 8. 👤 Candidate Self-Service Portal & Profile Completeness
 - **Profile Completeness Engine**: Candidates maintain contact details, headline, bio, experience years, skills, salary expectations, LinkedIn, GitHub, and portfolio links.
@@ -164,7 +164,7 @@ The database is built on Cloudflare D1 and partitioned across 6 structured SQL m
 
 ### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/Shashi-17-afk/Cloudflare_Hackathon.git hiresight
+git clone https://github.com/Shashi-17-afk/HireSight.git hiresight
 cd hiresight
 npm install
 ```
