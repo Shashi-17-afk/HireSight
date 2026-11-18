@@ -247,7 +247,7 @@ export function getOtpResetEmail(params: OtpResetParams): { subject: string; htm
 	const html = baseWrapper(`
 		<h2 style="font-size: 20px; margin-top: 0; color: #0d0d0d;">Password Reset Code 🔑</h2>
 		<p>Hi <strong>${p.userName || "there"}</strong>,</p>
-		<p>Use the following 4-digit verification code to reset your HireSight account password:</p>
+		<p>Use the following 6-digit verification code to reset your HireSight account password:</p>
 
 		<div style="text-align: center; margin: 28px 0;">
 			<div style="display: inline-block; background: #f4f4f0; border: 2px dashed #0d0d0d; border-radius: 16px; padding: 16px 36px; letter-spacing: 12px; font-size: 36px; font-weight: 800; font-family: monospace; color: #0d0d0d;">

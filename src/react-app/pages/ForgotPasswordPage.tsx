@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, KeyRound, Mail, Eye, EyeOff, ShieldCheck, RefreshCw } from "lucide-react";
 import Seo from "../components/Seo";
 
+const OTP_LENGTH = 6;
+
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
 
@@ -10,7 +12,7 @@ export default function ForgotPasswordPage() {
   const [step, setStep] = useState<"request" | "reset" | "success">("request");
 
   const [email, setEmail] = useState("");
-  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", ""]);
+  const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -22,13 +24,8 @@ export default function ForgotPasswordPage() {
   // Resend cooldown timer (in seconds)
   const [cooldown, setCooldown] = useState(0);
 
-  // Refs for the 4 OTP digit inputs
-  const inputRefs = [
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-  ];
+  // Refs for the OTP digit inputs
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]).current;
 
   // Cooldown countdown effect
   useEffect(() => {
@@ -43,7 +40,7 @@ export default function ForgotPasswordPage() {
   useEffect(() => {
     if (step === "reset") {
       setTimeout(() => {
-        inputRefs[0].current?.focus();
+        inputRefs[0]?.focus();
       }, 100);
     }
   }, [step]);
@@ -56,18 +53,18 @@ export default function ForgotPasswordPage() {
     const newDigits = [...otpDigits];
     
     if (cleanValue.length > 1) {
-      const chars = cleanValue.slice(0, 4).split("");
+      const chars = cleanValue.slice(0, OTP_LENGTH).split("");
       chars.forEach((ch, idx) => {
-        if (idx < 4) newDigits[idx] = ch;
+        if (idx < OTP_LENGTH) newDigits[idx] = ch;
       });
       setOtpDigits(newDigits);
-      const nextFocus = Math.min(chars.length, 3);
-      inputRefs[nextFocus].current?.focus();
+      const nextFocus = Math.min(chars.length, OTP_LENGTH - 1);
+      inputRefs[nextFocus]?.focus();
     } else {
       newDigits[index] = cleanValue;
       setOtpDigits(newDigits);
-      if (cleanValue && index < 3) {
-        inputRefs[index + 1].current?.focus();
+      if (cleanValue && index < OTP_LENGTH - 1) {
+        inputRefs[index + 1]?.focus();
       }
     }
   }
@@ -75,27 +72,27 @@ export default function ForgotPasswordPage() {
   function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Backspace") {
       if (!otpDigits[index] && index > 0) {
-        inputRefs[index - 1].current?.focus();
+        inputRefs[index - 1]?.focus();
       }
     }
   }
 
   function handlePaste(e: React.ClipboardEvent<HTMLInputElement>) {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
     if (!pastedData) return;
 
-    const newDigits = ["", "", "", ""];
+    const newDigits: string[] = Array(OTP_LENGTH).fill("");
     pastedData.split("").forEach((ch, idx) => {
       newDigits[idx] = ch;
     });
     setOtpDigits(newDigits);
 
-    const nextIndex = Math.min(pastedData.length, 3);
-    inputRefs[nextIndex].current?.focus();
+    const nextIndex = Math.min(pastedData.length, OTP_LENGTH - 1);
+    inputRefs[nextIndex]?.focus();
   }
 
-  // Step 1 Submit: Request 4-digit OTP code
+  // Step 1 Submit: Request 6-digit OTP code
   async function handleRequestOtp(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -150,10 +147,10 @@ export default function ForgotPasswordPage() {
         throw new Error(data.error ?? "Failed to resend verification code");
       }
 
-      setInfoMessage("A new 4-digit verification code has been sent to your email.");
-      setOtpDigits(["", "", "", ""]);
+      setInfoMessage("A new 6-digit verification code has been sent to your email.");
+      setOtpDigits(Array(OTP_LENGTH).fill(""));
       setCooldown(60);
-      setTimeout(() => inputRefs[0].current?.focus(), 100);
+      setTimeout(() => inputRefs[0]?.focus(), 100);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to resend code");
     } finally {
@@ -167,8 +164,8 @@ export default function ForgotPasswordPage() {
     setError("");
 
     const otpCode = otpDigits.join("");
-    if (otpCode.length !== 4) {
-      setError("Please enter the full 4-digit verification code.");
+    if (otpCode.length !== OTP_LENGTH) {
+      setError("Please enter the full 6-digit verification code.");
       return;
     }
 
@@ -257,7 +254,7 @@ export default function ForgotPasswordPage() {
                 Forgot Password?
               </h1>
               <p style={{ color: "var(--text-secondary)", fontSize: "0.92rem", lineHeight: "1.5" }}>
-                No worries! Enter your registered email address and we'll send you a <strong>4-digit OTP code</strong> to reset your password.
+                No worries! Enter your registered email address and we'll send you a <strong>6-digit OTP code</strong> to reset your password.
               </p>
             </div>
 
@@ -321,7 +318,7 @@ export default function ForgotPasswordPage() {
                 style={{ width: "100%" }}
                 disabled={loading}
               >
-                {loading ? "Sending Code..." : "Send 4-Digit Code"}
+                {loading ? "Sending Code..." : "Send 6-Digit Code"}
               </button>
             </form>
           </div>
@@ -349,7 +346,7 @@ export default function ForgotPasswordPage() {
                 Enter Verification Code
               </h1>
               <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
-                We sent a 4-digit code to <strong style={{ color: "var(--text-primary)" }}>{email}</strong>
+                We sent a 6-digit code to <strong style={{ color: "var(--text-primary)" }}>{email}</strong>
               </p>
             </div>
 
@@ -372,7 +369,7 @@ export default function ForgotPasswordPage() {
             )}
 
             <form onSubmit={(e) => void handleResetPassword(e)}>
-              {/* 4-Digit OTP Boxes */}
+              {/* 6-Digit OTP Boxes */}
               <div style={{ marginBottom: "1.75rem" }}>
                 <label
                   style={{
@@ -384,19 +381,19 @@ export default function ForgotPasswordPage() {
                     textAlign: "center",
                   }}
                 >
-                  4-Digit OTP Code
+                  6-Digit OTP Code
                 </label>
                 <div
                   style={{
                     display: "flex",
                     justifyContent: "center",
-                    gap: "0.75rem",
+                    gap: "0.5rem",
                   }}
                 >
                   {otpDigits.map((digit, idx) => (
                     <input
                       key={idx}
-                      ref={inputRefs[idx]}
+                      ref={(el) => { inputRefs[idx] = el; }}
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"
@@ -406,8 +403,10 @@ export default function ForgotPasswordPage() {
                       onKeyDown={(e) => handleKeyDown(idx, e)}
                       onPaste={handlePaste}
                       style={{
-                        width: "60px",
-                        height: "64px",
+                        flex: "1 1 0",
+                        minWidth: 0,
+                        maxWidth: "56px",
+                        height: "60px",
                         fontSize: "1.75rem",
                         fontWeight: 800,
                         textAlign: "center",
