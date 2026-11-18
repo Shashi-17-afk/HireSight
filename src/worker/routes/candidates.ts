@@ -145,16 +145,19 @@ candidates.post("/", async (c) => {
 
   // Fetch the job + recruiter info from D1
   const job = await c.env.DB.prepare(
-    `SELECT j.id, j.title, j.description, j.user_id, u.name AS recruiter_name, u.email AS recruiter_email
+    `SELECT j.id, j.title, j.description, j.status, j.user_id, u.name AS recruiter_name, u.email AS recruiter_email
      FROM jobs j
      LEFT JOIN users u ON u.id = j.user_id
      WHERE j.id = ?`
   )
     .bind(body.job_id)
-    .first<{ id: string; title: string; description: string; user_id: string | null; recruiter_name: string | null; recruiter_email: string | null }>();
+    .first<{ id: string; title: string; description: string; status: string; user_id: string | null; recruiter_name: string | null; recruiter_email: string | null }>();
 
   if (!job) {
     return c.json({ error: "Job not found" }, 404);
+  }
+  if (job.status !== "open") {
+    return c.json({ error: "This job is no longer accepting applications." }, 409);
   }
 
   const candidateId = crypto.randomUUID();
